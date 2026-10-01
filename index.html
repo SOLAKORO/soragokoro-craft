@@ -263,6 +263,18 @@ body.tutOn.touch #infocard{top:calc(250px + var(--sat))}
 #title .tchr .tbox{display:flex;flex-direction:column;gap:6px;align-items:center;margin-top:6px}
 #title .tchr input{width:100%;box-sizing:border-box;font-size:13px;padding:6px 8px;border:2px solid #bcd6ff;border-radius:10px}
 
+/* まいにち チャレンジ */
+#dailyChip{position:absolute;left:50%;transform:translateX(-50%);top:calc(92px + var(--sat));max-width:min(92vw,520px);padding:3px 11px;border-radius:12px;
+ background:rgba(255,248,225,.92);border:2px solid #fff;box-shadow:var(--shadow);font-size:12px;font-weight:700;text-align:center;line-height:1.7;display:none;cursor:pointer;z-index:3}
+#dailyChip b{color:#c2410c}#dailyChip.done{background:#dcfce7}
+.dtask{display:flex;gap:12px;align-items:center;background:#fff8e1;border:2px solid #ffe08a;border-radius:14px;padding:10px 12px}
+.dtask .dic{font-size:34px}.dbar{height:12px;background:#e5e7eb;border-radius:8px;margin:6px 0 2px;overflow:hidden;min-width:160px}
+.dbar i{display:block;height:100%;background:linear-gradient(90deg,#fbbf24,#f97316);border-radius:8px}
+.dstreak{margin:10px 0;font-weight:800;text-align:center}
+.dcal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.dcell{background:#f3f4f6;border-radius:8px;text-align:center;padding:2px 0;font-size:16px;line-height:1.5}
+.dcell small{display:block;font-size:10px;color:#6b7280}.dcell.on{background:#fef3c7}.dcell.today{outline:2px solid #3b82f6}
+
 </style>
 </head>
 <body>
@@ -279,6 +291,7 @@ body.tutOn.touch #infocard{top:calc(250px + var(--sat))}
     </div>
     <button class="hbtn" id="menuBtn"><span class="ic">⚙️</span><span data-t="メニュー"></span></button>
     <div id="missionChip"></div>
+    <div id="dailyChip"></div>
     <div id="infocard"></div>
     <div id="toast"></div>
     <div id="hint"></div>
@@ -1930,7 +1943,7 @@ function openParent() {
   const total = activeMissions().length;
   const learned = PLACEABLE.filter(id => G.zukan[id]).map(id => T(BLOCKS[id].name)).join('、') || '—';
   const madeList = RECIPES.filter(r => G.made[r.key]).map(r => T(BLOCKS[r.out()].name)).join('、') || '—';
-  const html = '<p class="note">' + T('この{記録|きろく}は、この{端末|たんまつ}の ブラウザに ほぞんされます。 ログインした ときは、なまえと すすみぐあいを そらごころの せんせいの しゅうけいひょうにも おくります。 パスワードは ほぞんも そうしんも しません。') + '</p>' +
+  const html = '<p class="note">' + T('この{記録|きろく}は、この{端末|たんまつ}の ブラウザに ほぞんされます。 ログインした ときは、なまえと すすみぐあいと、つくった せかいを そらごころの サーバーに あずかります(べつの たんまつでも つづきから あそべます)。 ミッションなどの ポイントは、そらごころテストの ポイントに たされます。 パスワードは ほぞんも そうしんも しません。') + '</p>' +
     '<table style="width:100%;border-collapse:collapse;font-size:15px">' +
     row(T('ミッション'), done + ' / ' + total + ' (⭐' + G.stars + ')') +
     row(T('{図鑑|ずかん}'), z + ' / ' + PLACEABLE.length) +
@@ -2020,6 +2033,7 @@ function buildPayload(reason) {
   return {
     app: 'soragokoro-craft', v: 1, reason: reason || 'auto',
     id: p.id, name: p.name, grade: p.grade, token: p.token,
+    dailyStreak: typeof dailyStreakNow === 'function' ? dailyStreakNow() : 0, dailyDays: G.daily ? (G.daily.total || 0) : 0,
     level: G.level, stars: G.stars,
     cleared: MISSIONS.filter((m, i) => i < G.missionIndex && (!m.minLevel || G.level >= m.minLevel)).length,
     total: activeMissions().length,
@@ -2122,16 +2136,23 @@ function doLogin(id, pw) {
       clearTimeout(timer); loginBusy = false;
       if (!r || !r.ok || !r.token) { loginMsg = (r && r.error) || 'server'; if (loginMsg === 'ok') loginMsg = 'badresp'; loginDetail = String((r && r.detail) || '').slice(0, 120); loginNetErr = false; renderTitle(); return false; }
       savePlayer({ id: String(r.id), name: String(r.name), grade: String(r.grade || ''), auth: true, token: String(r.token), exp: +r.exp || 0 });
-      const had = loadUserWorld();
-      if (!had && r.level >= 1 && r.level <= 3) G.level = r.level;
-      loginMsg = ''; loginNetErr = false;
-      renderAllText(); renderTitle(); saveSoon();
-      return true;
+      loginBusy = true; loginMsg = ''; renderTitle();
+      // サーバーに あずけた せかいが あたらしければ、それを つかう
+      return (typeof cloudPull === 'function' ? cloudPull() : Promise.resolve(false)).catch(() => false).then(() => {
+        loginBusy = false;
+        const had = loadUserWorld();
+        if (!had && r.level >= 1 && r.level <= 3) G.level = r.level;
+        loginMsg = ''; loginNetErr = false;
+        if (typeof earnLoad === 'function') { earnLoad(); earnFlush(); }
+        renderAllText(); renderTitle(); saveSoon();
+        return true;
+      });
     })
     .catch(() => { clearTimeout(timer); loginBusy = false; loginMsg = 'net'; loginNetErr = true; renderTitle(); return false; });
 }
 function doLogout() {
   if (G.started) saveNow();
+  if (typeof cloudSave === 'function') cloudSave(true); // ログアウトする前に あずける
   savePlayer({ id: '', name: '', grade: '', auth: false, token: '', exp: 0 });
   loadUserWorld();
   G.guest = false; loginMsg = '';
@@ -2351,6 +2372,236 @@ function tutorialTick(dt) {
   }
 }
 document.addEventListener('pointerdown', e => { if (TUT.on && e.target && e.target.id === 'gl') TUT.clicked = true; }, true);
+
+// ===== 06e-cloud.js =====
+// ---------- クラウドセーブ と ポイント ----------
+// ログインしている子の せかいを サーバー(集計表の うら)に あずけて、どの たんまつでも つづきから あそべる ようにする。
+// ミッションクリア・きょうのチャレンジで もらえるポイントも ここから おくる。
+const CLOUD_EVERY = 45;     // 秒ごとに かわっていたら あずける
+let cloudBusy = false, cloudSig = '', cloudAcc = 0, cloudTooBig = false;
+
+function cloudOn() { const p = loadPlayer(); return loginMode() && p.auth && !!p.token && !!getSyncUrl(); }
+
+// この かたまりが かわったら「あたらしい ほぞん」と みなす(時間だけでは かえない)
+function saveSig() {
+  let prog = 0;
+  try { prog = typeof programSave === 'function' ? JSON.stringify(programSave() || '').length : 0; } catch (e) { prog = 0; }
+  const c = G.counters;
+  return [world.edits.size, G.stars, G.missionIndex, Object.keys(c).reduce((a, k) => a + (+c[k] || 0), 0),
+    Object.keys(G.zukan).length, Object.keys(G.made).length, G.level, prog, G.daily ? (G.daily.done ? 1 : 0) + ':' + (G.daily.stamps || []).length : ''].join('|');
+}
+
+function cloudPost(player, body, ms) {
+  const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = setTimeout(() => { if (ctl) ctl.abort(); }, ms || 15000);
+  return fetch(getSyncUrl(), { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, signal: ctl ? ctl.signal : undefined,
+    body: JSON.stringify(Object.assign({ app: 'soragokoro-craft', id: player.id, token: player.token }, body)) })
+    .then(r => r.text())
+    .then(t => { clearTimeout(timer); try { return JSON.parse(t); } catch (e) { return null; } })
+    .catch(() => { clearTimeout(timer); return null; });
+}
+
+function b64enc(bytes) { let s = ''; for (let i = 0; i < bytes.length; i += 8192) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192)); return btoa(s); }
+function b64dec(str) { const s = atob(str), a = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; }
+async function streamBytes(bytes, stream) {
+  const w = stream.writable.getWriter(); w.write(bytes); w.close();
+  return new Uint8Array(await new Response(stream.readable).arrayBuffer());
+}
+async function packStr(s) {
+  try {
+    if (typeof CompressionStream === 'function') {
+      const z = await streamBytes(new TextEncoder().encode(s), new CompressionStream('gzip'));
+      return 'z:' + b64enc(z);
+    }
+  } catch (e) { /* そのまま おくる */ }
+  return 'r:' + s;
+}
+async function unpackStr(s) {
+  if (s.slice(0, 2) === 'r:') return s.slice(2);
+  if (s.slice(0, 2) === 'z:') {
+    const raw = await streamBytes(b64dec(s.slice(2)), new DecompressionStream('gzip'));
+    return new TextDecoder().decode(raw);
+  }
+  return '';
+}
+
+// あずける。force=true は ログアウトなど(かわって いなくても おくる)
+async function cloudSave(force) {
+  if (!cloudOn() || cloudBusy) return false;
+  const sig = saveSig();
+  if (!force && sig === cloudSig) return false;
+  const p = loadPlayer(); // いまの ユーザー(あとで ログアウトされても この人の分として おくる)
+  let s;
+  try { s = JSON.stringify(collectSave()); } catch (e) { return false; }
+  const ts = G.saveTs || Date.now();
+  cloudBusy = true;
+  try {
+    const packed = await packStr(s);
+    if (packed.length > 580000) { cloudTooBig = true; return false; }
+    const r = await cloudPost(p, { action: 'save', ts: ts, data: packed }, 20000);
+    if (r && r.ok) { cloudSig = sig; return true; }
+    return false;
+  } finally { cloudBusy = false; }
+}
+
+// よみこむ。サーバーの ほうが あたらしければ、この たんまつの ほぞんを おきかえる。
+async function cloudPull() {
+  if (!cloudOn()) return false;
+  const p = loadPlayer();
+  const r = await cloudPost(p, { action: 'load' }, 9000);
+  if (!r || !r.ok || !r.data) return false;
+  let local = null;
+  try { local = readSave(); } catch (e) { local = null; }
+  if ((+r.ts || 0) <= ((local && local.ts) || 0)) return false;
+  try {
+    const s = await unpackStr(r.data);
+    const d = JSON.parse(s);
+    if (!d || d.v !== 1) return false;
+    memSaves[saveKey()] = s;
+    try { localStorage.setItem(saveKey(), s); } catch (e) { /* メモリに のこす */ }
+    cloudSig = '';
+    return true;
+  } catch (e) { return false; }
+}
+
+// ひらいた ままで ログインずみの とき(つづきから)
+function cloudBoot() {
+  earnLoad(); earnFlush();
+  if (!cloudOn()) return;
+  cloudPull().then(applied => {
+    if (applied && !G.started) { loadUserWorld(); renderTitle(); }
+  });
+}
+
+function cloudTick(dt) {
+  cloudAcc += dt;
+  if (cloudAcc < CLOUD_EVERY) return;
+  cloudAcc = 0;
+  if (G.started && cloudOn()) { saveNow(); cloudSave(false); earnFlush(); }
+}
+
+// ---------- ポイント(そらごころテストの ポイントに たす) ----------
+const EARN_KEY = 'blocklab-earn-v1';
+let earnQ = [], earnBusy = false;
+function earnStoreKey() { return EARN_KEY + userKeySuffix(); }
+function earnLoad() {
+  try { const a = JSON.parse(localStorage.getItem(earnStoreKey()) || '[]'); earnQ = Array.isArray(a) ? a.filter(x => x && x.kind && x.key) : []; } catch (e) { earnQ = []; }
+}
+function earnSave() { try { localStorage.setItem(earnStoreKey(), JSON.stringify(earnQ)); } catch (e) { /* 何もしない */ } }
+function earnEnqueue(kind, key) {
+  if (!cloudOn()) return;
+  if (!earnQ.some(x => x.kind === kind && x.key === key)) { earnQ.push({ kind: kind, key: key }); earnSave(); }
+  earnFlush();
+}
+function earnFlush() {
+  if (earnBusy || !earnQ.length || !cloudOn()) return;
+  earnBusy = true;
+  const it = earnQ[0], p = loadPlayer();
+  cloudPost(p, { action: 'earn', kind: it.kind, key: it.key }, 15000).then(r => {
+    earnBusy = false;
+    if (r && r.ok) {
+      earnQ.shift(); earnSave();
+      if (r.added > 0) { toast('🪙 +' + r.added + ' ' + T('ポイント！ そらごころテストで つかえるよ')); G.pointsGot = (G.pointsGot || 0) + r.added; }
+      if (earnQ.length) setTimeout(earnFlush, 400);
+    } else if (r && ['bad', 'date', 'noid'].indexOf(r.error) >= 0) {
+      earnQ.shift(); earnSave(); // もらえない ものは あきらめる
+      if (earnQ.length) setTimeout(earnFlush, 400);
+    } // それいがい(ネットなど)は のこして、あとで もういちど
+  });
+}
+
+// ===== 06f-daily.js =====
+// ---------- まいにち チャレンジ ----------
+// ひづけ(にっぽん時間)で 1つ きまる。みんなで おなじ。クリアすると スタンプ + ポイント。
+const DAILY_POOL = [
+  { id: 'place', icon: '🧱', n: l => l === 1 ? 15 : 30, text: n => 'ブロックを ' + n + 'こ おこう', get: () => G.counters.placed },
+  { id: 'break', icon: '⛏', n: l => l === 1 ? 15 : 30, text: n => 'ブロックを ' + n + 'こ こわそう', get: () => G.counters.broken },
+  { id: 'inspect', icon: '🔍', n: l => l === 1 ? 3 : 6, text: n => 'ブロックを ' + n + 'かい しらべよう', get: () => G.counters.inspected },
+  { id: 'zukan', icon: '📖', n: l => l === 1 ? 1 : 2, text: n => '{図鑑|ずかん}に あたらしい ブロックを ' + n + 'こ ふやそう', get: () => Object.keys(G.zukan).length },
+  { id: 'run', icon: '🤖', n: l => l === 1 ? 1 : 2, text: n => 'ロボットの プログラムを ' + n + 'かい うごかそう', get: () => G.counters.runs },
+  { id: 'rplace', icon: '🤖', n: l => l === 1 ? 5 : 10, text: n => 'ロボットに ブロックを ' + n + 'こ おかせよう', get: () => G.counters.robotPlaced },
+  { id: 'lab', icon: '🧪', n: () => 1, text: n => '{実験|じっけん}で なにかを ' + n + 'つ つくろう', get: () => G.counters.labMade },
+  { id: 'ask', icon: '🎓', n: () => 1, text: n => 'せんせいに ' + n + 'かい {質問|しつもん}しよう', get: () => G.counters.asked }
+];
+const DAILY_KEYS = ['placed', 'broken', 'inspected', 'runs', 'robotPlaced', 'labMade', 'asked'];
+let dailyAcc = 0;
+
+function jstToday() { return new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10); }
+function jstYesterday() { return new Date(Date.now() + 9 * 3600000 - 86400000).toISOString().slice(0, 10); }
+function dailyHash(s) { let h = 7; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
+function dailyBase() {
+  const b = {}; DAILY_KEYS.forEach(k => { b[k] = +G.counters[k] || 0; }); b.zukan = Object.keys(G.zukan).length; return b;
+}
+function dailyDef() { return DAILY_POOL[dailyHash(G.daily.date) % DAILY_POOL.length]; }
+function dailyGot(def) {
+  const b = G.daily.base || {};
+  const key = { place: 'placed', break: 'broken', inspect: 'inspected', zukan: 'zukan', run: 'runs', rplace: 'robotPlaced', lab: 'labMade', ask: 'asked' }[def.id];
+  return Math.max(0, def.get() - (+b[key] || 0));
+}
+function dailyEnsure() {
+  const t = jstToday();
+  if (G.daily && G.daily.date === t) return;
+  const old = G.daily || {};
+  G.daily = { date: t, base: dailyBase(), done: false, streak: old.streak || 0, lastDone: old.lastDone || '', total: old.total || 0, stamps: old.stamps || [] };
+}
+// いま ひょうじ する れんぞく にっすう(きのうまで つづいて いなければ 0)
+function dailyStreakNow() {
+  const d = G.daily; if (!d) return 0;
+  return (d.lastDone === jstToday() || d.lastDone === jstYesterday()) ? (d.streak || 0) : 0;
+}
+function dailyTick(dt) {
+  dailyAcc += dt;
+  if (dailyAcc < 0.5) return;
+  dailyAcc = 0;
+  if (!G.started) { const e = $('dailyChip'); if (e && e.style.display !== 'none') e.style.display = 'none'; return; }
+  dailyEnsure();
+  const mc = $('missionChip'), dc = $('dailyChip');
+  if (mc && dc && mc.style.display !== 'none') { const y = mc.offsetTop + mc.offsetHeight + 4; if (dc.dataset.y !== String(y)) { dc.dataset.y = String(y); dc.style.top = y + 'px'; } }
+  const prev = $('dailyChip') ? $('dailyChip').dataset.k : '';
+  const def = dailyDef(), n = def.n(G.level), got = Math.min(dailyGot(def), n);
+  if (!G.daily.done && dailyGot(def) >= n) dailyComplete();
+  const k = G.daily.date + def.id + got + G.daily.done + G.level;
+  if (k !== prev) renderDailyChip(k);
+}
+function dailyComplete() {
+  const d = G.daily; if (d.done) return;
+  d.done = true;
+  d.streak = d.lastDone === jstYesterday() ? (d.streak || 0) + 1 : 1;
+  d.lastDone = d.date;
+  d.total = (d.total || 0) + 1;
+  d.stamps = (d.stamps || []).concat(d.date).slice(-60);
+  toast('📅 ' + T('きょうの チャレンジ クリア！') + (d.streak > 1 ? ' 🔥' + d.streak + T('{日|にち}れんぞく！') : ''));
+  playSound('win');
+  saveNow(); saveSoon();
+  if (typeof syncReady === 'function' && syncReady()) syncSend('daily');
+  if (typeof earnEnqueue === 'function') earnEnqueue('daily', d.date);
+  if (G.modal === 'daily') openDaily();
+}
+function renderDailyChip(k) {
+  const el = $('dailyChip'); if (!el) return;
+  if (!G.started || !G.daily) { el.style.display = 'none'; return; }
+  const def = dailyDef(), n = def.n(G.level), got = Math.min(dailyGot(def), n);
+  el.style.display = 'block'; el.dataset.k = k || '';
+  el.className = G.daily.done ? 'done' : '';
+  el.onclick = () => openDaily();
+  el.innerHTML = G.daily.done
+    ? '📅 ✅ ' + T('きょうの チャレンジ クリア！')
+    : '📅 ' + def.icon + ' ' + T(def.text(n)) + ' <b>' + got + '/' + n + '</b>';
+}
+function openDaily() {
+  dailyEnsure();
+  const d = G.daily, def = dailyDef(), n = def.n(G.level), got = Math.min(dailyGot(def), n);
+  const days = []; for (let i = 13; i >= 0; i--) days.push(new Date(Date.now() + 9 * 3600000 - i * 86400000).toISOString().slice(0, 10));
+  const set = {}; (d.stamps || []).forEach(x => { set[x] = 1; });
+  const cal = days.map(x => '<div class="dcell' + (set[x] ? ' on' : '') + (x === d.date ? ' today' : '') + '"><small>' + (+x.slice(5, 7)) + '/' + (+x.slice(8, 10)) + '</small>' + (set[x] ? '⭐' : '·') + '</div>').join('');
+  const pts = typeof cloudOn === 'function' && cloudOn() ? '<p class="note">🪙 ' + T('クリアすると そらごころテストの ポイントが もらえるよ(1にちに 1かいだけ)') + '</p>' : '';
+  const html = '<div class="dtask"><div class="dic">' + def.icon + '</div><div><b>' + T(def.text(n)) + '</b>' +
+    '<div class="dbar"><i style="width:' + Math.round(got / n * 100) + '%"></i></div><small>' + got + ' / ' + n + (d.done ? ' ✅' : '') + '</small></div></div>' +
+    '<div class="dstreak">🔥 ' + T('れんぞく') + ' <b>' + dailyStreakNow() + '</b> ' + T('{日|にち}') + ' ／ ⭐ ' + T('ぜんぶで') + ' <b>' + (d.total || 0) + '</b> ' + T('{日|にち}') + '</div>' +
+    '<h4>' + T('スタンプ(さいきん2しゅうかん)') + '</h4><div class="dcal">' + cal + '</div>' + pts +
+    '<p class="note">' + T('チャレンジは まいにち ちがうよ。あしたも あそびにきてね！') + '</p>';
+  openModal('📅 ' + T('きょうの チャレンジ'), html, 'daily');
+}
 
 // ===== 07-robot.js =====
 // ---------- ロボット(ゴーレム) ----------
@@ -3118,7 +3369,7 @@ function saveSoon() {
 }
 function collectSave() {
   return {
-    v: 1, seed: world.seed, level: G.level, ctrl: G.ctrl, sound: G.sound,
+    v: 1, ts: G.saveTs || 0, daily: G.daily || null, seed: world.seed, level: G.level, ctrl: G.ctrl, sound: G.sound,
     hotbar: G.hotbar, slot: G.slot, zukan: G.zukan, made: G.made, counters: G.counters,
     missionIndex: G.missionIndex, stars: G.stars, playSec: Math.round(G.playSec || 0), mBase: G.mBase, introDone: !!G.introDone,
     player: { x: P.x, y: P.y, z: P.z, yaw: P.yaw, pitch: P.pitch },
@@ -3129,6 +3380,8 @@ function collectSave() {
 }
 function saveNow() {
   let s;
+  // ほんとうに かわった ときだけ「あたらしい ほぞん」の じかんに する
+  try { const sg = saveSig(); if (sg !== G.saveSigNow) { G.saveSigNow = sg; G.saveTs = Date.now(); } } catch (e) { /* 何もしない */ }
   try { s = JSON.stringify(collectSave()); } catch (e) { return false; }
   memSaves[saveKey()] = s;
   try { localStorage.setItem(saveKey(), s); return true; } catch (e) { return false; }
@@ -3162,6 +3415,8 @@ function applySave(d) {
   }
   world.pendingRobot = d.robot || null;
   world.pendingProgram = d.program || null;
+  G.daily = d.daily && d.daily.date ? d.daily : null;
+  G.saveTs = +d.ts || 0;
 }
 function resetAll() {
   try { localStorage.removeItem(saveKey()); } catch (e) { /* 何もしない */ }
@@ -3171,6 +3426,7 @@ function resetAll() {
   Object.keys(G.counters).forEach(k => { G.counters[k] = 0; });
   G.hotbar = [B.GRASS, B.DIRT, B.STONE, B.PLANKS, B.BRICK, B.GLASS, B.LOG, B.SAND, B.LEAVES];
   G.slot = 0;
+  if (G.daily && G.daily.base) Object.keys(G.daily.base).forEach(k => { G.daily.base[k] = 0; });
   genWorld(world.seed);
   markAllDirty(); flushDirty();
   respawn();
@@ -3190,6 +3446,7 @@ function loadUserWorld() {
   G.hotbar = [B.GRASS, B.DIRT, B.STONE, B.PLANKS, B.BRICK, B.GLASS, B.LOG, B.SAND, B.LEAVES];
   G.slot = 0;
   world.pendingRobot = null; world.pendingProgram = null;
+  G.daily = null; G.saveTs = 0;
   respawn();
   if (typeof robotReset === 'function') robotReset();
   if (typeof programReset === 'function') programReset();
@@ -3200,6 +3457,7 @@ function loadUserWorld() {
   if (!G.mBase) snapshotBase();
   robotInit();
   if (world.pendingProgram) restoreProgram(world.pendingProgram);
+  try { G.saveSigNow = saveSig(); } catch (e) { /* 何もしない */ }
   renderHotbar(); renderMissionChip(); closeInfo();
   return !!d;
 }
@@ -3321,6 +3579,7 @@ function completeMission(m) {
   playSound('win');
   saveSoon();
   if (typeof syncReady === 'function' && syncReady()) syncSend('clear');
+  if (typeof earnEnqueue === 'function') earnEnqueue('mission', 'm' + MISSIONS.indexOf(m));
 }
 function showClear(m) {
   let el = $('clear');
@@ -3855,6 +4114,8 @@ function update(dt) {
   G.time += dt;
   if (typeof syncTick === 'function') syncTick(dt);
   if (typeof tutorialTick === 'function') tutorialTick(dt);
+  if (typeof cloudTick === 'function') cloudTick(dt);
+  if (typeof dailyTick === 'function') dailyTick(dt);
   pollKeyboard();
   handleHold(dt);
   const paused = !!G.modal || !G.started;
@@ -3911,15 +4172,17 @@ function boot() {
   if (!G.mBase) snapshotBase();
   robotInit();
   if (world.pendingProgram) restoreProgram(world.pendingProgram);
+  try { G.saveSigNow = saveSig(); } catch (e) { /* 何もしない */ }
   setupInput(canvasEl);
   setupUI();
   applyControlMode();
   renderHotbar();
   renderMissionChip();
   renderTitle();
+  if (typeof cloudBoot === 'function') cloudBoot();
   window.addEventListener('resize', applyControlMode);
   window.addEventListener('beforeunload', saveNow);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { saveNow(); if (typeof cloudSave === 'function') cloudSave(false); } });
   window.addEventListener('error', e => reportError(e.error || e.message));
   requestAnimationFrame(loop);
   window.__ready = true;
@@ -3944,6 +4207,7 @@ Object.assign(window.__game, {
   openProgram, openZukan, openLab, openTeacher, openMissions, openMenu, openInventory, closeModal, setLevel, startGame,
   showTitle, setBlock, getB, solidAt, checkMissions, currentMission, MISSIONS, FAQ, RECIPES, PLACEABLE, resetAll, saveNow,
   readSave, respawn, renderProgram, showBlockInfo, raycast, genWorld, markAllDirty, flushDirty, addCard, execNodes, astFeatures,
+  cloudSave, cloudPull, saveSig, openDaily, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
   startTutorial, endTutorial, tutGoto: i => { TUT.i = i; tutInitStep(); }, tutState: () => ({ on: TUT.on, i: TUT.i, n: TUT.steps.length, doneAt: TUT.doneAt }), tutSeen, findNode, progState: () => ({ target: progTarget }), collectDefs, setBarMode, dirtyChunks
 });
 
