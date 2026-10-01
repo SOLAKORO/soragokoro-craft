@@ -7,6 +7,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#3b82f6">
 <title>そらごころクラフト</title>
+<script>window.CRAFT_CONFIG = window.CRAFT_CONFIG || { syncUrl: "https://script.google.com/macros/s/AKfycbyTLLQhfv1DuQ7IsXZsXGoUikWx45Ya1iFizPzKoD8dtjwqJTc50A2MwIMrIMBt3yF5Tw/exec" };</script>
+
 <style>
 :root{
   --ink:#27324a; --ink2:#55627f; --panel:#ffffffee; --panel2:#f3f7ff;
@@ -223,6 +225,43 @@ body.touch #infocard{left:calc(8px + var(--sal));transform:none;width:min(calc(1
 #title .profile label{display:flex;flex-direction:column;align-items:flex-start;font-size:12px;font-weight:800;color:#3a5a8a;gap:2px}
 #title .profile input,#title .profile select{font-size:16px;padding:6px 8px;border:2px solid #bcd6ff;border-radius:10px;width:118px;box-sizing:border-box;background:#fff;font-family:inherit}
 #title .profile input,#title .profile select{width:min(118px,28vw)}
+/* チュートリアル */
+#tutorial{display:none;position:absolute;left:50%;transform:translateX(-50%);bottom:calc(96px + var(--sab));width:min(92vw,540px);box-sizing:border-box;
+  background:#fff;border:4px solid #3b82f6;border-radius:20px;box-shadow:0 6px 0 #1d4ed8,0 10px 24px rgba(20,40,90,.35);padding:10px 14px 8px;z-index:30;pointer-events:none}
+#tutorial.on{display:block}
+#tutorial.ok{border-color:#16a34a;box-shadow:0 6px 0 #15803d,0 10px 24px rgba(20,40,90,.35);background:#f0fdf4}
+#tutorial .tcount{font-size:12px;font-weight:800;color:#1d4ed8}
+#tutorial .trow{display:flex;gap:10px;align-items:center;margin:2px 0 4px}
+#tutorial .tic{font-size:34px;flex:none}
+#tutorial .tt{font-size:clamp(15px,3.6vw,19px);font-weight:900;color:#12285a;line-height:1.7}
+#tutorial .tbody{font-size:clamp(12px,3vw,14px);color:#3a4a6a;line-height:1.9;font-weight:600}
+#tutorial kbd{display:inline-block;min-width:1.5em;text-align:center;padding:0 7px;margin:0 2px;border:2px solid #1d4ed8;border-bottom-width:4px;border-radius:8px;background:#eef4ff;font:inherit;font-weight:900;color:#1d4ed8;line-height:1.35}
+#tutorial .tdots{display:flex;gap:4px;margin:2px 0 4px}
+#tutorial .tdots i{flex:1;height:6px;border-radius:3px;background:#dbe6fb}
+#tutorial .tdots i.d{background:#16a34a}
+#tutorial .tdots i.n{background:#3b82f6}
+#tutorial .tbtns{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:28px}
+#tutorial button{pointer-events:auto}
+#tutorial .tskip{margin-left:auto;border:none;background:transparent;color:#6b7a99;font-size:12px;font-weight:700;text-decoration:underline;padding:4px 6px}
+body.touch #tutorial,#tutorial.touch{bottom:auto;top:calc(112px + var(--sat));padding:6px 12px 6px}
+body.touch #tutorial .tic{font-size:28px}
+body.tutOn.touch #infocard{top:calc(250px + var(--sat))}
+.tutPulse{animation:tutPulse 1s ease-in-out infinite;position:relative;z-index:31}
+@keyframes tutPulse{0%,100%{box-shadow:0 0 0 0 rgba(59,130,246,.9)}50%{box-shadow:0 0 0 12px rgba(59,130,246,0)}}
+/* ログイン */
+#title .login{margin:8px 0 2px}
+#title .login .lhead,#title .welcome{font-weight:800;margin-bottom:6px}
+#title .welcome{font-size:clamp(18px,4.4vw,24px);color:#12285a;margin:6px 0 10px}
+#title .lrow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+#title .lrow label{display:flex;flex-direction:column;align-items:flex-start;font-size:12px;font-weight:800;color:#3a5a8a;gap:2px}
+#title .lrow input{font-size:18px;padding:8px 10px;border:3px solid #bcd6ff;border-radius:12px;width:min(150px,40vw);box-sizing:border-box;background:#fff;font-family:inherit}
+#title .lmsg{margin:8px 0 0;color:#b91c1c;font-weight:800;font-size:14px;line-height:1.7}
+#title .login .go{margin-top:10px}
+#title .tlink{display:block;margin:8px auto 0;border:none;background:none;color:#4b6aa8;text-decoration:underline;font-size:13px;font-weight:700;font-family:inherit;padding:6px}
+#title .tchr{margin-top:8px;font-size:12px;color:#6b7a99}
+#title .tchr summary{cursor:pointer;text-align:center;list-style:none;opacity:.7}
+#title .tchr .tbox{display:flex;flex-direction:column;gap:6px;align-items:center;margin-top:6px}
+#title .tchr input{width:100%;box-sizing:border-box;font-size:13px;padding:6px 8px;border:2px solid #bcd6ff;border-radius:10px}
 
 </style>
 </head>
@@ -1790,6 +1829,8 @@ function openMenu() {
     (touchActive() ?
       T('{左|ひだり}の{画面|がめん}をなぞる: あるく ／ {右|みぎ}の{画面|がめん}をなぞる: まわりを{見|み}る<br>⛏こわす ・ 🧱おく ・ 🔍しらべる ・ 🕊とぶ') :
       T('WASD: あるく ／ マウス: まわりを{見|み}る ／ {左|ひだり}クリック: こわす ／ {右|みぎ}クリック: おく<br>Space: ジャンプ(2{回|かい}で とぶ) ／ Q: しらべる ／ 1〜9: ブロックを{選|えら}ぶ ／ E: もちもの ／ Z: {図鑑|ずかん} ／ P: ロボット')) + '</div>' +
+    '<div style="margin-top:8px"><button class="btn sub" id="mTut">🎓 ' + T('そうさの れんしゅう') + '</button>' +
+    (loadPlayer().auth ? ' <button class="btn sub" id="mOut">🔄 ' + T('べつの ひとが あそぶ') + '</button>' : '') + '</div>' +
     '<h4>' + T('おうちの ひとへ') + '</h4><div class="seg"><button class="btn sub" id="mParent">👪 ' + T('がくしゅうの きろく') + '</button></div>' +
     '<h4>' + T('ワールド') + '</h4><div class="seg">' +
     '<button class="btn sub" id="mTitle">🏠 ' + T('はじめの{画面|がめん}') + '</button>' +
@@ -1801,6 +1842,8 @@ function openMenu() {
   body.querySelectorAll('#mCtl .btn').forEach(b => b.addEventListener('click', () => { G.ctrl = b.dataset.c; applyControlMode(); openMenu(); }));
   $('mSnd').onclick = () => { G.sound = !G.sound; openMenu(); };
   $('mHome').onclick = () => { respawn(); closeModal(); };
+  $('mTut').onclick = () => { closeModal(); startTutorial(); };
+  if ($('mOut')) $('mOut').onclick = () => { closeModal(); doLogout(); };
   $('mParent').onclick = () => openParent();
   $('mTitle').onclick = () => { closeModal(); showTitle(); };
   $('mReset').onclick = () => {
@@ -1841,17 +1884,25 @@ function updateFlyButton() {
 // ---------- タイトル ----------
 function renderTitle() {
   const el = $('title');
-  el.innerHTML = '<div class="box">' + logoHTML() +
-    '<p class="sub">' + T('ブロックで {世界|せかい}を つくって、プログラミングと ものの ふしぎを {学|まな}ぼう！') + '</p>' +
-    '<div style="font-weight:800">' + T('{学年|がくねん}に {合|あ}わせて えらんでね') + '</div>' +
+  const login = loginMode(), p = loadPlayer();
+  let mid;
+  if (login && !p.auth) mid = titleLoginHTML();
+  else if (login) mid = titleWelcomeHTML();
+  else mid = '<div style="font-weight:800">' + T('{学年|がくねん}に {合|あ}わせて えらんでね') + '</div>' +
     '<div class="lvs" id="tLv">' + levelCards(G.level) + '</div>' + titleProfileHTML() +
-    '<button class="btn ok go" id="tGo">▶ ' + T('はじめる') + '</button>' +
-    '<p class="note" style="margin-top:10px">' + T('あとから メニューで かえられるよ') + '</p></div>';
-  el.querySelectorAll('#tLv .lvcard').forEach(b => b.addEventListener('click', () => setLevel(+b.dataset.lv)));
-  $('tGo').onclick = startGame;
+    '<button class="btn ok go" id="tGo">▶ ' + T('はじめる') + '</button>';
+  el.innerHTML = '<div class="box">' + logoHTML() +
+    '<p class="sub">' + T('ブロックで {世界|せかい}を つくって、プログラミングと ものの ふしぎを {学|まな}ぼう！') + '</p>' + mid +
+    (login ? '' : '<p class="note" style="margin-top:10px">' + T('あとから メニューで かえられるよ') + '</p>') +
+    (p.auth ? '' : titleTeacherHTML()) + '</div>';
+  el.querySelectorAll('#tLv .lvcard').forEach(b => b.addEventListener('click', () => { setLevel(+b.dataset.lv); }));
+  if ($('tGo')) $('tGo').onclick = startGame;
+  bindTitleLogin();
 }
 function showTitle() { G.started = false; $('title').style.display = 'flex'; renderTitle(); }
 function startGame() {
+  // ログインが ひつような ときは、ログインしていないと はいれない
+  if (typeof loginMode === 'function' && loginMode() && !loadPlayer().auth) { renderTitle(); return; }
   readTitleProfile();
   ensureAudio();
   G.started = true;
@@ -1860,8 +1911,9 @@ function startGame() {
   renderAllText();
   if (!G.introDone) {
     G.introDone = true;
-    toast(T('まわりの ブロックを「しらべる」と、{図鑑|ずかん}が ふえるよ！'));
-  }
+    if (!tutSeen()) startTutorial();
+    else toast(T('まわりの ブロックを「しらべる」と、{図鑑|ずかん}が ふえるよ！'));
+  } else if (!tutSeen()) startTutorial();
   try { $('gl').focus(); } catch (e) { /* 何もしない */ }
   saveSoon();
   if (syncReady()) syncSend('start');
@@ -1878,7 +1930,7 @@ function openParent() {
   const total = activeMissions().length;
   const learned = PLACEABLE.filter(id => G.zukan[id]).map(id => T(BLOCKS[id].name)).join('、') || '—';
   const madeList = RECIPES.filter(r => G.made[r.key]).map(r => T(BLOCKS[r.out()].name)).join('、') || '—';
-  const html = '<p class="note">' + T('この{記録|きろく}は、この{端末|たんまつ}の ブラウザの {中|なか}だけに あります。 {個人|こじん}じょうほうは あつめていません。 しゅうけいURLを せっていした ときだけ、なまえと すすみぐあいを おくります。') + '</p>' +
+  const html = '<p class="note">' + T('この{記録|きろく}は、この{端末|たんまつ}の ブラウザに ほぞんされます。 ログインした ときは、なまえと すすみぐあいを そらごころの せんせいの しゅうけいひょうにも おくります。 パスワードは ほぞんも そうしんも しません。') + '</p>' +
     '<table style="width:100%;border-collapse:collapse;font-size:15px">' +
     row(T('ミッション'), done + ' / ' + total + ' (⭐' + G.stars + ')') +
     row(T('{図鑑|ずかん}'), z + ' / ' + PLACEABLE.length) +
@@ -1929,7 +1981,7 @@ function logoHTML(){
 // 集計URLが設定されているときだけ、なまえと進捗をスプレッドシートに送る
 const PLAYER_KEY = 'blocklab-player-v1';
 const SYNC_URL_KEY = 'blocklab-sync-url';
-const SYNC_DEFAULT_URL = ''; // 配布用に固定するときはここにURLを入れる
+const PROD = true; // 公開用ビルドでは true(build.js が書きかえる): ログイン必須・URLは固定
 const GRADES = ['小1', '小2', '小3', '小4', '小5', '小6', 'その他'];
 let memPlayer = null, memSyncUrl = null;
 const SYNC = { last: 0, lastOk: null, dirtySince: 0, sig: '' };
@@ -1938,8 +1990,8 @@ function loadPlayer() {
   let s = null;
   try { s = localStorage.getItem(PLAYER_KEY); } catch (e) { s = null; }
   if (!s) s = memPlayer;
-  try { const p = s ? JSON.parse(s) : null; if (p && typeof p === 'object') return { id: String(p.id || ''), name: String(p.name || ''), grade: String(p.grade || '') }; } catch (e) { /* 何もしない */ }
-  return { id: '', name: '', grade: '' };
+  try { const p = s ? JSON.parse(s) : null; if (p && typeof p === 'object') return { id: String(p.id || ''), name: String(p.name || ''), grade: String(p.grade || ''), auth: p.auth === true && (!p.exp || Date.now() < p.exp), token: String(p.token || ''), exp: +p.exp || 0 }; } catch (e) { /* 何もしない */ }
+  return { id: '', name: '', grade: '', auth: false, token: '', exp: 0 };
 }
 function savePlayer(p) {
   const s = JSON.stringify(p);
@@ -1947,10 +1999,11 @@ function savePlayer(p) {
   try { localStorage.setItem(PLAYER_KEY, s); } catch (e) { /* 何もしない */ }
 }
 function getSyncUrl() {
+  if (PROD) return String((window.CRAFT_CONFIG && window.CRAFT_CONFIG.syncUrl) || '').trim();
   let u = null;
   try { u = localStorage.getItem(SYNC_URL_KEY); } catch (e) { u = null; }
   if (u == null) u = memSyncUrl;
-  return (u != null ? u : SYNC_DEFAULT_URL) || '';
+  return u || '';
 }
 function setSyncUrl(u) {
   u = (u || '').trim();
@@ -1966,7 +2019,7 @@ function buildPayload(reason) {
   const cur = typeof currentMission === 'function' ? currentMission() : null;
   return {
     app: 'soragokoro-craft', v: 1, reason: reason || 'auto',
-    id: p.id, name: p.name, grade: p.grade,
+    id: p.id, name: p.name, grade: p.grade, token: p.token,
     level: G.level, stars: G.stars,
     cleared: MISSIONS.filter((m, i) => i < G.missionIndex && (!m.minLevel || G.level >= m.minLevel)).length,
     total: activeMissions().length,
@@ -2025,6 +2078,7 @@ function readTitleProfile() {
   savePlayer({ name: n.value.trim().slice(0, 12), grade: $('pGrade').value, id: $('pId').value.trim().slice(0, 10) });
 }
 function syncParentHTML() {
+  if (PROD) return '<h4>' + T('{先生|せんせい}・{保護者|ほごしゃ}むけ') + '</h4><div class="note">' + T('ログインした こどもの すすみぐあいを、せんせいの しゅうけいひょうに おくっています。') + '</div>';
   const url = getSyncUrl(), p = loadPlayer();
   return '<h4>' + T('{先生|せんせい}・{保護者|ほごしゃ}むけ: しゅうけい') + '</h4>' +
     '<div class="note">' + T('しゅうけいURLを いれると、なまえと すすみぐあいを スプレッドシートに おくります。からのままなら なにも おくりません。') + '</div>' +
@@ -2042,6 +2096,261 @@ function bindSyncParent() {
     $('syncMsg').textContent = T('おくりました。スプレッドシートを みてね');
   };
 }
+
+// ---------- ログイン(名簿とつなぐ) ----------
+// 集計URLがあるとき、IDとパスワードを サーバーの名簿と照らして、なまえと学年を もらう
+let loginBusy = false, loginMsg = '', loginNetErr = false, loginDetail = '';
+function userKeySuffix() { const p = loadPlayer(); return p.auth && p.id ? '-u-' + encodeURIComponent(p.id) : ''; }
+function loginMode() { return PROD || (!!getSyncUrl() && !G.guest); }
+function loginTxt(code) {
+  return ({ wrong: 'IDか パスワードが ちがうよ', locked: 'まちがいが おおいので、すこし まってから もういちど やってね', empty: 'IDと パスワードを いれてね',
+    net: 'つながらなかったよ。ネットを たしかめて もういちど', badresp: 'サーバーの へんじが おかしいよ。せんせいに おしえてね(せんせいへ: Apps Scriptを あたらしい コードで ふたたび デプロイし、アクセスを ぜんいんに してください)', noconf: 'このアプリは まだ じゅんびちゅうです。せんせいに おしえてね', server: 'うまく いかなかったよ。せんせいに おしえてね' })[code] || '';
+}
+function doLogin(id, pw) {
+  id = (id || '').trim(); pw = (pw || '').trim();
+  if (!id || !pw) { loginMsg = 'empty'; loginNetErr = false; renderTitle(); return Promise.resolve(false); }
+  if (loginBusy) return Promise.resolve(false);
+  if (!getSyncUrl()) { loginMsg = 'noconf'; renderTitle(); return Promise.resolve(false); }
+  loginBusy = true; loginMsg = ''; loginNetErr = false; renderTitle();
+  const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = setTimeout(() => { if (ctl) ctl.abort(); }, 20000);
+  return fetch(getSyncUrl(), { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, signal: ctl ? ctl.signal : undefined,
+    body: JSON.stringify({ app: 'soragokoro-craft', action: 'login', id: id, password: pw }) })
+    .then(r => r.text())
+    .then(txt => { try { return JSON.parse(txt); } catch (e) { return { ok: false, error: 'badresp' }; } })
+    .then(r => {
+      clearTimeout(timer); loginBusy = false;
+      if (!r || !r.ok || !r.token) { loginMsg = (r && r.error) || 'server'; if (loginMsg === 'ok') loginMsg = 'badresp'; loginDetail = String((r && r.detail) || '').slice(0, 120); loginNetErr = false; renderTitle(); return false; }
+      savePlayer({ id: String(r.id), name: String(r.name), grade: String(r.grade || ''), auth: true, token: String(r.token), exp: +r.exp || 0 });
+      const had = loadUserWorld();
+      if (!had && r.level >= 1 && r.level <= 3) G.level = r.level;
+      loginMsg = ''; loginNetErr = false;
+      renderAllText(); renderTitle(); saveSoon();
+      return true;
+    })
+    .catch(() => { clearTimeout(timer); loginBusy = false; loginMsg = 'net'; loginNetErr = true; renderTitle(); return false; });
+}
+function doLogout() {
+  if (G.started) saveNow();
+  savePlayer({ id: '', name: '', grade: '', auth: false, token: '', exp: 0 });
+  loadUserWorld();
+  G.guest = false; loginMsg = '';
+  renderAllText();
+  if (G.started) showTitle(); else renderTitle();
+}
+function titleLoginHTML() {
+  const msg = (loginMsg || (PROD && !getSyncUrl())) ? '<div class="lmsg">' + T(loginTxt(loginMsg || 'noconf')) + (loginDetail && loginMsg === 'server' ? '<br><small>' + esc(loginDetail) + '</small>' : '') + '</div>' : '';
+  return '<div class="login"><div class="lhead">' + T('IDと パスワードを いれてね') + '</div>' +
+    '<div class="lrow"><label>ID<input id="lId" maxlength="20" autocomplete="off" autocapitalize="off" spellcheck="false"></label>' +
+    '<label>' + T('パスワード') + '<input id="lPw" type="password" maxlength="20" autocomplete="off"></label></div>' + msg +
+    '<button class="btn ok go" id="lGo"' + (loginBusy || (PROD && !getSyncUrl()) ? ' disabled' : '') + '>' + (loginBusy ? T('かくにんちゅう…') : '🔑 ' + T('ログイン')) + '</button>' +
+    (loginNetErr && !PROD ? '<button class="tlink" id="lGuest">' + T('ログインしないで あそぶ(きろくは おくられないよ)') + '</button>' : '') + '</div>';
+}
+function titleWelcomeHTML() {
+  const p = loadPlayer();
+  return '<div class="welcome">👋 <b>' + esc(p.name) + '</b> ' + T('さん、ようこそ！') + '</div>' +
+    '<div style="font-weight:800">' + T('{漢字|かんじ}の レベルを えらんでね') + '</div>' +
+    '<div class="lvs" id="tLv">' + levelCards(G.level) + '</div>' +
+    '<button class="btn ok go" id="tGo">▶ ' + T('はじめる') + '</button>' +
+    '<button class="tlink" id="lOut">' + T('べつの ひとが あそぶ') + '</button>';
+}
+function titleTeacherHTML() {
+  if (PROD) return '';
+  return '<details class="tchr"><summary>' + T('せんせいよう') + '</summary><div class="tbox">' +
+    '<div class="note">' + T('しゅうけいURLを いれると、IDと パスワードで ログインする ようになります。') + '</div>' +
+    '<input id="tUrl" placeholder="https://script.google.com/macros/s/.../exec" value="' + esc(getSyncUrl()) + '">' +
+    '<button class="btn sm" id="tUrlSave">' + T('ほぞん') + '</button></div></details>';
+}
+function bindTitleLogin() {
+  const go = $('lGo');
+  if (go) {
+    const run = () => doLogin($('lId').value, $('lPw').value);
+    go.onclick = run;
+    ['lId', 'lPw'].forEach(i => $(i).addEventListener('keydown', e => { if (e.key === 'Enter') run(); }));
+    if (!loginBusy) { try { $('lId').focus(); } catch (e) { /* 何もしない */ } }
+  }
+  if ($('lGuest')) $('lGuest').onclick = () => { G.guest = true; loginMsg = ''; renderTitle(); };
+  if ($('lOut')) $('lOut').onclick = doLogout;
+  if ($('tUrlSave')) $('tUrlSave').onclick = () => { setSyncUrl($('tUrl').value); G.guest = false; loginMsg = ''; renderTitle(); };
+}
+
+// ===== 06d-tutorial.js =====
+// ---------- チュートリアル(そうさの れんしゅう) ----------
+// 1つずつ「やってみよう」を出して、実際にできたら次へ進む
+const TUT_KEY = 'blocklab-tutorial-v1';
+const memTutMap = {};
+function tutKey() { return TUT_KEY + (typeof userKeySuffix === 'function' ? userKeySuffix() : ''); }
+function tutSeen() {
+  let s = null;
+  try { s = localStorage.getItem(tutKey()); } catch (e) { s = null; }
+  return (s || memTutMap[tutKey()]) === '1';
+}
+function tutMarkSeen() {
+  memTutMap[tutKey()] = '1';
+  try { localStorage.setItem(tutKey(), '1'); } catch (e) { /* 何もしない */ }
+}
+const TUT = { on: false, i: 0, steps: [], t: 0, doneAt: 0, acc: {}, base: {}, el: null, clicked: false, touch: false };
+
+function tutStepsPC() {
+  return [
+    { icon: '🖱️', title: 'ゲームの{画面|がめん}を クリックしよう',
+      body: 'クリックすると、マウスで まわりを {見|み}られるよ。<br>マウスを はなす ときは <kbd>Esc</kbd>',
+      done: () => TUT.clicked },
+    { icon: '👀', title: 'マウスを うごかして まわりを {見|み}よう',
+      body: 'マウスが うごかない ときは、ドラッグ(おしながら うごかす)で {見|み}られるよ。',
+      done: () => TUT.acc.look > 1.2 },
+    { icon: '🚶', title: 'キーボードで あるこう',
+      body: '<kbd>W</kbd> まえ ／ <kbd>A</kbd> ひだり ／ <kbd>S</kbd> うしろ ／ <kbd>D</kbd> みぎ<br><small>(やじるしキーでも あるけるよ。<kbd>Ctrl</kbd>を おすと はしる)</small>',
+      done: () => TUT.acc.walk > 5 },
+    { icon: '⤴️', title: '<kbd>Space</kbd> で ジャンプしよう',
+      body: 'あるきながら ジャンプも できるよ。',
+      done: () => !P.onGround && P.vy > 1 && !P.fly },
+    { icon: '⛏️', title: '{左|ひだり}クリックで ブロックを こわそう',
+      body: 'こわしたい ブロックに まんなかの ＋ を あわせて、{左|ひだり}クリック。<br>おしっぱなしでも こわせるよ。',
+      init: () => { TUT.base.broken = G.counters.broken; },
+      done: () => G.counters.broken > TUT.base.broken },
+    { icon: '🧱', title: '{右|みぎ}クリックで ブロックを おこう',
+      body: 'おきたい {場所|ばしょ}に ＋ を あわせて、{右|みぎ}クリック。',
+      init: () => { TUT.base.placed = G.counters.placed; },
+      done: () => G.counters.placed > TUT.base.placed },
+    { icon: '🔢', title: '<kbd>1</kbd>〜<kbd>9</kbd> で ブロックを えらぼう',
+      body: '{下|した}の ならびから、おく ブロックを えらべるよ。<br>マウスの ホイールでも かえられるよ。',
+      pulse: '#hotbarWrap',
+      init: () => { TUT.base.slot = G.slot; },
+      done: () => G.slot !== TUT.base.slot },
+    { icon: '🔍', title: '<kbd>Q</kbd> で ブロックを しらべよう',
+      body: 'しらべたい ブロックに ＋ を あわせて <kbd>Q</kbd>。<br>{真|ま}ん{中|なか}クリックでも できるよ。{図鑑|ずかん}が ふえるよ。',
+      init: () => { TUT.base.inspected = G.counters.inspected; },
+      done: () => G.counters.inspected > TUT.base.inspected },
+    { icon: '🕊️', title: '<kbd>Space</kbd> を 2かい はやく おして とぼう',
+      body: 'とんでいる とき: <kbd>Space</kbd> で あがる ／ <kbd>Shift</kbd> で さがる。<br>もういちど 2かい おすと おりるよ。<kbd>F</kbd> でも きりかえられるよ。',
+      done: () => P.fly },
+    { icon: '🎒', title: '<kbd>E</kbd> で もちものを ひらいて、<kbd>Esc</kbd> で とじよう',
+      body: 'もちものから ブロックを えらべるよ。',
+      init: () => { TUT.acc.invOpened = false; },
+      done: () => { if (G.modal === 'inventory') TUT.acc.invOpened = true; return TUT.acc.invOpened && !G.modal; } },
+    { icon: '🎓', title: 'ほかの ボタンも つかってみよう',
+      body: '<kbd>Z</kbd> ずかん ／ <kbd>P</kbd> ロボット ／ <kbd>L</kbd> じっけん ／ <kbd>M</kbd> ミッション ／ <kbd>Esc</kbd> メニュー<br><small>メニューで、いつでも この れんしゅうを やりなおせるよ。</small>',
+      manual: 'はじめよう！' }
+  ];
+}
+function tutStepsTouch() {
+  return [
+    { icon: '👀', title: '{右|みぎ}の{画面|がめん}を なぞって まわりを {見|み}よう',
+      body: 'ゆびを すべらせると、{見|み}ているほうこうが かわるよ。',
+      done: () => TUT.acc.look > 1.2 },
+    { icon: '🕹️', title: '{左|ひだり}の{画面|がめん}を おして あるこう',
+      body: 'おしながら ゆびを うごかすと、そのほうこうに あるくよ。',
+      done: () => TUT.acc.walk > 5 },
+    { icon: '⤴️', title: '「ジャンプ」ボタンを おそう', body: '', pulse: '#tbJump',
+      done: () => !P.onGround && P.vy > 1 && !P.fly },
+    { icon: '⛏️', title: '「こわす」ボタンで ブロックを こわそう',
+      body: 'こわしたい ブロックに ＋ を あわせて ボタンを おすよ。', pulse: '#tbBreak',
+      init: () => { TUT.base.broken = G.counters.broken; },
+      done: () => G.counters.broken > TUT.base.broken },
+    { icon: '🧱', title: '「おく」ボタンで ブロックを おこう',
+      body: 'おきたい {場所|ばしょ}に ＋ を あわせて ボタンを おすよ。', pulse: '#tbPlace',
+      init: () => { TUT.base.placed = G.counters.placed; },
+      done: () => G.counters.placed > TUT.base.placed },
+    { icon: '🔢', title: '{下|した}の ならびを タップして ブロックを えらぼう',
+      body: 'おく ブロックを えらべるよ。', pulse: '#hotbarWrap',
+      init: () => { TUT.base.slot = G.slot; },
+      done: () => G.slot !== TUT.base.slot },
+    { icon: '🔍', title: '「しらべる」ボタンで ブロックを しらべよう',
+      body: '{図鑑|ずかん}が ふえるよ。', pulse: '#tbInspect',
+      init: () => { TUT.base.inspected = G.counters.inspected; },
+      done: () => G.counters.inspected > TUT.base.inspected },
+    { icon: '🕊️', title: '「とぶ」ボタンで とんでみよう',
+      body: 'とんでいる ときは 「おりる」ボタンで さがれるよ。', pulse: '#tbFly',
+      done: () => P.fly },
+    { icon: '🎒', title: '「もちもの」ボタンを ひらいて、とじよう',
+      body: '✕ ボタンで とじられるよ。', pulse: '#invBtn',
+      init: () => { TUT.acc.invOpened = false; },
+      done: () => { if (G.modal === 'inventory') TUT.acc.invOpened = true; return TUT.acc.invOpened && !G.modal; } },
+    { icon: '🎓', title: 'うえの ボタンも つかってみよう',
+      body: '📖ずかん ／ 🤖ロボット ／ 🧪じっけん ／ 🎓せんせい ／ ⭐ミッション ／ ⚙️メニュー<br><small>メニューで、いつでも この れんしゅうを やりなおせるよ。</small>',
+      manual: 'はじめよう！' }
+  ];
+}
+
+function tutEnsureEl() {
+  if (TUT.el) return TUT.el;
+  const el = document.createElement('div');
+  el.id = 'tutorial';
+  $('app').appendChild(el);
+  TUT.el = el;
+  return el;
+}
+function tutClearPulse() {
+  document.querySelectorAll('.tutPulse').forEach(n => n.classList.remove('tutPulse'));
+}
+function tutInitStep() {
+  const s = TUT.steps[TUT.i];
+  TUT.acc = { look: 0, walk: 0, lastYaw: P.yaw, lastPitch: P.pitch, lx: P.x, lz: P.z, invOpened: false };
+  TUT.base = {};
+  TUT.doneAt = 0;
+  if (s.init) s.init();
+  tutClearPulse();
+  if (s.pulse) { const n = document.querySelector(s.pulse); if (n) n.classList.add('tutPulse'); }
+  tutRender();
+}
+function tutRender(ok) {
+  const el = tutEnsureEl(), s = TUT.steps[TUT.i];
+  if (!s) return;
+  const dots = TUT.steps.map((_, k) => '<i class="' + (k < TUT.i ? 'd' : k === TUT.i ? 'n' : '') + '"></i>').join('');
+  el.className = 'on' + (ok ? ' ok' : '') + (TUT.touch ? ' touch' : '');
+  el.innerHTML = '<div class="tcount">' + T('れんしゅう') + ' ' + (TUT.i + 1) + ' / ' + TUT.steps.length + '</div>' +
+    '<div class="trow"><span class="tic">' + (ok ? '✅' : s.icon) + '</span><div class="ttx"><div class="tt">' + (ok ? T('できた！') : T(s.title)) + '</div>' +
+    (ok ? '' : '<div class="tbody">' + T(s.body) + '</div>') + '</div></div>' +
+    '<div class="tdots">' + dots + '</div>' +
+    '<div class="tbtns">' + (s.manual ? '<button class="btn ok sm" id="tutNext">' + T(s.manual) + '</button>' : '') +
+    '<button class="tskip" id="tutSkip">' + T('スキップ') + '</button></div>';
+  $('tutSkip').onclick = () => endTutorial(false);
+  if ($('tutNext')) $('tutNext').onclick = () => endTutorial(true);
+}
+function startTutorial() {
+  if (!G.started) return;
+  TUT.touch = touchActive();
+  TUT.steps = TUT.touch ? tutStepsTouch() : tutStepsPC();
+  TUT.i = 0; TUT.on = true; TUT.clicked = TUT.touch;
+  document.body.classList.add('tutOn');
+  closeInfo();
+  tutInitStep();
+}
+function endTutorial(finished) {
+  if (!TUT.on) return;
+  TUT.on = false;
+  tutMarkSeen();
+  tutClearPulse();
+  document.body.classList.remove('tutOn');
+  if (TUT.el) { TUT.el.className = ''; TUT.el.innerHTML = ''; }
+  if (finished) { playSound('win'); toast('🎉 ' + T('れんしゅう クリア！ じゆうに あそんでね')); }
+}
+function tutorialTick(dt) {
+  if (!TUT.on || !G.started) return;
+  const el = tutEnsureEl();
+  // モーダルが開いているあいだはカードを かくす
+  el.style.visibility = G.modal ? 'hidden' : '';
+  const s = TUT.steps[TUT.i], a = TUT.acc;
+  if (!s) return;
+  // 見まわした量・あるいた距離をためる
+  let dy = Math.abs(P.yaw - a.lastYaw), dp = Math.abs(P.pitch - a.lastPitch);
+  a.look += Math.min(dy, 1) + Math.min(dp, 1); a.lastYaw = P.yaw; a.lastPitch = P.pitch;
+  const dx = P.x - a.lx, dz = P.z - a.lz, d = Math.sqrt(dx * dx + dz * dz);
+  if (d < 3) a.walk += d; // テレポートはカウントしない
+  a.lx = P.x; a.lz = P.z;
+  if (TUT.doneAt) {
+    if (G.time - TUT.doneAt > 0.9) { TUT.i++; if (TUT.i >= TUT.steps.length) endTutorial(true); else tutInitStep(); }
+    return;
+  }
+  if (s.manual) return;
+  if (s.done && s.done()) {
+    TUT.doneAt = G.time;
+    playSound('select');
+    tutRender(true);
+  }
+}
+document.addEventListener('pointerdown', e => { if (TUT.on && e.target && e.target.id === 'gl') TUT.clicked = true; }, true);
 
 // ===== 07-robot.js =====
 // ---------- ロボット(ゴーレム) ----------
@@ -2799,7 +3108,8 @@ function highlightNode(id, isErr) {
 // ===== 10-save.js =====
 // ---------- ほぞん ----------
 const SAVE_KEY = 'blocklab-save-v1';
-let memSave = null; // localStorage が使えないときの代わり
+const memSaves = {}; // localStorage が使えないときの代わり(ユーザーごと)
+function saveKey() { return SAVE_KEY + (typeof userKeySuffix === 'function' ? userKeySuffix() : ''); }
 let saveTimer = null;
 
 function saveSoon() {
@@ -2820,13 +3130,13 @@ function collectSave() {
 function saveNow() {
   let s;
   try { s = JSON.stringify(collectSave()); } catch (e) { return false; }
-  memSave = s;
-  try { localStorage.setItem(SAVE_KEY, s); return true; } catch (e) { return false; }
+  memSaves[saveKey()] = s;
+  try { localStorage.setItem(saveKey(), s); return true; } catch (e) { return false; }
 }
 function readSave() {
   let s = null;
-  try { s = localStorage.getItem(SAVE_KEY); } catch (e) { s = null; }
-  if (!s) s = memSave;
+  try { s = localStorage.getItem(saveKey()); } catch (e) { s = null; }
+  if (!s) s = memSaves[saveKey()] || null;
   if (!s) return null;
   try { const d = JSON.parse(s); return d && d.v === 1 ? d : null; } catch (e) { return null; }
 }
@@ -2854,8 +3164,8 @@ function applySave(d) {
   world.pendingProgram = d.program || null;
 }
 function resetAll() {
-  try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* 何もしない */ }
-  memSave = null;
+  try { localStorage.removeItem(saveKey()); } catch (e) { /* 何もしない */ }
+  delete memSaves[saveKey()];
   world.edits = new Map();
   G.zukan = {}; G.tempWasFrozen = false; G.tempIronMelted = false; G.made = {}; G.missionIndex = 0; G.stars = 0; G.playSec = 0; G.introDone = true;
   Object.keys(G.counters).forEach(k => { G.counters[k] = 0; });
@@ -2869,6 +3179,29 @@ function resetAll() {
   snapshotBase();
   renderHotbar(); renderMissionChip(); closeInfo();
   saveNow();
+}
+
+// ログイン/ログアウトで ユーザーが かわったとき: そのユーザーの世界を よみこむ
+function loadUserWorld() {
+  world.edits = new Map();
+  G.zukan = {}; G.tempWasFrozen = false; G.tempIronMelted = false; G.made = {};
+  G.missionIndex = 0; G.stars = 0; G.playSec = 0; G.introDone = false; G.mBase = null;
+  Object.keys(G.counters).forEach(k => { G.counters[k] = 0; });
+  G.hotbar = [B.GRASS, B.DIRT, B.STONE, B.PLANKS, B.BRICK, B.GLASS, B.LOG, B.SAND, B.LEAVES];
+  G.slot = 0;
+  world.pendingRobot = null; world.pendingProgram = null;
+  respawn();
+  if (typeof robotReset === 'function') robotReset();
+  if (typeof programReset === 'function') programReset();
+  const d = readSave();
+  if (d) applySave(d);
+  genWorld(world.seed);
+  markAllDirty(); flushDirty();
+  if (!G.mBase) snapshotBase();
+  robotInit();
+  if (world.pendingProgram) restoreProgram(world.pendingProgram);
+  renderHotbar(); renderMissionChip(); closeInfo();
+  return !!d;
 }
 
 // ===== 11-missions.js =====
@@ -3521,6 +3854,7 @@ let curTarget = null;
 function update(dt) {
   G.time += dt;
   if (typeof syncTick === 'function') syncTick(dt);
+  if (typeof tutorialTick === 'function') tutorialTick(dt);
   pollKeyboard();
   handleHold(dt);
   const paused = !!G.modal || !G.started;
@@ -3610,7 +3944,7 @@ Object.assign(window.__game, {
   openProgram, openZukan, openLab, openTeacher, openMissions, openMenu, openInventory, closeModal, setLevel, startGame,
   showTitle, setBlock, getB, solidAt, checkMissions, currentMission, MISSIONS, FAQ, RECIPES, PLACEABLE, resetAll, saveNow,
   readSave, respawn, renderProgram, showBlockInfo, raycast, genWorld, markAllDirty, flushDirty, addCard, execNodes, astFeatures,
-  findNode, progState: () => ({ target: progTarget }), collectDefs, setBarMode, dirtyChunks
+  startTutorial, endTutorial, tutGoto: i => { TUT.i = i; tutInitStep(); }, tutState: () => ({ on: TUT.on, i: TUT.i, n: TUT.steps.length, doneAt: TUT.doneAt }), tutSeen, findNode, progState: () => ({ target: progTarget }), collectDefs, setBarMode, dirtyChunks
 });
 
 boot();
