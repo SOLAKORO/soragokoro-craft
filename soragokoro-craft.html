@@ -1,0 +1,3621 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#3b82f6">
+<title>そらごころクラフト</title>
+<style>
+:root{
+  --ink:#27324a; --ink2:#55627f; --panel:#ffffffee; --panel2:#f3f7ff;
+  --brand:#3b82f6; --brand2:#1d4ed8; --ok:#16a34a; --warn:#f59e0b; --bad:#dc2626;
+  --line:#c7d4f0; --shadow:0 6px 18px rgba(20,40,90,.28);
+  --sat:env(safe-area-inset-top,0px); --sar:env(safe-area-inset-right,0px); --sab:env(safe-area-inset-bottom,0px); --sal:env(safe-area-inset-left,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#8ec6f6;color:var(--ink);
+  font-family:"Hiragino Maru Gothic ProN","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo","Noto Sans JP",system-ui,sans-serif;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none}
+#app{position:fixed;inset:0;height:100vh;height:100dvh;overflow:hidden}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+ruby{ruby-position:over} rt{font-size:.5em;font-weight:500;color:inherit;opacity:.85}
+button{font:inherit;color:inherit;cursor:pointer}
+
+/* HUD */
+#hud{position:absolute;inset:0;pointer-events:none}
+#hud > *{pointer-events:auto}
+#crosshair{position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;pointer-events:none!important}
+#crosshair::before,#crosshair::after{content:"";position:absolute;background:#fff;box-shadow:0 0 0 1.5px rgba(0,0,0,.55);border-radius:1px}
+#crosshair::before{left:10px;top:3px;width:2px;height:16px}
+#crosshair::after{left:3px;top:10px;width:16px;height:2px}
+#topbar{position:absolute;left:calc(8px + var(--sal));top:calc(8px + var(--sat));display:flex;gap:6px;flex-wrap:wrap;max-width:calc(100% - 80px)}
+.hbtn{display:flex;align-items:center;gap:4px;min-height:40px;padding:4px 10px;border:2px solid #fff;border-radius:14px;
+  background:rgba(35,60,120,.72);color:#fff;font-weight:700;font-size:14px;box-shadow:var(--shadow);backdrop-filter:blur(4px)}
+.hbtn:active{transform:scale(.95)}
+.hbtn .ic{font-size:20px;line-height:1}
+#menuBtn{position:absolute;right:calc(8px + var(--sar));top:calc(8px + var(--sat))}
+#missionChip{position:absolute;left:50%;transform:translateX(-50%);top:calc(58px + var(--sat));max-width:min(92vw,560px);
+  padding:5px 12px;border-radius:14px;background:rgba(255,255,255,.88);border:2px solid #fff;box-shadow:var(--shadow);
+  font-size:13px;font-weight:700;text-align:center;line-height:1.6;display:none}
+#missionChip b{color:var(--brand2)}
+#missionChip.done{background:#dcfce7}
+#toast{position:absolute;left:50%;top:30%;transform:translate(-50%,-10px);padding:10px 18px;border-radius:16px;background:rgba(20,30,60,.86);
+  color:#fff;font-weight:700;font-size:16px;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none!important;max-width:88vw;text-align:center;line-height:1.7}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#hotbarWrap{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(8px + var(--sab));display:flex;flex-direction:column;align-items:center;gap:4px}
+#slotName{background:rgba(20,30,60,.7);color:#fff;border-radius:10px;padding:2px 10px;font-size:13px;font-weight:700;min-height:22px;pointer-events:none}
+#hotbar{display:flex;gap:3px;padding:4px;background:rgba(20,30,60,.55);border-radius:14px;border:2px solid rgba(255,255,255,.85)}
+.slot{position:relative;width:46px;height:46px;border-radius:10px;border:3px solid transparent;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;padding:0}
+.slot img{width:36px;height:36px;image-rendering:pixelated;pointer-events:none}
+.slot.sel{border-color:#ffd43b;background:rgba(255,255,255,.55);transform:translateY(-4px)}
+.slot .n{position:absolute;left:3px;top:0;font-size:10px;font-weight:700;color:#fff;text-shadow:0 0 3px #000}
+#invBtn{position:absolute;left:calc(8px + var(--sal));bottom:calc(10px + var(--sab))}
+#hint{position:absolute;left:calc(8px + var(--sal));bottom:calc(58px + var(--sab));font-size:12px;color:#fff;text-shadow:0 1px 3px #000;line-height:1.6;pointer-events:none!important}
+
+/* 情報カード */
+#infocard{position:absolute;left:50%;transform:translateX(-50%);top:calc(104px + var(--sat));width:min(92vw,460px);display:none;
+  background:var(--panel);border:3px solid #fff;border-radius:18px;box-shadow:var(--shadow);padding:10px 12px;backdrop-filter:blur(6px);z-index:5}
+#infocard .row{display:flex;gap:10px;align-items:center}
+#infocard img{width:56px;height:56px;image-rendering:pixelated;flex:none}
+#infocard h3{margin:0;font-size:18px}
+#infocard .kind{font-size:12px;color:var(--ink2);font-weight:700}
+#infocard p{margin:6px 0 4px;font-size:14px;line-height:1.85}
+#infocard .facts{display:flex;flex-wrap:wrap;gap:4px}
+.chip{display:inline-block;padding:1px 9px;border-radius:999px;background:#e0ecff;border:1.5px solid var(--line);font-size:12px;font-weight:700;line-height:1.8}
+#infocard .x{margin-left:auto;border:none;background:#e6ecfb;border-radius:50%;width:32px;height:32px;font-size:16px;flex:none}
+#infocard .speak{border:2px solid var(--line);background:#fff;border-radius:12px;padding:2px 10px;font-size:13px;font-weight:700}
+
+/* タッチ操作 */
+#touch{position:absolute;inset:0;pointer-events:none;display:none}
+#touch button.tb{pointer-events:auto;position:absolute;border:3px solid rgba(255,255,255,.9);border-radius:50%;background:rgba(40,70,140,.6);color:#fff;
+  font-weight:800;font-size:13px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15;touch-action:none;box-shadow:var(--shadow)}
+#touch button.tb .ic{font-size:24px}
+#touch button.tb.down{background:rgba(255,190,40,.85);transform:scale(.94)}
+#tbJump{width:76px;height:76px;right:calc(14px + var(--sar));bottom:calc(78px + var(--sab))}
+#tbBreak{width:64px;height:64px;right:calc(98px + var(--sar));bottom:calc(150px + var(--sab));background:rgba(200,60,60,.65)!important}
+#tbPlace{width:64px;height:64px;right:calc(98px + var(--sar));bottom:calc(78px + var(--sab));background:rgba(40,150,80,.65)!important}
+#tbInspect{width:52px;height:52px;right:calc(14px + var(--sar));top:calc(56px + var(--sat))}
+#tbFly{width:52px;height:52px;right:calc(14px + var(--sar));top:calc(114px + var(--sat))}
+#tbDown{width:52px;height:52px;right:calc(14px + var(--sar));top:calc(172px + var(--sat));display:none}
+#joy{position:absolute;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.22);border:3px solid rgba(255,255,255,.7);display:none;pointer-events:none}
+#joyKnob{position:absolute;left:38px;top:38px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.85);box-shadow:0 2px 6px rgba(0,0,0,.3)}
+body.touch #touch{display:block}
+body.touch #hint{display:none}
+body.touch .slot{width:40px;height:40px}
+body.touch .slot img{width:30px;height:30px}
+body.touch #hotbarWrap{bottom:calc(6px + var(--sab))}
+body.touch #invBtn{bottom:calc(10px + var(--sab))}
+body.panelopen #touch{display:none!important}
+
+/* モーダル */
+#modalRoot{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(15,25,60,.5);z-index:20;padding:8px}
+#modalRoot.open{display:flex}
+.sheet{width:min(96vw,760px);max-height:min(92dvh,92vh);display:flex;flex-direction:column;background:#fff;border-radius:22px;border:4px solid #fff;box-shadow:0 12px 40px rgba(0,0,0,.4);overflow:hidden}
+.mhead{display:flex;align-items:center;gap:8px;padding:10px 14px;background:linear-gradient(90deg,#3b82f6,#60a5fa);color:#fff}
+.mhead h2{margin:0;font-size:20px;flex:1;line-height:1.7}
+.mhead .x{border:none;background:rgba(255,255,255,.9);color:var(--ink);width:38px;height:38px;border-radius:50%;font-size:18px;font-weight:800}
+.mbody{padding:12px 14px;overflow:auto;-webkit-overflow-scrolling:touch;line-height:1.85;font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.cell{border:3px solid var(--line);border-radius:14px;background:var(--panel2);padding:6px 4px;text-align:center;font-size:12px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:96px;justify-content:center}
+.cell img{width:54px;height:54px;image-rendering:pixelated}
+.cell.locked{opacity:.55;filter:grayscale(1)}
+.cell.cur{border-color:#f59e0b;background:#fff7e0}
+.cell:active{transform:scale(.96)}
+.btn{border:3px solid var(--brand2);background:var(--brand);color:#fff;padding:8px 16px;border-radius:14px;font-weight:800;font-size:15px;min-height:42px;box-shadow:0 3px 0 var(--brand2)}
+.btn:active{transform:translateY(2px);box-shadow:none}
+.btn.sub{background:#fff;color:var(--brand2)}
+.btn.ok{background:var(--ok);border-color:#0f7a37;box-shadow:0 3px 0 #0f7a37}
+.btn.bad{background:var(--bad);border-color:#991b1b;box-shadow:0 3px 0 #991b1b}
+.btn.sm{padding:4px 10px;min-height:34px;font-size:13px}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg .btn{flex:1;min-width:92px}
+.seg .btn.sub.on{background:#e0ecff;border-color:var(--brand2)}
+.lvcard{flex:1;min-width:140px;border:4px solid var(--line);border-radius:18px;background:#fff;padding:10px;text-align:center;font-weight:800;font-size:16px;line-height:1.7}
+.lvcard small{display:block;font-size:12px;font-weight:600;color:var(--ink2)}
+.lvcard.on{border-color:var(--brand);background:#e7f0ff;box-shadow:0 0 0 4px #bcd6ff}
+h4{margin:10px 0 4px;font-size:16px}
+.note{font-size:13px;color:var(--ink2)}
+.bar{height:12px;border-radius:8px;background:#e5ecfb;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#34d399,#3b82f6)}
+
+/* タイトル */
+#title{position:absolute;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:10px;
+  background:linear-gradient(180deg,rgba(112,190,255,.94),rgba(190,228,255,.94) 60%,rgba(170,220,130,.94))}
+#title .box{width:min(96vw,640px);max-height:96dvh;max-height:96vh;overflow:auto;background:#ffffffee;border:5px solid #fff;border-radius:26px;box-shadow:var(--shadow);padding:16px 18px;text-align:center}
+#title h1{margin:0 0 2px;font-size:clamp(26px,6vw,40px);line-height:1.5;color:var(--brand2);letter-spacing:.02em}
+#title .sub{margin:0 0 10px;font-size:15px;color:var(--ink2);font-weight:700;line-height:1.9}
+#title .lvs{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+#title .go{margin-top:8px;font-size:22px;padding:10px 34px}
+
+/* プログラミングパネル */
+#progPanel{position:absolute;z-index:15;background:#fff;border:4px solid #fff;box-shadow:0 8px 30px rgba(0,0,0,.4);display:none;flex-direction:column;overflow:hidden}
+body.panelopen #progPanel{display:flex}
+@media (orientation:landscape) and (min-width:700px){
+  #progPanel{right:8px;top:8px;bottom:8px;width:min(46vw,470px);border-radius:20px}
+}
+@media (orientation:portrait),(max-width:699px){
+  #progPanel{left:6px;right:6px;bottom:6px;height:58dvh;height:58vh;border-radius:20px}
+}
+#progBar{position:absolute;z-index:16;left:50%;transform:translateX(-50%);bottom:calc(84px + var(--sab));display:none;gap:8px;align-items:center;
+  background:rgba(255,255,255,.93);border:3px solid #fff;border-radius:18px;padding:6px 10px;box-shadow:var(--shadow)}
+body.running #progBar{display:flex}
+.pbody{flex:1;overflow:auto;padding:8px 10px;-webkit-overflow-scrolling:touch}
+.palette{display:flex;flex-wrap:wrap;gap:5px;padding:6px 8px;border-top:3px solid var(--line);background:var(--panel2)}
+.card{display:flex;align-items:center;gap:6px;min-height:40px;padding:4px 10px;border-radius:12px;border:3px solid #bcd0f5;background:#fff;font-weight:800;font-size:14px;margin:3px 0;line-height:1.5}
+.card .ic{font-size:20px}
+.card.running{background:#fff3bf;border-color:#f59e0b}
+.card .sp{flex:1}
+.card .mini{border:2px solid var(--line);background:#f3f7ff;border-radius:9px;min-width:30px;min-height:30px;font-weight:800;font-size:15px;padding:0 6px}
+.card.c-move{border-color:#7fb0ff} .card.c-turn{border-color:#9be3a9} .card.c-block{border-color:#ffc27a} .card.c-ctl{border-color:#d2a8ff;background:#faf5ff}
+.ctl{margin:4px 0;padding:4px 6px 6px;border:3px dashed #c9a7f5;border-radius:14px;background:#fbf8ff}
+.ctl.target{border-style:solid;border-color:#8b5cf6;box-shadow:0 0 0 3px #e9d8ff}
+.ctl .body{margin-left:10px}
+.slotbtn{display:block;width:100%;margin:3px 0;border:2px dashed #b9c8e8;background:#f8faff;border-radius:10px;color:var(--ink2);font-size:12px;font-weight:700;min-height:28px}
+.slotbtn.target{border-color:#8b5cf6;color:#6d28d9;background:#f3e8ff}
+.code{width:100%;min-height:200px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;line-height:1.6;border:3px solid var(--line);border-radius:12px;padding:8px;color:#0f2a4d;background:#f9fbff;resize:vertical;-webkit-user-select:text;user-select:text;tab-size:4;white-space:pre}
+pre.codeview{margin:0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;line-height:1.6;background:#0f1b33;color:#d6e4ff;border-radius:12px;padding:10px;overflow:auto;-webkit-user-select:text;user-select:text}
+.err{color:var(--bad);font-weight:800;font-size:13px;white-space:pre-wrap}
+.good{color:var(--ok);font-weight:800}
+.tabs{display:flex;gap:4px;padding:6px 8px 0}
+.tab{border:3px solid var(--line);border-bottom:none;background:#eef3ff;border-radius:12px 12px 0 0;padding:4px 12px;font-weight:800;font-size:14px}
+.tab.on{background:#fff;border-color:var(--brand)}
+.lab-slot{min-width:84px;min-height:84px;border:3px dashed var(--line);border-radius:14px;display:flex;align-items:center;justify-content:center;flex-direction:column;background:#fbfdff;font-weight:700;font-size:12px;text-align:center}
+.thermo{width:100%}
+canvas.sim{width:100%;height:120px;border-radius:12px;background:#10213f;display:block}
+
+.card.err{background:#fee2e2;border-color:#dc2626;color:var(--ink);font-size:14px}
+.card.err .sp{flex:1}
+@keyframes pop{0%{transform:scale(.3);opacity:0}60%{transform:scale(1.15);opacity:1}100%{transform:scale(1);opacity:1}}
+#clear{position:absolute;inset:0;z-index:25;display:none;align-items:center;justify-content:center;pointer-events:none}
+#clear .bub{background:#fffbe6;border:6px solid #ffd43b;border-radius:28px;padding:16px 28px;text-align:center;font-weight:900;font-size:clamp(22px,5vw,34px);
+  color:#b45309;box-shadow:0 12px 40px rgba(0,0,0,.4);animation:pop .5s ease-out;line-height:1.7}
+#clear .bub small{display:block;font-size:.5em;color:#7c5a10;font-weight:700}
+.conf{position:absolute;top:-30px;font-size:26px;animation:fall 2.2s linear forwards;pointer-events:none}
+@keyframes fall{to{transform:translateY(110vh) rotate(540deg);opacity:.9}}
+.mlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.mlist li{display:flex;gap:8px;align-items:center;padding:6px 10px;border:3px solid var(--line);border-radius:14px;background:#fff;font-weight:700}
+.mlist li.done{background:#ecfdf3;border-color:#86efac}
+.mlist li.cur{background:#fff7e0;border-color:#f59e0b}
+.mlist li .st{font-size:22px}
+.qbtn{display:block;width:100%;text-align:left;border:3px solid var(--line);background:#fff;border-radius:14px;padding:8px 12px;font-weight:700;font-size:15px;margin:5px 0;line-height:1.8}
+.qbtn:active{background:#eef4ff}
+.ans{border:4px solid var(--brand);border-radius:16px;background:#f2f7ff;padding:10px 12px;margin-top:8px;line-height:2}
+input.q{width:100%;border:3px solid var(--line);border-radius:12px;padding:8px 10px;font:inherit;font-size:16px;-webkit-user-select:text;user-select:text}
+
+.btn{white-space:nowrap}
+.seg .btn{min-width:0;flex:1 1 auto}
+canvas.sim{height:auto;aspect-ratio:5/2}
+.slot{width:min(46px,9.4vw);height:min(46px,9.4vw)}
+.slot img{width:78%;height:78%}
+body.touch .slot{width:min(44px,9.4vw);height:min(44px,9.4vw)}
+body.touch .slot img{width:78%;height:78%}
+body.touch #invBtn{bottom:calc(62px + var(--sab));min-height:36px;padding:2px 8px}
+@media (max-width:640px){
+  #topbar{flex-wrap:nowrap;gap:4px;max-width:calc(100% - 76px)}
+  .hbtn{flex-direction:column;gap:0;padding:2px 4px;min-height:46px;min-width:46px;justify-content:center;font-size:10px;line-height:1.5;border-radius:12px}
+  .hbtn .ic{font-size:19px}
+  #menuBtn{min-width:62px}
+  #missionChip{top:calc(62px + var(--sat));font-size:12px;padding:3px 10px}
+  #infocard{top:calc(116px + var(--sat))}
+  #tbInspect{top:calc(104px + var(--sat))}
+  #tbFly{top:calc(162px + var(--sat))}
+  #tbDown{top:calc(220px + var(--sat))}
+  .mhead h2{font-size:17px}
+}
+
+#tbInspect,#tbFly,#tbDown{width:58px!important;height:58px!important;font-size:11px!important;white-space:nowrap}
+#tbInspect .ic,#tbFly .ic,#tbDown .ic{font-size:21px!important}
+
+body.touch #infocard{left:calc(8px + var(--sal));transform:none;width:min(calc(100vw - 92px - var(--sal) - var(--sar)),460px)}
+@media (max-width:640px){ #infocard{left:calc(8px + var(--sal));transform:none;width:calc(100vw - 92px - var(--sal) - var(--sar))} }
+
+#title h1.brand{display:flex;flex-direction:column;align-items:center;gap:0;line-height:1.25;margin-bottom:4px}
+#title .brand .b1{font-size:clamp(20px,4.6vw,28px);font-weight:900;color:#38a3ff;letter-spacing:.18em;text-shadow:0 2px 0 #fff,0 0 12px #bfe3ff}
+#title .brand .b2{font-size:clamp(38px,9vw,62px);font-weight:900;letter-spacing:.06em;background:linear-gradient(180deg,#3b82f6 30%,#1d4ed8);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-stroke:1px rgba(29,78,216,.25);filter:drop-shadow(0 3px 0 #dbe9ff)}
+#title h1.brand{display:flex;flex-direction:column;align-items:center;gap:6px;margin:0 0 8px;line-height:0}
+#title h1.brand img{image-rendering:pixelated;max-width:92%;height:auto;display:block}
+#title h1.brand .lg1{width:min(520px,88vw)}
+#title h1.brand .lg2{width:min(420px,72vw)}
+#title .profile{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:10px 0 2px}
+#title .profile label{display:flex;flex-direction:column;align-items:flex-start;font-size:12px;font-weight:800;color:#3a5a8a;gap:2px}
+#title .profile input,#title .profile select{font-size:16px;padding:6px 8px;border:2px solid #bcd6ff;border-radius:10px;width:118px;box-sizing:border-box;background:#fff;font-family:inherit}
+#title .profile input,#title .profile select{width:min(118px,28vw)}
+
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="gl" tabindex="0"></canvas>
+  <div id="hud">
+    <div id="crosshair"></div>
+    <div id="topbar">
+      <button class="hbtn" id="bZukan"><span class="ic">📖</span><span data-t="{図鑑|ずかん}"></span></button>
+      <button class="hbtn" id="bRobot"><span class="ic">🤖</span><span data-t="ロボット"></span></button>
+      <button class="hbtn" id="bLab"><span class="ic">🧪</span><span data-t="{実験|じっけん}"></span></button>
+      <button class="hbtn" id="bTeacher"><span class="ic">🎓</span><span data-t="せんせい"></span></button>
+      <button class="hbtn" id="bMission"><span class="ic">⭐</span><span data-t="ミッション"></span></button>
+    </div>
+    <button class="hbtn" id="menuBtn"><span class="ic">⚙️</span><span data-t="メニュー"></span></button>
+    <div id="missionChip"></div>
+    <div id="infocard"></div>
+    <div id="toast"></div>
+    <div id="hint"></div>
+    <button class="hbtn" id="invBtn"><span class="ic">🎒</span><span data-t="もちもの"></span></button>
+    <div id="hotbarWrap"><div id="slotName"></div><div id="hotbar"></div></div>
+  </div>
+  <div id="touch">
+    <div id="joy"><div id="joyKnob"></div></div>
+    <button class="tb" id="tbJump"><span class="ic">⤴️</span><span data-t="ジャンプ"></span></button>
+    <button class="tb" id="tbBreak"><span class="ic">⛏️</span><span data-t="こわす"></span></button>
+    <button class="tb" id="tbPlace"><span class="ic">🧱</span><span data-t="おく"></span></button>
+    <button class="tb" id="tbInspect"><span class="ic">🔍</span><span data-t="しらべる"></span></button>
+    <button class="tb" id="tbFly"><span class="ic">🕊️</span><span data-t="とぶ"></span></button>
+    <button class="tb" id="tbDown"><span class="ic">⬇️</span><span data-t="おりる"></span></button>
+  </div>
+  <div id="progPanel"></div>
+  <div id="progBar"></div>
+  <div id="modalRoot"><div class="sheet" id="sheet"></div></div>
+  <div id="title"></div>
+</div>
+<script>
+'use strict';
+(function(){
+// ===== 00-util.js =====
+// ---------- ユーティリティ ----------
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+
+function hash2(x, z, seed) {
+  let h = Math.imul(x | 0, 374761393) + Math.imul(z | 0, 668265263) + Math.imul(seed | 0, 1442695041);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h = h ^ (h >>> 16);
+  return (h >>> 0) / 4294967296;
+}
+function vnoise(x, z, seed) {
+  const xi = Math.floor(x), zi = Math.floor(z);
+  const xf = x - xi, zf = z - zi;
+  const u = xf * xf * (3 - 2 * xf), v = zf * zf * (3 - 2 * zf);
+  const a = hash2(xi, zi, seed), b = hash2(xi + 1, zi, seed);
+  const c = hash2(xi, zi + 1, seed), d = hash2(xi + 1, zi + 1, seed);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+function fbm(x, z, seed, oct) {
+  let s = 0, a = 0.5, f = 1, n = 0;
+  for (let i = 0; i < oct; i++) {
+    s += a * vnoise(x * f, z * f, seed + i * 101);
+    n += a; a *= 0.5; f *= 2;
+  }
+  return s / n;
+}
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// ---------- ことば(学年レベル) ----------
+// {漢字|よみ} という書き方で、レベルに合わせて表示を切り替える
+//   レベル1: よみ(ひらがな)   レベル2: ふりがな付き漢字   レベル3: 漢字
+const MARK = /\{([^|}]+)\|([^}]+)\}/g;
+function T(s, lv) {
+  lv = lv || G.level;
+  return String(s).replace(MARK, (m, k, r) =>
+    lv === 1 ? r : lv === 2 ? '<ruby>' + k + '<rt>' + r + '</rt></ruby>' : k);
+}
+// ふつうの文字(ふりがななし): 画面の title や音声よみあげ用
+function Tp(s, lv) {
+  lv = lv || G.level;
+  return String(s).replace(MARK, (m, k, r) => (lv === 1 ? r : k));
+}
+// 音声よみあげ用(いつもひらがな)
+function Tspeech(s) {
+  return String(s).replace(MARK, (m, k, r) => r).replace(/<[^>]+>/g, '');
+}
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+// ===== 01-blocks.js =====
+// ---------- ブロックの定義 ----------
+const B = {
+  AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, LOG: 4, LEAVES: 5, WATER: 6, SAND: 7,
+  IRON_ORE: 8, IRON: 9, GLASS: 10, ICE: 11, COAL_ORE: 12, GOLD: 13, BRICK: 14,
+  PLANKS: 15, SNOW: 16, COPPER_ORE: 17, COPPER: 18
+};
+
+// タイル番号(テクスチャアトラス 8x8)
+const TILE = {
+  GRASS_TOP: 0, GRASS_SIDE: 1, DIRT: 2, STONE: 3, LOG_SIDE: 4, LOG_TOP: 5, LEAVES: 6, WATER: 7,
+  SAND: 8, IRON_ORE: 9, IRON: 10, GLASS: 11, ICE: 12, COAL_ORE: 13, GOLD: 14, BRICK: 15,
+  PLANKS: 16, SNOW: 17, SNOW_SIDE: 18, COPPER_ORE: 19, COPPER: 20, WHITE: 21
+};
+
+// info: [ひらがな(1・2年), ふりがな(3・4年), 漢字(5・6年)]
+// chem: 物質のデータ  mp=とける温度(℃)  bp=ふっとうする温度(℃)
+const BLOCKS = [];
+function def(id, o) { o.id = id; BLOCKS[id] = o; }
+
+def(B.AIR, { key: 'air', name: '{空気|くうき}', opaque: false, solid: false, place: false, tiles: null });
+
+def(B.GRASS, {
+  key: 'grass', name: '{草|くさ}ブロック', kind: '{土|つち}と{植物|しょくぶつ}', opaque: true, solid: true,
+  tiles: { top: TILE.GRASS_TOP, side: TILE.GRASS_SIDE, bottom: TILE.DIRT },
+  info: [
+    'くさは たいようの ひかりで そだつよ。 はっぱが ひかりを あびて、ごはんを つくっているんだ。',
+    '{草|くさ}は{太陽|たいよう}の{光|ひかり}を{使|つか}って{栄養|えいよう}をつくる。{地面|じめん}の{下|した}では{根|ね}が{水|みず}を{吸|す}っているよ。',
+    '草などの植物は、光合成で二酸化炭素と水から栄養(でんぷん)と酸素をつくる。根は土の中の水と養分を吸収する。'
+  ],
+  chem: null
+});
+def(B.DIRT, {
+  key: 'dirt', name: '{土|つち}', kind: 'こんごうぶつ', opaque: true, solid: true,
+  tiles: { all: TILE.DIRT },
+  info: [
+    'つちは いしが とても こまかく なったものと、いきものの からだの あとが まざっているよ。',
+    '{土|つち}は{岩|いわ}が{細|こま}かくなったものに、{枯|か}れた{葉|は}や{生|い}き{物|もの}のあとが{混|ま}ざったもの。{水|みず}をためる{力|ちから}もあるよ。',
+    '土は岩石が風化してできた細かい粒(鉱物)と、腐植(生物の遺骸が分解したもの)の混合物。保水性や通気性があり、植物の生育を支える。'
+  ],
+  chem: null
+});
+def(B.STONE, {
+  key: 'stone', name: '{石|いし}', kind: '{岩石|がんせき}', opaque: true, solid: true,
+  tiles: { all: TILE.STONE },
+  info: [
+    'いしは とっても かたいよ。 いろんな つぶが あつまって できているんだ。',
+    '{石|いし}はいろいろな{鉱物|こうぶつ}のつぶがあつまってできた{岩|いわ}。ケイ{素|そ}や{酸素|さんそ}などがふくまれているよ。',
+    '岩石は複数の鉱物の集合体。主な成分はケイ素(Si)と酸素(O)で、地殻の約75%をケイ素と酸素が占める。'
+  ],
+  chem: { formula: '(SiO₂ など)', state: 'solid' }
+});
+def(B.LOG, {
+  key: 'log', name: '{木|き}', kind: '{植物|しょくぶつ}', opaque: true, solid: true,
+  tiles: { top: TILE.LOG_TOP, side: TILE.LOG_SIDE, bottom: TILE.LOG_TOP },
+  info: [
+    'きの みきだよ。 もやすと ひに なるよ。 きは じめんの みずを はっぱまで はこんでいるんだ。',
+    '{木|き}の{幹|みき}。{炭素|たんそ}をたくさんふくむので、よくもえる。{根|ね}から{吸|す}った{水|みず}を{葉|は}まで{運|はこ}ぶ。',
+    '木材は主にセルロース(炭素・水素・酸素からなる有機物)でできている。燃えると二酸化炭素と水ができ、光合成で固定された太陽エネルギーが熱と光として放出される。'
+  ],
+  chem: { formula: '(セルロース (C₆H₁₀O₅)ₙ など)', state: 'solid' }
+});
+def(B.LEAVES, {
+  key: 'leaves', name: '{葉|は}っぱ', kind: '{植物|しょくぶつ}', opaque: false, solid: true, cut: true,
+  tiles: { all: TILE.LEAVES },
+  info: [
+    'はっぱは ひかりと みずと くうきの にさんかたんそで、ごはんと さんそを つくるよ。',
+    '{葉|は}は{光|ひかり}・{水|みず}・{二酸化炭素|にさんかたんそ}から、{栄養|えいよう}と{酸素|さんそ}をつくる(こうごうせい)。',
+    '光合成: 6CO₂ + 6H₂O → C₆H₁₂O₆ + 6O₂。葉緑体で光エネルギーを化学エネルギーに変え、酸素を放出する。'
+  ],
+  chem: null
+});
+def(B.WATER, {
+  key: 'water', name: '{水|みず}', kind: 'ぶんし', opaque: false, solid: false, liquid: true, alpha: true,
+  tiles: { all: TILE.WATER },
+  info: [
+    'みずは 0ど いかで こおって こおりに なり、100ど いじょうで ゆげ(すいじょうき)に なるよ。',
+    '{水|みず}は0℃よりひくいと{氷|こおり}、100℃をこえると{水蒸気|すいじょうき}になる。ふつうの{温度|おんど}では{液体|えきたい}だよ。',
+    '水(H₂O)は水素原子2個と酸素原子1個からなる分子。融点0℃、沸点100℃(1気圧)。4℃付近で密度が最大になる。'
+  ],
+  chem: { formula: 'H₂O', mp: 0, bp: 100, state: 'liquid' }
+});
+def(B.SAND, {
+  key: 'sand', name: '{砂|すな}', kind: '{岩石|がんせき}のつぶ', opaque: true, solid: true,
+  tiles: { all: TILE.SAND },
+  info: [
+    'すなは いしが ちいさな つぶに なったもの。 すなを とても あつくすると とけて ガラスに なるよ。',
+    '{砂|すな}は{石英|せきえい}などの{小|ちい}さなつぶ。とても{高|たか}い{温度|おんど}で{溶|と}かすとガラスになる。',
+    '砂の主成分は二酸化ケイ素(SiO₂、石英)。約1700℃で融解し、冷やして固めるとガラスになる。'
+  ],
+  chem: { formula: 'SiO₂', mp: 1710, bp: 2230, state: 'solid' }
+});
+def(B.IRON_ORE, {
+  key: 'iron_ore', name: '{鉄鉱石|てっこうせき}', kind: '{鉱石|こうせき}', opaque: true, solid: true,
+  tiles: { all: TILE.IRON_ORE },
+  info: [
+    'てつを ふくんだ いし。 すこし あかっぽいよ。 ひの ちからで、てつを とりだすんだ。',
+    '{鉄|てつ}がさびたような{形|かたち}で{入|はい}っている{石|いし}。{石炭|せきたん}とまぜて{熱|ねつ}すると{鉄|てつ}がとれる。',
+    '鉄鉱石の主成分は酸化鉄(Fe₂O₃など)。高炉で炭素(コークス)と加熱すると、酸素が取り除かれ(還元)、鉄(Fe)が得られる。'
+  ],
+  chem: { formula: 'Fe₂O₃', state: 'solid' }
+});
+def(B.IRON, {
+  key: 'iron', name: '{鉄|てつ}ブロック', kind: '{金属|きんぞく}', opaque: true, solid: true,
+  tiles: { all: TILE.IRON },
+  info: [
+    'てつは かたくて おもいよ。 じしゃくに くっつくんだ。 みずに ぬれると さびるよ。',
+    '{鉄|てつ}は{磁石|じしゃく}にくっつく{金属|きんぞく}。{水|みず}や{空気|くうき}で{赤|あか}いさびができる。{電気|でんき}もとおすよ。',
+    '鉄(Fe)は原子番号26の金属元素。融点1538℃。磁石に引かれ、湿った空気中で酸化して赤さび(Fe₂O₃)を生じる。地球の核の主成分でもある。'
+  ],
+  chem: { formula: 'Fe', z: 26, mp: 1538, bp: 2862, state: 'solid' }
+});
+def(B.GLASS, {
+  key: 'glass', name: 'ガラス', kind: 'すなから できる', opaque: false, solid: true, cut: true,
+  tiles: { all: TILE.GLASS },
+  info: [
+    'ガラスは すきとおっているよ。 すなを とても あつくして とかして つくるんだ。',
+    'ガラスは{透|す}きとおる{材料|ざいりょう}。{砂|すな}を{高|たか}い{温度|おんど}で{溶|と}かして、{冷|さ}まして{固|かた}めてつくる。',
+    'ガラスは二酸化ケイ素を主成分とする非晶質(アモルファス)の固体。結晶と違い、原子の並びに規則性がないため光を通す。'
+  ],
+  chem: { formula: 'SiO₂ ({主成分|しゅせいぶん})', state: 'solid' }
+});
+def(B.ICE, {
+  key: 'ice', name: '{氷|こおり}', kind: '{水|みず}のすがた', opaque: true, solid: true,
+  tiles: { all: TILE.ICE },
+  info: [
+    'こおりは みずが つめたく なって かたまったもの。 あつく すると とけて みずに もどるよ。 みずに うくんだ。',
+    '{氷|こおり}は{水|みず}が0℃いかでかたまったもの。{水|みず}より{軽|かる}いので、{水|みず}にうく。',
+    '氷はH₂Oの固体で、水分子が規則正しく並んだ結晶。水より密度が小さい(約0.92 g/cm³)ので水に浮く。'
+  ],
+  chem: { formula: 'H₂O', mp: 0, bp: 100, state: 'solid' }
+});
+def(B.COAL_ORE, {
+  key: 'coal_ore', name: '{石炭|せきたん}', kind: '{燃料|ねんりょう}', opaque: true, solid: true,
+  tiles: { all: TILE.COAL_ORE },
+  info: [
+    'せきたんは くろい いし。 よく もえて、あつい ひを だすよ。 むかしの しょくぶつが ちきゅうで かたまったものなんだ。',
+    '{石炭|せきたん}は{大昔|おおむかし}の{植物|しょくぶつ}が{地面|じめん}の{中|なか}でかたまったもの。{炭素|たんそ}が{多|おお}く、もえると{熱|ねつ}が{出|で}る。',
+    '石炭は古代の植物が地中で長い年月をかけて炭化したもの。主成分は炭素(C)で、燃焼すると二酸化炭素(CO₂)と熱が生じる。'
+  ],
+  chem: { formula: 'C ({炭素|たんそ})', z: 6, state: 'solid' }
+});
+def(B.GOLD, {
+  key: 'gold', name: '{金|きん}ブロック', kind: '{金属|きんぞく}', opaque: true, solid: true,
+  tiles: { all: TILE.GOLD },
+  info: [
+    'きんは ピカピカ ひかる きんぞく。 さびないから、ずっと きれいなままだよ。',
+    '{金|きん}は{光|ひかり}るやわらかい{金属|きんぞく}。さびにくく、{電気|でんき}もよくとおす。とても{貴重|きちょう}だよ。',
+    '金(Au)は原子番号79の金属元素。融点1064℃。化学的に非常に安定でさびにくい。展性・延性が大きく、電気をよく通すため電子部品にも使われる。'
+  ],
+  chem: { formula: 'Au', z: 79, mp: 1064, bp: 2856, state: 'solid' }
+});
+def(B.BRICK, {
+  key: 'brick', name: 'レンガ', kind: 'ねんどを やく', opaque: true, solid: true,
+  tiles: { all: TILE.BRICK },
+  info: [
+    'レンガは ねんどを かたちに して、あつい ひで やいて かためたもの。 いえを つくるのに つかうよ。',
+    'レンガは{粘土|ねんど}を{形|かたち}にして、{高|たか}い{温度|おんど}で{焼|や}いてかためたもの。{家|いえ}や{壁|かべ}をつくるのに{使|つか}う。',
+    'レンガは粘土(主成分は含水ケイ酸アルミニウム)を成形し、約1000℃で焼成して硬化させたもの。焼くことで化学変化が起こり、水に溶けなくなる。'
+  ],
+  chem: { formula: '(Al₂Si₂O₅(OH)₄ など)', state: 'solid' }
+});
+def(B.PLANKS, {
+  key: 'planks', name: '{板|いた}', kind: '{木|き}のざいりょう', opaque: true, solid: true,
+  tiles: { all: TILE.PLANKS },
+  info: [
+    'いたは きを うすく きって つくるよ。 いえや つくえに なるんだ。',
+    '{板|いた}は{木|き}を{薄|うす}く{切|き}ったもの。{家|いえ}や{家具|かぐ}の{材料|ざいりょう}になる。{木|き}と{同|おな}じで、よくもえる。',
+    '板材は丸太を製材して得る。木材は軽くて加工しやすく、熱を伝えにくいため建築材料に適している。'
+  ],
+  chem: { formula: '(セルロース など)', state: 'solid' }
+});
+def(B.SNOW, {
+  key: 'snow', name: '{雪|ゆき}', kind: '{水|みず}のすがた', opaque: true, solid: true,
+  tiles: { top: TILE.SNOW, side: TILE.SNOW_SIDE, bottom: TILE.DIRT },
+  info: [
+    'ゆきは そらの うえで みずが こおって、ちいさな けっしょうに なって ふってくるよ。',
+    '{雪|ゆき}は{空|そら}の{上|うえ}で{水蒸気|すいじょうき}がこおって、{小|ちい}さな{結晶|けっしょう}になって{降|ふ}ってくるもの。',
+    '雪は大気中の水蒸気が氷点下で昇華・凝結してできた六角形の氷の結晶。結晶の間に空気を多く含むため、断熱性が高い。'
+  ],
+  chem: { formula: 'H₂O', mp: 0, bp: 100, state: 'solid' }
+});
+def(B.COPPER_ORE, {
+  key: 'copper_ore', name: '{銅鉱石|どうこうせき}', kind: '{鉱石|こうせき}', opaque: true, solid: true,
+  tiles: { all: TILE.COPPER_ORE },
+  info: [
+    'どうこうせきは どうを ふくんだ いし。 みどりや おれんじの つぶが みえるよ。',
+    '{銅|どう}をふくんだ{石|いし}。{石炭|せきたん}といっしょに{熱|ねつ}すると{銅|どう}がとれる。{緑色|みどりいろ}のさびが{見|み}えることもある。',
+    '銅鉱石(黄銅鉱 CuFeS₂、孔雀石 Cu₂CO₃(OH)₂ など)を加熱・還元して銅(Cu)を得る。孔雀石は鮮やかな緑色をしている。'
+  ],
+  chem: { formula: 'CuFeS₂ など', state: 'solid' }
+});
+def(B.COPPER, {
+  key: 'copper', name: '{銅|どう}ブロック', kind: '{金属|きんぞく}', opaque: true, solid: true,
+  tiles: { all: TILE.COPPER },
+  info: [
+    'どうは おれんじいろの きんぞく。 でんきや ねつを よく とおすよ。 10えんだまも どうで できているんだ。',
+    '{銅|どう}は{赤|あか}っぽい{金属|きんぞく}。{電気|でんき}や{熱|ねつ}をよくつたえるので、{電線|でんせん}やなべに{使|つか}う。',
+    '銅(Cu)は原子番号29の金属元素。融点1085℃。銀に次いで電気・熱をよく伝える。空気中で徐々に酸化して緑青(ろくしょう)という緑色のさびを生じる。'
+  ],
+  chem: { formula: 'Cu', z: 29, mp: 1085, bp: 2562, state: 'solid' }
+});
+
+// ブロックとして置けるもの(空気以外)
+const PLACEABLE = BLOCKS.filter(b => b && b.id !== B.AIR).map(b => b.id);
+
+function isSolid(id) { return !!(BLOCKS[id] && BLOCKS[id].solid); }
+function isOpaque(id) { return !!(BLOCKS[id] && BLOCKS[id].opaque); }
+
+function blockTile(id, face) { // face: 0=+x 1=-x 2=+y 3=-y 4=+z 5=-z
+  const t = BLOCKS[id].tiles;
+  if (t.all !== undefined) return t.all;
+  if (face === 2) return t.top;
+  if (face === 3) return t.bottom;
+  return t.side;
+}
+
+// ---------- テクスチャアトラス(ドット絵をプログラムで描く) ----------
+function makeAtlas() {
+  const N = 8, S = 16;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = N * S;
+  const ctx = cv.getContext('2d');
+  const img = ctx.createImageData(N * S, N * S);
+  const data = img.data;
+  function put(tile, x, y, r, g, b, a) {
+    const tx = (tile % N) * S + x, ty = Math.floor(tile / N) * S + y;
+    const i = (ty * N * S + tx) * 4;
+    data[i] = clamp(r, 0, 255); data[i + 1] = clamp(g, 0, 255); data[i + 2] = clamp(b, 0, 255);
+    data[i + 3] = a === undefined ? 255 : a;
+  }
+  function fill(tile, base, vari, seed, extra) {
+    const rnd = mulberry32(seed);
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const v = (rnd() - 0.5) * vari;
+      let c = [base[0] + v, base[1] + v, base[2] + v, 255];
+      if (extra) { const e = extra(x, y, c, rnd); if (e) c = e; }
+      put(tile, x, y, c[0], c[1], c[2], c[3]);
+    }
+  }
+  // 草(上)
+  fill(TILE.GRASS_TOP, [96, 170, 62], 34, 11, (x, y, c, r) => (r() < 0.12 ? [c[0] - 20, c[1] + 15, c[2] - 10, 255] : null));
+  // 土
+  fill(TILE.DIRT, [134, 96, 62], 30, 12, (x, y, c, r) => (r() < 0.08 ? [c[0] - 30, c[1] - 25, c[2] - 20, 255] : null));
+  // 草(横)
+  (function () {
+    const rnd = mulberry32(13);
+    const hs = []; for (let x = 0; x < S; x++) hs.push(3 + Math.floor(rnd() * 3));
+    fill(TILE.GRASS_SIDE, [134, 96, 62], 30, 13, (x, y, c) => (y < hs[x] ? [96 + (rnd() - 0.5) * 30, 170 + (rnd() - 0.5) * 30, 62, 255] : null));
+  })();
+  // 石
+  fill(TILE.STONE, [128, 128, 130], 36, 14, (x, y, c, r) => (r() < 0.06 ? [c[0] - 35, c[1] - 35, c[2] - 33, 255] : null));
+  // 木(横)
+  fill(TILE.LOG_SIDE, [110, 78, 44], 18, 15, (x, y, c) => ((x % 4 === 0) ? [c[0] - 28, c[1] - 22, c[2] - 14, 255] : null));
+  // 木(上)
+  fill(TILE.LOG_TOP, [176, 140, 88], 14, 16, (x, y, c) => {
+    const d = Math.max(Math.abs(x - 7.5), Math.abs(y - 7.5));
+    if (d > 6.2) return [108, 76, 42, 255];
+    return (Math.floor(d) % 2 === 0) ? [c[0] - 26, c[1] - 26, c[2] - 20, 255] : null;
+  });
+  // 葉
+  fill(TILE.LEAVES, [56, 138, 48], 50, 17, (x, y, c, r) => (r() < 0.22 ? [0, 0, 0, 0] : null));
+  // 水
+  fill(TILE.WATER, [48, 110, 210], 22, 18, (x, y, c) => [c[0], c[1], c[2], 190]);
+  // 砂
+  fill(TILE.SAND, [222, 208, 150], 24, 19, (x, y, c, r) => (r() < 0.06 ? [c[0] - 25, c[1] - 25, c[2] - 22, 255] : null));
+  // 鉱石(石 + つぶ)
+  function ore(tile, seed, col) {
+    const rnd = mulberry32(seed + 1000);
+    const spots = [];
+    for (let i = 0; i < 6; i++) spots.push([2 + Math.floor(rnd() * 11), 2 + Math.floor(rnd() * 11)]);
+    fill(tile, [128, 128, 130], 34, seed, (x, y, c) => {
+      for (const s of spots) {
+        if (Math.abs(x - s[0]) <= 1 && Math.abs(y - s[1]) <= 1 && !(Math.abs(x - s[0]) === 1 && Math.abs(y - s[1]) === 1)) {
+          const v = (rnd() - 0.5) * 30;
+          return [col[0] + v, col[1] + v, col[2] + v, 255];
+        }
+      }
+      return null;
+    });
+  }
+  ore(TILE.IRON_ORE, 21, [214, 160, 130]);
+  ore(TILE.COAL_ORE, 22, [28, 28, 32]);
+  ore(TILE.COPPER_ORE, 23, [214, 118, 70]);
+  // 金属ブロック
+  function metal(tile, seed, base, border, shine) {
+    fill(tile, base, 16, seed, (x, y, c) => {
+      const e = Math.min(x, y, S - 1 - x, S - 1 - y);
+      if (e === 0) return [border[0], border[1], border[2], 255];
+      if (e === 1) return [c[0] + 18, c[1] + 18, c[2] + 18, 255];
+      if (shine && (x + y === 6 || x + y === 7) && x > 2 && y > 2) return [c[0] + 36, c[1] + 36, c[2] + 30, 255];
+      return null;
+    });
+  }
+  metal(TILE.IRON, 24, [196, 198, 204], [110, 112, 120], true);
+  metal(TILE.GOLD, 25, [244, 200, 50], [170, 120, 20], true);
+  metal(TILE.COPPER, 26, [210, 122, 72], [140, 70, 36], true);
+  // ガラス
+  fill(TILE.GLASS, [200, 235, 245], 0, 27, (x, y, c) => {
+    const e = Math.min(x, y, S - 1 - x, S - 1 - y);
+    if (e === 0) return [190, 230, 245, 255];
+    if ((x === 3 && y >= 3 && y <= 6) || (y === 3 && x >= 3 && x <= 6)) return [255, 255, 255, 230];
+    return [200, 235, 245, 0];
+  });
+  // 氷
+  fill(TILE.ICE, [160, 215, 245], 20, 28, (x, y, c) => (((x + y * 2) % 9 === 0) ? [220, 245, 255, 255] : null));
+  // レンガ
+  fill(TILE.BRICK, [168, 70, 56], 26, 29, (x, y, c) => {
+    const row = Math.floor(y / 4);
+    if (y % 4 === 3) return [196, 190, 180, 255];
+    const off = (row % 2) * 4;
+    if ((x + off) % 8 === 7) return [196, 190, 180, 255];
+    return null;
+  });
+  // 板
+  fill(TILE.PLANKS, [180, 140, 84], 14, 30, (x, y, c) => {
+    if (y % 4 === 3) return [c[0] - 40, c[1] - 36, c[2] - 28, 255];
+    if ((x + Math.floor(y / 4) * 5) % 11 === 0) return [c[0] - 18, c[1] - 16, c[2] - 12, 255];
+    return null;
+  });
+  // 雪
+  fill(TILE.SNOW, [244, 248, 255], 12, 31);
+  (function () {
+    const rnd = mulberry32(32);
+    const hs = []; for (let x = 0; x < S; x++) hs.push(4 + Math.floor(rnd() * 3));
+    fill(TILE.SNOW_SIDE, [134, 96, 62], 30, 32, (x, y, c) => (y < hs[x] ? [244 - rnd() * 10, 248 - rnd() * 10, 255, 255] : null));
+  })();
+  // 白(色つけ用)
+  fill(TILE.WHITE, [255, 255, 255], 0, 33);
+
+  ctx.putImageData(img, 0, 0);
+  cv.N = N; cv.S = S;
+  return cv;
+}
+
+// ===== 02-world.js =====
+// ---------- ワールド(地形づくりとメッシュ) ----------
+const W = 96, D = 96, H = 48, CS = 16, SEA = 13;
+const CX = W / CS, CZ = D / CS;
+const PLAZA_Y = 19;
+const SPAWN = { x: W / 2 + 0.5, z: W / 2 + 6.5, y: PLAZA_Y + 1 };
+
+const world = {
+  blocks: new Uint8Array(W * D * H),
+  edits: new Map(), // index -> id (プレイヤーがかえた場所)
+  seed: 20260930
+};
+const widx = (x, y, z) => x + z * W + y * W * D;
+function inb(x, y, z) { return x >= 0 && x < W && z >= 0 && z < D && y >= 0 && y < H; }
+function getB(x, y, z) {
+  if (x < 0 || x >= W || z < 0 || z >= D || y < 0 || y >= H) return 0;
+  return world.blocks[x + z * W + y * W * D];
+}
+// 当たり判定用: 世界のはしは「かべ」、いちばん下は「ゆか」
+function solidAt(x, y, z) {
+  if (x < 0 || x >= W || z < 0 || z >= D || y < 0) return true;
+  if (y >= H) return false;
+  return isSolid(world.blocks[x + z * W + y * W * D]);
+}
+
+function genWorld(seed) {
+  world.seed = seed;
+  const blocks = world.blocks;
+  blocks.fill(0);
+  const cx = W / 2, cz = D / 2;
+  const heights = new Int16Array(W * D);
+  for (let z = 0; z < D; z++) for (let x = 0; x < W; x++) {
+    const dx = (x + 0.5 - cx) / (W * 0.5), dz = (z + 0.5 - cz) / (D * 0.5);
+    const r = Math.sqrt(dx * dx + dz * dz);
+    const mask = clamp(1 - Math.pow(r, 2.4) * 1.08, 0, 1);
+    const n = fbm(x * 0.045, z * 0.045, seed, 4);
+    let h = 5 + mask * (6 + n * 16) + Math.pow(Math.max(0, n - 0.5), 1.3) * 120 * mask;
+    // 中央の広場を平らにする
+    const ddx = Math.abs(x + 0.5 - cx) / 14, ddz = Math.abs(z + 0.5 - (cz + 1)) / 12;
+    const d = Math.max(ddx, ddz);
+    const t = clamp((1.5 - d) / 0.6, 0, 1);
+    h = h * (1 - t) + PLAZA_Y * t;
+    heights[x + z * W] = clamp(Math.round(h), 2, H - 12);
+  }
+  const inPlaza = (x, z) => Math.abs(x + 0.5 - cx) / 14 < 1.5 && Math.abs(z + 0.5 - (cz + 1)) / 12 < 1.5;
+
+  for (let z = 0; z < D; z++) for (let x = 0; x < W; x++) {
+    const h = heights[x + z * W];
+    for (let y = 0; y <= h; y++) {
+      let id = B.STONE;
+      if (y === h) {
+        if (h <= SEA + 1) id = B.SAND;
+        else if (h >= 27) id = B.SNOW;
+        else id = B.GRASS;
+      } else if (y >= h - 2) {
+        id = (h <= SEA + 1) ? B.SAND : B.DIRT;
+      }
+      blocks[widx(x, y, z)] = id;
+    }
+    for (let y = h + 1; y <= SEA; y++) blocks[widx(x, y, z)] = B.WATER;
+  }
+
+  // 鉱石
+  const rnd = mulberry32(seed ^ 0x9e3779b9);
+  function vein(id, count, size, ymax) {
+    for (let k = 0; k < count; k++) {
+      let x = Math.floor(rnd() * W), z = Math.floor(rnd() * D);
+      const h = heights[x + z * W];
+      let y = 1 + Math.floor(rnd() * Math.max(1, Math.min(ymax, h - 1)));
+      for (let s = 0; s < size; s++) {
+        if (inb(x, y, z) && blocks[widx(x, y, z)] === B.STONE) blocks[widx(x, y, z)] = id;
+        const r = rnd();
+        if (r < 0.17) x++; else if (r < 0.34) x--; else if (r < 0.5) z++; else if (r < 0.66) z--; else if (r < 0.83) y++; else y--;
+      }
+    }
+  }
+  vein(B.COAL_ORE, 170, 7, 40);
+  vein(B.IRON_ORE, 110, 6, 24);
+  vein(B.COPPER_ORE, 80, 5, 22);
+  vein(B.GOLD, 26, 3, 12);
+
+  // 木
+  for (let z = 4; z < D - 4; z++) for (let x = 4; x < W - 4; x++) {
+    if (inPlaza(x, z)) continue;
+    const h = heights[x + z * W];
+    if (blocks[widx(x, h, z)] !== B.GRASS || h < SEA + 2 || h > 24) continue;
+    if (hash2(x, z, seed + 77) > 0.013) continue;
+    const th = 4 + Math.floor(hash2(x, z, seed + 5) * 2);
+    for (let y = 1; y <= th; y++) blocks[widx(x, h + y, z)] = B.LOG;
+    for (let ly = th - 2; ly <= th + 1; ly++) {
+      const rad = ly >= th ? 1 : 2;
+      for (let dz = -rad; dz <= rad; dz++) for (let dx = -rad; dx <= rad; dx++) {
+        if (Math.abs(dx) === rad && Math.abs(dz) === rad && (ly >= th || hash2(x + dx, z + dz, seed + ly) < 0.5)) continue;
+        const yy = h + ly;
+        if (inb(x + dx, yy, z + dz) && blocks[widx(x + dx, yy, z + dz)] === 0) blocks[widx(x + dx, yy, z + dz)] = B.LEAVES;
+      }
+    }
+  }
+
+  // はくぶつかん(ブロックを ならべた ひろば)
+  const fy = PLAZA_Y + 1;
+  const row1 = [B.GRASS, B.DIRT, B.STONE, B.SAND, B.SNOW, B.LOG, B.LEAVES, B.PLANKS, B.BRICK];
+  const row2 = [B.COAL_ORE, B.IRON_ORE, B.COPPER_ORE, B.IRON, B.COPPER, B.GOLD, B.GLASS];
+  row1.forEach((id, i) => { blocks[widx(cx - 8 + i * 2, fy, cz - 6)] = id; });
+  row2.forEach((id, i) => { blocks[widx(cx - 6 + i * 2, fy, cz - 2)] = id; });
+  // 水と氷のいけ
+  for (let dz = 0; dz < 3; dz++) for (let dx = 0; dx < 3; dx++) {
+    blocks[widx(cx + 7 + dx, PLAZA_Y, cz + dz - 2)] = B.WATER;
+    blocks[widx(cx + 7 + dx, PLAZA_Y - 1, cz + dz - 2)] = B.STONE;
+    blocks[widx(cx + 7 + dx, PLAZA_Y, cz + dz + 2)] = B.ICE;
+  }
+  world.heights = heights;
+  // プレイヤーがかえた分をもどす
+  world.edits.forEach((id, i) => { blocks[i] = id; });
+}
+
+function setBlock(x, y, z, id, track) {
+  if (!inb(x, y, z)) return false;
+  const i = widx(x, y, z);
+  if (world.blocks[i] === id) return false;
+  world.blocks[i] = id;
+  if (track !== false) world.edits.set(i, id);
+  markDirty(x, z);
+  return true;
+}
+
+// ---------- メッシュづくり ----------
+// 面: 法線の軸(0=x,1=y,2=z)と向き(+1/-1)
+const FACE_DEFS = [];
+(function () {
+  const axes = [[1, 2], [2, 0], [0, 1]]; // +n のときの (u,v): u×v = n
+  for (let n = 0; n < 3; n++) for (const s of [1, -1]) {
+    let u = axes[n][0], v = axes[n][1];
+    if (s < 0) { const t = u; u = v; v = t; }
+    FACE_DEFS.push({ n, s, u, v, face: n * 2 + (s > 0 ? 0 : 1) });
+  }
+})();
+const FACE_SHADE = [0.82, 0.82, 1.0, 0.5, 0.68, 0.68];
+const CORNERS = [[0, 0], [1, 0], [1, 1], [0, 1]];
+
+function pushVert(arr, x, y, z, u, v, l) { arr.push(x, y, z, u, v, l); }
+
+function buildChunk(cxi, czi) {
+  const op = [], wt = [];
+  const x0 = cxi * CS, z0 = czi * CS;
+  const N = 8, pad = 0.02;
+  const cell = [0, 0, 0], nb = [0, 0, 0];
+  const aoAt = (px, py, pz) => (isOpaque(getB(px, py, pz)) ? 1 : 0);
+  for (let y = 0; y < H; y++) for (let z = z0; z < z0 + CS; z++) for (let x = x0; x < x0 + CS; x++) {
+    const id = world.blocks[x + z * W + y * W * D];
+    if (id === 0) continue;
+    const bd = BLOCKS[id];
+    const isWater = id === B.WATER;
+    for (const fd of FACE_DEFS) {
+      cell[0] = x; cell[1] = y; cell[2] = z;
+      nb[0] = x; nb[1] = y; nb[2] = z;
+      nb[fd.n] += fd.s;
+      const nid = getB(nb[0], nb[1], nb[2]);
+      if (isOpaque(nid)) continue;
+      if (nid === id && id !== B.LEAVES) continue;
+      if (y === 0 && fd.face === 3) continue;
+      const arr = isWater ? wt : op;
+      const tile = blockTile(id, fd.face);
+      const tx = tile % N, ty = Math.floor(tile / N);
+      const base = fd.s > 0 ? 1 : 0;
+      const hTop = (isWater && getB(x, y + 1, z) !== B.WATER) ? 0.875 : 1;
+      const vs = [], ao = [];
+      for (let c = 0; c < 4; c++) {
+        const cu = CORNERS[c][0], cv = CORNERS[c][1];
+        const o = [0, 0, 0];
+        o[fd.n] = base; o[fd.u] = cu; o[fd.v] = cv;
+        let py = o[1] * (o[1] ? hTop : 1);
+        if (fd.n === 1 && base === 1) py = hTop;
+        // テクスチャ座標
+        let tu, tv;
+        if (fd.n === 1) { tu = o[0]; tv = o[2]; }
+        else { tu = fd.n === 0 ? o[2] : o[0]; tv = 1 - o[1]; }
+        const uu = (tx + pad + tu * (1 - 2 * pad)) / N;
+        const vv = (ty + pad + tv * (1 - 2 * pad)) / N;
+        // AO
+        let a = 3;
+        if (!isWater && bd.opaque) {
+          const su = cu ? 1 : -1, sv = cv ? 1 : -1;
+          const p1 = [nb[0], nb[1], nb[2]], p2 = [nb[0], nb[1], nb[2]], p3 = [nb[0], nb[1], nb[2]];
+          p1[fd.u] += su; p2[fd.v] += sv; p3[fd.u] += su; p3[fd.v] += sv;
+          const s1 = aoAt(p1[0], p1[1], p1[2]), s2 = aoAt(p2[0], p2[1], p2[2]), cr = aoAt(p3[0], p3[1], p3[2]);
+          a = (s1 && s2) ? 0 : 3 - (s1 + s2 + cr);
+        }
+        ao.push(a);
+        const light = FACE_SHADE[fd.face] * (0.52 + 0.48 * (a / 3));
+        vs.push([x + o[0], y + py, z + o[2], uu, vv, light]);
+      }
+      // 三角形(AOで斜めの向きをえらぶ)
+      const flip = ao[0] + ao[2] < ao[1] + ao[3];
+      const order = flip ? [1, 2, 3, 1, 3, 0] : [0, 1, 2, 0, 2, 3];
+      for (const k of order) { const v = vs[k]; pushVert(arr, v[0], v[1], v[2], v[3], v[4], v[5]); }
+    }
+  }
+  return { op: new Float32Array(op), wt: new Float32Array(wt) };
+}
+
+const dirtyChunks = new Set();
+function markDirty(x, z) {
+  const cx = Math.floor(x / CS), cz = Math.floor(z / CS);
+  dirtyChunks.add(cx + cz * CX);
+  const lx = x - cx * CS, lz = z - cz * CS;
+  if (lx === 0 && cx > 0) dirtyChunks.add(cx - 1 + cz * CX);
+  if (lx === CS - 1 && cx < CX - 1) dirtyChunks.add(cx + 1 + cz * CX);
+  if (lz === 0 && cz > 0) dirtyChunks.add(cx + (cz - 1) * CX);
+  if (lz === CS - 1 && cz < CZ - 1) dirtyChunks.add(cx + (cz + 1) * CX);
+}
+function markAllDirty() { for (let i = 0; i < CX * CZ; i++) dirtyChunks.add(i); }
+
+// ---------- レイキャスト(ブロックをえらぶ) ----------
+function raycast(ox, oy, oz, dx, dy, dz, maxD, includeWater) {
+  let x = Math.floor(ox), y = Math.floor(oy), z = Math.floor(oz);
+  const sx = dx > 0 ? 1 : -1, sy = dy > 0 ? 1 : -1, sz = dz > 0 ? 1 : -1;
+  const tdx = dx !== 0 ? Math.abs(1 / dx) : Infinity;
+  const tdy = dy !== 0 ? Math.abs(1 / dy) : Infinity;
+  const tdz = dz !== 0 ? Math.abs(1 / dz) : Infinity;
+  let tx = dx !== 0 ? ((dx > 0 ? x + 1 - ox : ox - x) * tdx) : Infinity;
+  let ty = dy !== 0 ? ((dy > 0 ? y + 1 - oy : oy - y) * tdy) : Infinity;
+  let tz = dz !== 0 ? ((dz > 0 ? z + 1 - oz : oz - z) * tdz) : Infinity;
+  let nx = 0, ny = 0, nz = 0, t = 0;
+  for (let i = 0; i < 64; i++) {
+    const id = getB(x, y, z);
+    if (id !== 0 && (id !== B.WATER || (includeWater && t > 0))) {
+      return { x, y, z, nx, ny, nz, id, t };
+    }
+    if (tx < ty && tx < tz) { x += sx; t = tx; tx += tdx; nx = -sx; ny = 0; nz = 0; }
+    else if (ty < tz) { y += sy; t = ty; ty += tdy; nx = 0; ny = -sy; nz = 0; }
+    else { z += sz; t = tz; tz += tdz; nx = 0; ny = 0; nz = -sz; }
+    if (t > maxD) return null;
+  }
+  return null;
+}
+
+// ===== 03-render.js =====
+// ---------- 描画(WebGL) ----------
+const M4 = {
+  ident() { return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]); },
+  persp(fov, aspect, n, f) {
+    const t = 1 / Math.tan(fov / 2), nf = 1 / (n - f);
+    return new Float32Array([t / aspect, 0, 0, 0, 0, t, 0, 0, 0, 0, (f + n) * nf, -1, 0, 0, 2 * f * n * nf, 0]);
+  },
+  mul(a, b) {
+    const o = new Float32Array(16);
+    for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) {
+      let s = 0;
+      for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k];
+      o[c * 4 + r] = s;
+    }
+    return o;
+  },
+  // 視点: yaw, pitch, 位置
+  view(yaw, pitch, px, py, pz) {
+    const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+    // カメラ軸
+    const rx = cy, ry = 0, rz = -sy;                       // right
+    const ux = sy * sp, uy = cp, uz = cy * sp;              // up
+    const fx = -sy * cp, fy = sp, fz = -cy * cp;            // forward
+    return new Float32Array([
+      rx, ux, -fx, 0,
+      ry, uy, -fy, 0,
+      rz, uz, -fz, 0,
+      -(rx * px + ry * py + rz * pz), -(ux * px + uy * py + uz * pz), (fx * px + fy * py + fz * pz), 1
+    ]);
+  },
+  model(tx, ty, tz, yaw, sx, sy, sz) {
+    const c = Math.cos(yaw), s = Math.sin(yaw);
+    return new Float32Array([c * sx, 0, -s * sx, 0, 0, sy, 0, 0, s * sz, 0, c * sz, 0, tx, ty, tz, 1]);
+  }
+};
+
+const VS = `
+attribute vec3 aPos; attribute vec2 aUv; attribute float aLight;
+uniform mat4 uVP; uniform mat4 uModel; uniform vec3 uCam; uniform float uFogNear; uniform float uFogFar;
+varying vec2 vUv; varying float vLight; varying float vFog;
+void main(){
+  vec4 wp = uModel * vec4(aPos, 1.0);
+  gl_Position = uVP * wp;
+  vUv = aUv; vLight = aLight;
+  vFog = clamp((length(wp.xyz - uCam) - uFogNear) / (uFogFar - uFogNear), 0.0, 1.0);
+}`;
+const FS = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+uniform sampler2D uTex; uniform vec3 uTint; uniform vec3 uFogColor; uniform float uCut; uniform float uAlpha;
+varying vec2 vUv; varying float vLight; varying float vFog;
+void main(){
+  vec4 t = texture2D(uTex, vUv);
+  if (t.a < uCut) discard;
+  vec3 c = t.rgb * vLight * uTint;
+  c = mix(c, uFogColor, vFog);
+  gl_FragColor = vec4(c, t.a * uAlpha);
+}`;
+
+const R = {
+  gl: null, prog: null, loc: {}, tex: null,
+  chunks: [], box: null, line: null,
+  sky: [0.55, 0.78, 0.97],
+  ok: false
+};
+
+function initGL(canvas) {
+  const gl = canvas.getContext('webgl', { antialias: true, alpha: false, powerPreference: 'high-performance' }) ||
+             canvas.getContext('experimental-webgl');
+  if (!gl) return false;
+  R.gl = gl;
+  function sh(type, src) {
+    const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  }
+  const p = gl.createProgram();
+  gl.attachShader(p, sh(gl.VERTEX_SHADER, VS));
+  gl.attachShader(p, sh(gl.FRAGMENT_SHADER, FS));
+  gl.bindAttribLocation(p, 0, 'aPos'); gl.bindAttribLocation(p, 1, 'aUv'); gl.bindAttribLocation(p, 2, 'aLight');
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  R.prog = p;
+  for (const n of ['uVP', 'uModel', 'uCam', 'uFogNear', 'uFogFar', 'uTex', 'uTint', 'uFogColor', 'uCut', 'uAlpha']) R.loc[n] = gl.getUniformLocation(p, n);
+  // テクスチャ
+  const atlas = makeAtlas();
+  R.atlas = atlas;
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlas);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  R.tex = tex;
+  for (let i = 0; i < CX * CZ; i++) R.chunks.push({ op: null, wt: null, opN: 0, wtN: 0 });
+  R.box = makeBoxBuffer();
+  R.line = { buf: gl.createBuffer(), n: 0 };
+  R.ok = true;
+  return true;
+}
+
+function uploadChunk(i) {
+  const gl = R.gl, c = R.chunks[i];
+  const m = buildChunk(i % CX, Math.floor(i / CX));
+  function up(key, data) {
+    if (!c[key]) c[key] = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, c[key]);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+  }
+  up('op', m.op); c.opN = m.op.length / 6;
+  up('wt', m.wt); c.wtN = m.wt.length / 6;
+}
+function flushDirty() {
+  if (!R.ok) { dirtyChunks.clear(); return; }
+  dirtyChunks.forEach(i => uploadChunk(i));
+  dirtyChunks.clear();
+}
+
+// 単位立方体(ロボットやくもに使う) 0..1
+function makeBoxBuffer() {
+  const gl = R.gl;
+  const t = TILE.WHITE, N = 8;
+  const u = (t % N + 0.5) / N, v = (Math.floor(t / N) + 0.5) / N;
+  const arr = [];
+  for (const fd of FACE_DEFS) {
+    const vs = [];
+    for (let c = 0; c < 4; c++) {
+      const o = [0, 0, 0];
+      o[fd.n] = fd.s > 0 ? 1 : 0; o[fd.u] = CORNERS[c][0]; o[fd.v] = CORNERS[c][1];
+      vs.push([o[0], o[1], o[2]]);
+    }
+    const l = FACE_SHADE[fd.face];
+    for (const k of [0, 1, 2, 0, 2, 3]) arr.push(vs[k][0], vs[k][1], vs[k][2], u, v, l);
+  }
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(arr), gl.STATIC_DRAW);
+  return { buf, n: arr.length / 6 };
+}
+
+function bindVB(buf) {
+  const gl = R.gl;
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0);
+  gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 24, 12);
+  gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 24, 20);
+}
+
+function resizeGL(canvas) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.max(1, Math.floor(canvas.clientWidth * dpr)), h = Math.max(1, Math.floor(canvas.clientHeight * dpr));
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+}
+
+// 描画するもの(ロボットなど)を集める
+function drawScene(canvas, cam, entities, sel, time) {
+  const gl = R.gl;
+  resizeGL(canvas);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.clearColor(R.sky[0], R.sky[1], R.sky[2], 1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST);
+  gl.useProgram(R.prog);
+  const proj = M4.persp(cam.fov, canvas.width / canvas.height, 0.08, 400);
+  const vp = M4.mul(proj, M4.view(cam.yaw, cam.pitch, cam.x, cam.y, cam.z));
+  const L = R.loc;
+  gl.uniformMatrix4fv(L.uVP, false, vp);
+  gl.uniformMatrix4fv(L.uModel, false, M4.ident());
+  gl.uniform3f(L.uCam, cam.x, cam.y, cam.z);
+  gl.uniform1f(L.uFogNear, 70); gl.uniform1f(L.uFogFar, 140);
+  gl.uniform3f(L.uFogColor, R.sky[0], R.sky[1], R.sky[2]);
+  gl.uniform1i(L.uTex, 0);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, R.tex);
+  gl.uniform3f(L.uTint, 1, 1, 1);
+  gl.uniform1f(L.uCut, 0.5); gl.uniform1f(L.uAlpha, 1);
+  gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK); gl.frontFace(gl.CCW);
+  gl.disable(gl.BLEND);
+  for (const c of R.chunks) {
+    if (!c.opN) continue;
+    bindVB(c.op);
+    gl.drawArrays(gl.TRIANGLES, 0, c.opN);
+  }
+  // ロボットなど
+  for (const e of entities) drawEntity(e);
+  // 選んでいるブロックのわく
+  if (sel) drawSelection(sel, time);
+  // 水(半とうめい)
+  gl.uniformMatrix4fv(L.uModel, false, M4.ident());
+  gl.uniform3f(L.uTint, 1, 1, 1);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.depthMask(false); gl.disable(gl.CULL_FACE);
+  gl.uniform1f(L.uCut, 0.05); gl.uniform1f(L.uAlpha, 0.85);
+  for (const c of R.chunks) {
+    if (!c.wtN) continue;
+    bindVB(c.wt);
+    gl.drawArrays(gl.TRIANGLES, 0, c.wtN);
+  }
+  gl.depthMask(true); gl.disable(gl.BLEND);
+}
+
+function drawEntity(e) {
+  const gl = R.gl, L = R.loc;
+  bindVB(R.box.buf);
+  for (const p of e.parts) {
+    gl.uniformMatrix4fv(L.uModel, false, p.m);
+    gl.uniform3f(L.uTint, p.c[0], p.c[1], p.c[2]);
+    gl.drawArrays(gl.TRIANGLES, 0, R.box.n);
+  }
+  gl.uniformMatrix4fv(L.uModel, false, M4.ident());
+  gl.uniform3f(L.uTint, 1, 1, 1);
+}
+
+function drawSelection(s, time) {
+  const gl = R.gl, L = R.loc;
+  const e = 0.004, x0 = s.x - e, y0 = s.y - e, z0 = s.z - e, x1 = s.x + 1 + e, y1 = s.y + 1 + e, z1 = s.z + 1 + e;
+  const t = TILE.WHITE, N = 8, u = (t % N + 0.5) / N, v = (Math.floor(t / N) + 0.5) / N;
+  const P = [[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1], [x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1]];
+  const E = [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]];
+  const arr = [];
+  for (const [a, b] of E) { arr.push(P[a][0], P[a][1], P[a][2], u, v, 1, P[b][0], P[b][1], P[b][2], u, v, 1); }
+  gl.bindBuffer(gl.ARRAY_BUFFER, R.line.buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(arr), gl.DYNAMIC_DRAW);
+  bindVB(R.line.buf);
+  gl.uniform3f(L.uTint, 0.05, 0.05, 0.08);
+  gl.lineWidth(2);
+  gl.drawArrays(gl.LINES, 0, 24);
+  gl.uniform3f(L.uTint, 1, 1, 1);
+}
+
+// ---------- くも(ゆっくり流れる) ----------
+const CLOUDS = [];
+(function () {
+  const r = mulberry32(777);
+  for (let i = 0; i < 14; i++) CLOUDS.push({ x: r() * 200 - 50, y: 38 + r() * 6, z: r() * 200 - 50, w: 7 + r() * 9, d: 4 + r() * 5, h: 1.3 });
+})();
+function cloudEntity(t) {
+  const parts = [];
+  for (const c of CLOUDS) {
+    const x = ((c.x + t * 0.7 + 60) % 220) - 60;
+    parts.push({ m: M4.model(x, c.y, c.z, 0, c.w, c.h, c.d), c: [1, 1, 1] });
+    parts.push({ m: M4.model(x + c.w * 0.25, c.y + c.h, c.z + c.d * 0.2, 0, c.w * 0.5, c.h * 0.8, c.d * 0.6), c: [0.97, 0.98, 1] });
+  }
+  return { parts };
+}
+
+// ===== 04-player.js =====
+// ---------- ゲームのじょうたい・プレイヤー ----------
+const G = {
+  level: 2,                 // 1=ひらがな 2=ふりがな 3=漢字
+  ctrl: 'auto',             // auto / pc / touch
+  hotbar: [B.GRASS, B.DIRT, B.STONE, B.PLANKS, B.BRICK, B.GLASS, B.LOG, B.SAND, B.LEAVES],
+  slot: 0,
+  zukan: {},                // 見つけたブロック
+  made: {},                 // 実験でつくったもの
+  counters: { placed: 0, broken: 0, inspected: 0, robotSteps: 0, robotPlaced: 0, runs: 0, labMade: 0, frozen: 0, asked: 0, summons: 0, ironMelted: 0 },
+  missionIndex: 0,
+  stars: 0,
+  sound: true,
+  started: false,
+  modal: null,              // 開いているモーダル
+  panel: null,              // プログラム用パネル
+  time: 0
+};
+
+const P = {
+  x: SPAWN.x, y: SPAWN.y, z: SPAWN.z, vx: 0, vy: 0, vz: 0,
+  yaw: 0, pitch: -0.15, onGround: false, fly: false, inWater: false, headWater: false,
+  w: 0.3, h: 1.8, eye: 1.62, blockedXZ: false
+};
+const INPUT = { mx: 0, mz: 0, jump: false, down: false, sprint: false, breakHeld: false, placeHeld: false };
+
+function collides(x, y, z) {
+  const x0 = Math.floor(x - P.w), x1 = Math.floor(x + P.w);
+  const y0 = Math.floor(y), y1 = Math.floor(y + P.h - 0.001);
+  const z0 = Math.floor(z - P.w), z1 = Math.floor(z + P.w);
+  for (let yy = y0; yy <= y1; yy++) for (let zz = z0; zz <= z1; zz++) for (let xx = x0; xx <= x1; xx++) {
+    if (solidAt(xx, yy, zz)) return true;
+  }
+  return false;
+}
+
+function moveAxis(ax, d) {
+  if (d === 0) return false;
+  P[ax] += d;
+  if (!collides(P.x, P.y, P.z)) return false;
+  const half = ax === 'y' ? (d > 0 ? P.h : 0) : P.w;
+  if (d > 0) {
+    const cell = Math.floor(P[ax] + half);
+    P[ax] = cell - half - 1e-4;
+  } else {
+    const cell = Math.floor(P[ax] - half);
+    P[ax] = cell + 1 + half + 1e-4;
+  }
+  return true;
+}
+
+let flyTapTimer = 0;
+function togglePlayerFly() {
+  P.fly = !P.fly;
+  P.vy = 0;
+  if (typeof updateFlyButton === 'function') updateFlyButton();
+  toast(P.fly ? T('{空|そら}をとべるよ！') : T('{地面|じめん}にもどったよ'));
+}
+
+function physicsStep(dt) {
+  // 水の中?
+  const fx = Math.floor(P.x), fz = Math.floor(P.z);
+  P.inWater = getB(fx, Math.floor(P.y + 0.3), fz) === B.WATER;
+  P.headWater = getB(fx, Math.floor(P.y + P.eye), fz) === B.WATER;
+
+  // 向きに合わせた移動
+  const sy = Math.sin(P.yaw), cy = Math.cos(P.yaw);
+  let mx = INPUT.mx, mz = INPUT.mz; // mx: 右+  mz: 前+
+  const len = Math.hypot(mx, mz);
+  if (len > 1) { mx /= len; mz /= len; }
+  let speed = INPUT.sprint ? 6.4 : 4.3;
+  if (P.fly) speed = INPUT.sprint ? 16 : 10;
+  if (P.inWater && !P.fly) speed *= 0.55;
+  // right = (cy, -sy) , forward = (-sy, -cy)
+  const dirx = cy * mx + (-sy) * mz;
+  const dirz = (-sy) * mx + (-cy) * mz;
+  const targetVX = dirx * speed, targetVZ = dirz * speed;
+  const accel = P.onGround || P.fly || P.inWater ? 14 : 4;
+  const k = Math.min(1, accel * dt);
+  P.vx += (targetVX - P.vx) * k;
+  P.vz += (targetVZ - P.vz) * k;
+
+  if (P.fly) {
+    const target = (INPUT.jump ? 1 : 0) - (INPUT.down ? 1 : 0);
+    P.vy += (target * (INPUT.sprint ? 10 : 7) - P.vy) * Math.min(1, 10 * dt);
+  } else if (P.inWater) {
+    if (INPUT.jump) P.vy = Math.min(P.vy + 18 * dt, 3.6);
+    else P.vy = Math.max(P.vy - 9 * dt, -2.2);
+    P.vy *= 0.98;
+  } else {
+    P.vy -= 26 * dt;
+    if (P.vy < -28) P.vy = -28;
+    if (INPUT.jump && P.onGround) { P.vy = 8.6; P.onGround = false; }
+  }
+
+  // 動かす
+  const bx = moveAxis('x', P.vx * dt);
+  const bz = moveAxis('z', P.vz * dt);
+  if (bx) P.vx = 0;
+  if (bz) P.vz = 0;
+  P.blockedXZ = bx || bz;
+  const by = moveAxis('y', P.vy * dt);
+  if (by) {
+    if (P.vy < 0) P.onGround = true;
+    P.vy = 0;
+  } else if (P.vy !== 0) {
+    P.onGround = false;
+  }
+  if (P.fly && P.onGround && !INPUT.jump) { /* 地面についたらそのまま */ }
+
+  // 段差を自動でのぼる(やさしい操作)
+  if (P.blockedXZ && P.onGround && !P.fly && (Math.abs(mx) + Math.abs(mz)) > 0.3) {
+    const fxp = Math.floor(P.x + Math.sign(dirx) * (P.w + 0.3));
+    const fzp = Math.floor(P.z + Math.sign(dirz) * (P.w + 0.3));
+    const yy = Math.floor(P.y);
+    const stepX = Math.abs(dirx) > Math.abs(dirz);
+    const cx = stepX ? fxp : Math.floor(P.x), cz = stepX ? Math.floor(P.z) : fzp;
+    if (solidAt(cx, yy, cz) && !solidAt(cx, yy + 1, cz) && !solidAt(cx, yy + 2, cz) && !solidAt(Math.floor(P.x), yy + 2, Math.floor(P.z))) {
+      P.vy = 7.6; P.onGround = false;
+    }
+  }
+
+  // 落ちたらもどる
+  if (P.y < -8) respawn();
+}
+
+function respawn() {
+  P.x = SPAWN.x; P.y = SPAWN.y; P.z = SPAWN.z; P.vx = P.vy = P.vz = 0; P.yaw = 0; P.pitch = -0.15;
+}
+
+function eyePos() { return [P.x, P.y + P.eye, P.z]; }
+function lookDir() {
+  const cp = Math.cos(P.pitch);
+  return [-Math.sin(P.yaw) * cp, Math.sin(P.pitch), -Math.cos(P.yaw) * cp];
+}
+
+const REACH = 6;
+function computeTarget() {
+  const e = eyePos(), d = lookDir();
+  return raycast(e[0], e[1], e[2], d[0], d[1], d[2], REACH, false);
+}
+
+// ---------- ブロックを置く・こわす・しらべる ----------
+function playerOverlapsCell(x, y, z) {
+  return P.x + P.w > x && P.x - P.w < x + 1 && P.z + P.w > z && P.z - P.w < z + 1 && P.y + P.h > y && P.y < y + 1;
+}
+function discover(id, how) {
+  if (id === B.AIR || !BLOCKS[id]) return false;
+  if (G.zukan[id]) return false;
+  G.zukan[id] = true;
+  toast('📖 ' + T('{図鑑|ずかん}にのったよ: ') + T(BLOCKS[id].name));
+  playSound('found');
+  if (typeof onDiscover === 'function') onDiscover(id);
+  if (typeof saveSoon === 'function') saveSoon();
+  return true;
+}
+function actBreak() {
+  const t = computeTarget();
+  if (!t) return false;
+  const id = t.id;
+  setBlock(t.x, t.y, t.z, B.AIR);
+  discover(id);
+  G.counters.broken++;
+  playSound('break');
+  spawnParticles(t.x + 0.5, t.y + 0.5, t.z + 0.5, id);
+  if (typeof onAction === 'function') onAction('break', id);
+  if (typeof saveSoon === 'function') saveSoon();
+  return true;
+}
+function actPlace() {
+  const t = computeTarget();
+  if (!t) return false;
+  const x = t.x + t.nx, y = t.y + t.ny, z = t.z + t.nz;
+  if (!inb(x, y, z)) return false;
+  const cur = getB(x, y, z);
+  if (cur !== B.AIR && cur !== B.WATER) return false;
+  const id = G.hotbar[G.slot];
+  if (isSolid(id) && playerOverlapsCell(x, y, z)) return false;
+  if (typeof robotOccupies === 'function' && robotOccupies(x, y, z)) return false;
+  setBlock(x, y, z, id);
+  G.counters.placed++;
+  playSound('place');
+  if (typeof onAction === 'function') onAction('place', id);
+  if (typeof saveSoon === 'function') saveSoon();
+  return true;
+}
+function actInspect() {
+  const e = eyePos(), d = lookDir();
+  const t = raycast(e[0], e[1], e[2], d[0], d[1], d[2], REACH + 2, true);
+  if (!t) { toast(T('ブロックに{近|ちか}づいて、ねらってね')); return false; }
+  showBlockInfo(t.id);
+  G.counters.inspected++;
+  const isNew = discover(t.id);
+  playSound('select');
+  if (typeof onAction === 'function') onAction('inspect', t.id);
+  if (typeof saveSoon === 'function') saveSoon();
+  return true;
+}
+
+// ---------- かんたんなパーティクル(かけら) ----------
+const particles = [];
+function spawnParticles(x, y, z, id) {
+  const bd = BLOCKS[id]; if (!bd || !bd.tiles) return;
+  const tile = blockTile(id, 3);
+  const col = tileAverage(tile);
+  for (let i = 0; i < 10; i++) {
+    particles.push({
+      x: x + (Math.random() - 0.5) * 0.6, y: y + (Math.random() - 0.5) * 0.6, z: z + (Math.random() - 0.5) * 0.6,
+      vx: (Math.random() - 0.5) * 3, vy: Math.random() * 3 + 1, vz: (Math.random() - 0.5) * 3,
+      life: 0.6 + Math.random() * 0.3, c: col
+    });
+  }
+}
+const _avgCache = {};
+function tileAverage(tile) {
+  if (_avgCache[tile]) return _avgCache[tile];
+  const cv = R.atlas, ctx = cv.getContext('2d'), S = cv.S, N = cv.N;
+  const d = ctx.getImageData((tile % N) * S, Math.floor(tile / N) * S, S, S).data;
+  let r = 0, g = 0, b = 0, n = 0;
+  for (let i = 0; i < d.length; i += 4) { if (d[i + 3] > 100) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; } }
+  n = Math.max(1, n);
+  return (_avgCache[tile] = [r / n / 255, g / n / 255, b / n / 255]);
+}
+function updateParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.life -= dt; if (p.life <= 0) { particles.splice(i, 1); continue; }
+    p.vy -= 14 * dt;
+    p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+  }
+}
+function particleEntity() {
+  const parts = [];
+  for (const p of particles) {
+    const s = 0.13;
+    parts.push({ m: M4.model(p.x - s / 2, p.y - s / 2, p.z - s / 2, 0, s, s, s), c: p.c });
+  }
+  return { parts };
+}
+
+// ===== 05-input.js =====
+// ---------- おと ----------
+let audioCtx = null;
+function ensureAudio() {
+  if (audioCtx) return audioCtx;
+  try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audioCtx = null; }
+  return audioCtx;
+}
+function beep(freq, dur, type, vol, slide) {
+  if (!G.sound) return;
+  const a = ensureAudio(); if (!a) return;
+  try {
+    if (a.state === 'suspended') a.resume();
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = type || 'square';
+    o.frequency.setValueAtTime(freq, a.currentTime);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq * slide), a.currentTime + dur);
+    g.gain.setValueAtTime(vol || 0.05, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
+    o.connect(g); g.connect(a.destination);
+    o.start(); o.stop(a.currentTime + dur + 0.02);
+  } catch (e) { /* 音が出せなくても遊べる */ }
+}
+function playSound(name) {
+  switch (name) {
+    case 'place': beep(330, 0.08, 'square', 0.05, 1.4); break;
+    case 'break': beep(160, 0.12, 'sawtooth', 0.05, 0.5); break;
+    case 'select': beep(660, 0.05, 'triangle', 0.05); break;
+    case 'found': beep(523, 0.1, 'triangle', 0.06); setTimeout(() => beep(784, 0.16, 'triangle', 0.06), 100); break;
+    case 'win': [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, 0.18, 'triangle', 0.07), i * 110)); break;
+    case 'error': beep(140, 0.22, 'square', 0.05, 0.6); break;
+    case 'step': beep(240, 0.04, 'square', 0.03); break;
+    case 'jump': beep(420, 0.08, 'triangle', 0.03, 1.6); break;
+  }
+}
+
+// ---------- そうさ ----------
+const isTouchDevice = () => ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.matchMedia && matchMedia('(pointer:coarse)').matches);
+function touchActive() {
+  if (G.ctrl === 'touch') return true;
+  if (G.ctrl === 'pc') return false;
+  return isTouchDevice();
+}
+function inputBlocked() { return !G.started || !!G.modal; }
+
+const keys = {};
+let pointerLocked = false;
+let dragLook = null; // ポインタロックできないときのドラッグ視点
+
+function setupInput(canvas) {
+  const app = document.getElementById('app');
+
+  // キーボード
+  window.addEventListener('keydown', e => {
+    const tag = (e.target && e.target.tagName) || '';
+    if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') return;
+    if (e.code === 'Escape') { if (G.modal) closeModal(); else if (G.started) openMenu(); e.preventDefault(); return; }
+    if (inputBlocked()) return;
+    keys[e.code] = true;
+    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+    if (e.code === 'Space' && !e.repeat) {
+      const now = performance.now();
+      if (now - flyTapTimer < 300) togglePlayerFly();
+      flyTapTimer = now;
+    }
+    if (e.code === 'KeyF') togglePlayerFly();
+    if (e.code === 'KeyE') openInventory();
+    if (e.code === 'KeyZ') openZukan();
+    if (e.code === 'KeyP') openProgram();
+    if (e.code === 'KeyL') openLab();
+    if (e.code === 'KeyQ') actInspect();
+    if (e.code === 'KeyM') openMissions();
+    if (e.code >= 'Digit1' && e.code <= 'Digit9') { G.slot = +e.code.slice(5) - 1; renderHotbar(); playSound('select'); }
+  });
+  window.addEventListener('keyup', e => { keys[e.code] = false; });
+  window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+  window.addEventListener('wheel', e => {
+    if (inputBlocked()) return;
+    if (e.target !== canvas) return;
+    G.slot = (G.slot + (e.deltaY > 0 ? 1 : 8)) % 9; renderHotbar(); playSound('select');
+  }, { passive: true });
+
+  // マウス
+  document.addEventListener('pointerlockchange', () => { pointerLocked = document.pointerLockElement === canvas; });
+  document.addEventListener('pointerlockerror', () => { pointerLocked = false; });
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+  const pointers = new Map(); // pointerId -> {role, sx, sy, x, y, moved}
+  let joyId = null, joyBase = { x: 0, y: 0 };
+  const joyEl = document.getElementById('joy'), joyKnob = document.getElementById('joyKnob');
+
+  canvas.addEventListener('pointerdown', e => {
+    if (inputBlocked()) return;
+    ensureAudio();
+    if (e.pointerType === 'mouse') {
+      if (!pointerLocked && !dragLook) {
+        try { const r = canvas.requestPointerLock && canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (err) { /* ドラッグ視点にきりかえ */ }
+      }
+      if (pointerLocked) {
+        if (e.button === 0) { INPUT.breakHeld = true; actBreak(); breakCooldown = 0.28; }
+        else if (e.button === 2) { actPlace(); placeCooldown = 0.25; INPUT.placeHeld = true; }
+        else if (e.button === 1) { actInspect(); e.preventDefault(); }
+      } else {
+        // ロックできない環境: ドラッグで視点、クリックで操作
+        dragLook = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, button: e.button, moved: false, id: e.pointerId };
+        try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* 何もしない */ }
+      }
+      return;
+    }
+    // タッチ
+    const rect = canvas.getBoundingClientRect();
+    const left = (e.clientX - rect.left) < rect.width * 0.42;
+    if (left && joyId === null) {
+      joyId = e.pointerId; joyBase = { x: e.clientX, y: e.clientY };
+      joyEl.style.display = 'block';
+      joyEl.style.left = (e.clientX - rect.left - 60) + 'px'; joyEl.style.top = (e.clientY - rect.top - 60) + 'px';
+      joyKnob.style.transform = 'translate(0px,0px)';
+    } else {
+      pointers.set(e.pointerId, { role: 'look', x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t: performance.now(), moved: false });
+    }
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* 何もしない */ }
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (inputBlocked()) return;
+    if (e.pointerType === 'mouse') {
+      if (pointerLocked) { lookBy(e.movementX, e.movementY, 0.0022); }
+      else if (dragLook && dragLook.id === e.pointerId) {
+        const dx = e.clientX - dragLook.x, dy = e.clientY - dragLook.y;
+        if (Math.hypot(e.clientX - dragLook.sx, e.clientY - dragLook.sy) > 4) dragLook.moved = true;
+        if (dragLook.moved) lookBy(dx, dy, 0.005);
+        dragLook.x = e.clientX; dragLook.y = e.clientY;
+      }
+      return;
+    }
+    if (e.pointerId === joyId) {
+      let dx = e.clientX - joyBase.x, dy = e.clientY - joyBase.y;
+      const max = 46, l = Math.hypot(dx, dy);
+      if (l > max) { dx = dx / l * max; dy = dy / l * max; }
+      joyKnob.style.transform = `translate(${dx}px,${dy}px)`;
+      TOUCH.mx = dx / max; TOUCH.mz = -dy / max;
+      if (Math.hypot(TOUCH.mx, TOUCH.mz) < 0.12) { TOUCH.mx = 0; TOUCH.mz = 0; }
+      TOUCH.sprint = l >= max && dy < -max * 0.9;
+      return;
+    }
+    const p = pointers.get(e.pointerId);
+    if (p) {
+      const dx = e.clientX - p.x, dy = e.clientY - p.y;
+      if (Math.hypot(e.clientX - p.sx, e.clientY - p.sy) > 6) p.moved = true;
+      lookBy(dx, dy, 0.0055);
+      p.x = e.clientX; p.y = e.clientY;
+    }
+  });
+  function endPointer(e) {
+    if (e.pointerType === 'mouse') {
+      if (pointerLocked) {
+        if (e.button === 0) INPUT.breakHeld = false;
+        if (e.button === 2) INPUT.placeHeld = false;
+      } else if (dragLook && dragLook.id === e.pointerId) {
+        if (!dragLook.moved && !inputBlocked()) {
+          if (dragLook.button === 0) actBreak();
+          else if (dragLook.button === 2) actPlace();
+          else if (dragLook.button === 1) actInspect();
+        }
+        dragLook = null;
+      }
+      return;
+    }
+    if (e.pointerId === joyId) {
+      joyId = null; TOUCH.mx = 0; TOUCH.mz = 0; TOUCH.sprint = false; joyEl.style.display = 'none';
+    }
+    pointers.delete(e.pointerId);
+  }
+  canvas.addEventListener('pointerup', endPointer);
+  canvas.addEventListener('pointercancel', endPointer);
+
+  // タッチ用ボタン
+  function holdBtn(id, onDown, onUp) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); ensureAudio(); if (inputBlocked()) return; el.classList.add('down'); onDown(); try { el.setPointerCapture(e.pointerId); } catch (err) { /* 何もしない */ } });
+    const up = e => { e.stopPropagation(); el.classList.remove('down'); if (onUp) onUp(); };
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  }
+  holdBtn('tbJump', () => { TOUCH.jump = true; }, () => { TOUCH.jump = false; });
+  holdBtn('tbDown', () => { TOUCH.down = true; }, () => { TOUCH.down = false; });
+  holdBtn('tbBreak', () => { INPUT.breakHeld = true; actBreak(); breakCooldown = 0.3; }, () => { INPUT.breakHeld = false; });
+  holdBtn('tbPlace', () => { INPUT.placeHeld = true; actPlace(); placeCooldown = 0.3; }, () => { INPUT.placeHeld = false; });
+  holdBtn('tbInspect', () => { actInspect(); });
+  holdBtn('tbFly', () => { togglePlayerFly(); });
+}
+
+let breakCooldown = 0, placeCooldown = 0;
+function lookBy(dx, dy, sens) {
+  P.yaw -= dx * sens;
+  P.pitch = clamp(P.pitch - dy * sens, -1.5, 1.5);
+}
+
+// 毎フレームの入力まとめ(キーボード + タッチ)
+const TOUCH = { mx: 0, mz: 0, jump: false, down: false, sprint: false };
+function pollKeyboard() {
+  const blocked = inputBlocked();
+  const kx = blocked ? 0 : (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0);
+  const kz = blocked ? 0 : (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0);
+  INPUT.mx = clamp(kx + TOUCH.mx, -1, 1);
+  INPUT.mz = clamp(kz + TOUCH.mz, -1, 1);
+  INPUT.sprint = !blocked && (!!(keys.ControlLeft || keys.ControlRight) || TOUCH.sprint);
+  INPUT.jump = !blocked && (!!keys.Space || TOUCH.jump);
+  INPUT.down = !blocked && (!!(keys.ShiftLeft || keys.ShiftRight) || TOUCH.down);
+}
+function handleHold(dt) {
+  if (inputBlocked()) return;
+  if (INPUT.breakHeld) { breakCooldown -= dt; if (breakCooldown <= 0) { actBreak(); breakCooldown = 0.22; } }
+  if (INPUT.placeHeld) { placeCooldown -= dt; if (placeCooldown <= 0) { actPlace(); placeCooldown = 0.22; } }
+}
+
+// ===== 06-ui.js =====
+// ---------- 画面(UI) ----------
+const $ = id => document.getElementById(id);
+
+// ブロックのアイコン(立体に見えるように3面をかく)
+const _iconCache = {};
+function blockIconURL(id, size) {
+  size = size || 64;
+  const key = id + ':' + size;
+  if (_iconCache[key]) return _iconCache[key];
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = size;
+  const ctx = cv.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  const atlas = R.atlas, S = atlas.S, N = atlas.N;
+  const src = t => [(t % N) * S, Math.floor(t / N) * S, S, S];
+  const hw = size / 2 - 1, hh = hw * 0.95, cx = size / 2, y0 = 1;
+  function face(tile, m, shade) {
+    ctx.save();
+    ctx.setTransform(m[0], m[1], m[2], m[3], m[4], m[5]);
+    const s = src(tile);
+    ctx.drawImage(atlas, s[0], s[1], s[2], s[3], 0, 0, 16, 16);
+    if (shade) { ctx.fillStyle = 'rgba(0,0,30,' + shade + ')'; ctx.fillRect(0, 0, 16, 16); }
+    ctx.restore();
+  }
+  if (id === B.WATER) {
+    // 水は青いしずくに近い見た目(四角で)
+    ctx.fillStyle = '#3c76d8'; ctx.fillRect(4, 10, size - 8, size - 18);
+    ctx.fillStyle = '#7fb3ff'; ctx.fillRect(4, 10, size - 8, 6);
+  } else {
+    face(blockTile(id, 2), [hw / 16, hw / 32, -hw / 16, hw / 32, cx, y0], 0);
+    face(blockTile(id, 4), [hw / 16, hw / 32, 0, hh / 16, cx - hw, y0 + hw / 2], 0.22);
+    face(blockTile(id, 0), [hw / 16, -hw / 32, 0, hh / 16, cx, y0 + hw], 0.38);
+  }
+  return (_iconCache[key] = cv.toDataURL());
+}
+
+// ---------- ふきだし ----------
+let toastTimer = null;
+function toast(html) {
+  const el = $('toast');
+  el.innerHTML = html;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+// ---------- ホットバー ----------
+function renderHotbar() {
+  const hb = $('hotbar');
+  hb.innerHTML = '';
+  G.hotbar.forEach((id, i) => {
+    const b = document.createElement('button');
+    b.className = 'slot' + (i === G.slot ? ' sel' : '');
+    b.innerHTML = '<span class="n">' + (i + 1) + '</span><img alt="" src="' + blockIconURL(id, 64) + '">';
+    b.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); G.slot = i; renderHotbar(); playSound('select'); });
+    hb.appendChild(b);
+  });
+  $('slotName').innerHTML = T(BLOCKS[G.hotbar[G.slot]].name);
+}
+
+// ---------- モーダル ----------
+function openModal(title, bodyHTML, name) {
+  closeInfo();
+  if (name !== 'inventory' && typeof closePanel === 'function') closePanel();
+  G.modal = name || 'modal';
+  try { if (document.exitPointerLock) document.exitPointerLock(); } catch (e) { /* 何もしない */ }
+  INPUT.breakHeld = INPUT.placeHeld = false;
+  const sheet = $('sheet');
+  sheet.innerHTML = '<div class="mhead"><h2>' + title + '</h2><button class="x" id="mClose" aria-label="close">✕</button></div><div class="mbody" id="mBody">' + bodyHTML + '</div>';
+  $('modalRoot').classList.add('open');
+  $('mClose').addEventListener('click', closeModal);
+  $('modalRoot').onclick = e => { if (e.target === $('modalRoot')) closeModal(); };
+  return $('mBody');
+}
+let modalOnClose = null;
+function closeModal() {
+  $('modalRoot').classList.remove('open');
+  G.modal = null;
+  if (modalOnClose) { const f = modalOnClose; modalOnClose = null; f(); }
+  saveSoon();
+}
+
+// ---------- ブロックの説明カード ----------
+function factChips(id) {
+  const b = BLOCKS[id], c = b.chem, lv = G.level, out = [];
+  if (b.kind && lv >= 2) out.push('🏷 ' + T(b.kind));
+  if (c && lv >= 2) {
+    if (c.formula) out.push('🔬 ' + T(esc(c.formula)));
+    const st = { solid: '{固体|こたい}', liquid: '{液体|えきたい}', gas: '{気体|きたい}' }[c.state];
+    if (st) out.push(T(st));
+    if (c.z && lv >= 3) out.push(T('{原子番号|げんしばんごう}') + ' ' + c.z);
+    if (c.mp !== undefined) out.push('🌡 ' + (lv === 2 ? T('とける{温度|おんど}') : T('{融点|ゆうてん}')) + ' ' + c.mp + '℃');
+    if (c.bp !== undefined && lv >= 3) out.push(T('{沸点|ふってん}') + ' ' + c.bp + '℃');
+  } else if (lv === 1) {
+    const st = c && c.state;
+    if (st === 'liquid') out.push('💧 ' + T('ながれる もの'));
+    else out.push('🧱 ' + T('かたい もの'));
+  }
+  return out.map(s => '<span class="chip">' + s + '</span>').join('');
+}
+function infoText(id) { return BLOCKS[id].info[G.level - 1]; }
+let infoTimer = null;
+function showBlockInfo(id) {
+  const b = BLOCKS[id]; if (!b || !b.info) return;
+  clearTimeout(infoTimer); infoTimer = setTimeout(closeInfo, 25000);
+  const el = $('infocard');
+  el.style.display = 'block';
+  el.dataset.id = id;
+  el.innerHTML = '<div class="row"><img alt="" src="' + blockIconURL(id, 64) + '"><div><h3>' + T(b.name) + '</h3><div class="kind">' +
+    (G.level === 1 && b.kind ? '' : '') + '</div></div><button class="x" id="infoX">✕</button></div>' +
+    '<p>' + T(infoText(id)) + '</p><div class="facts">' + factChips(id) + '</div>' +
+    '<div style="margin-top:6px"><button class="speak" id="infoSpeak">🔊 ' + T('きく') + '</button></div>';
+  $('infoX').onclick = closeInfo;
+  $('infoSpeak').onclick = () => speak(b.name + '。' + infoText(id));
+}
+function closeInfo() { clearTimeout(infoTimer); const el = $('infocard'); if (el) { el.style.display = 'none'; el.dataset.id = ''; } if (window.speechSynthesis) try { speechSynthesis.cancel(); } catch (e) { /* 何もしない */ } }
+function speak(markup) {
+  try {
+    if (!window.speechSynthesis) { toast(T('この{端末|たんまつ}では{声|こえ}が{出|で}ないよ')); return; }
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(Tspeech(markup));
+    u.lang = 'ja-JP'; u.rate = G.level === 1 ? 0.85 : 1.0;
+    speechSynthesis.speak(u);
+  } catch (e) { /* 何もしない */ }
+}
+
+// ---------- もちもの ----------
+function openInventory(opts) {
+  opts = (opts && opts.onPick) ? opts : (opts && opts.allowClear ? opts : {});
+  const cur0 = opts.onPick ? (G.program && G.program.block) : G.hotbar[G.slot];
+  let html = '<p class="note">' + (opts.onPick ? T('ロボットが つかう ブロックを えらんでね。') : T('えらんだブロックは、いまの スロット(') + (G.slot + 1) + T(')に はいるよ。')) + '</p><div class="grid">';
+  for (const id of PLACEABLE) {
+    const cur = cur0 === id ? ' cur' : '';
+    html += '<button class="cell' + cur + '" data-id="' + id + '"><img alt="" src="' + blockIconURL(id, 64) + '"><span>' + T(BLOCKS[id].name) + '</span></button>';
+  }
+  html += '</div>';
+  if (opts.allowClear) html += '<p><button class="btn sub sm" id="invClear">🎒 ' + T('もちものの ブロックを つかう') + '</button></p>';
+  const body = openModal((opts.onPick ? '🎨 ' + T('つかう ブロック') : '🎒 ' + T('もちもの')), html, 'inventory');
+  body.querySelectorAll('.cell').forEach(c => c.addEventListener('click', () => {
+    const id = +c.dataset.id;
+    if (opts.onPick) { opts.onPick(id); closeModal(); return; }
+    G.hotbar[G.slot] = id;
+    renderHotbar(); playSound('select'); closeModal();
+  }));
+  const clr = $('invClear');
+  if (clr) clr.onclick = () => { G.program.block = null; closeModal(); refreshProgramUI(); };
+}
+
+// ---------- 図鑑 ----------
+function openZukan(selId) {
+  const total = PLACEABLE.length, have = PLACEABLE.filter(id => G.zukan[id]).length;
+  let html = '<div class="note">' + T('{見|み}つけた{数|かず}') + ': <b>' + have + ' / ' + total + '</b></div><div class="bar" style="margin:4px 0 10px"><i style="width:' + (have / total * 100) + '%"></i></div>';
+  html += '<div class="grid">';
+  for (const id of PLACEABLE) {
+    const got = !!G.zukan[id];
+    if (got) html += '<button class="cell" data-id="' + id + '"><img alt="" src="' + blockIconURL(id, 64) + '"><span>' + T(BLOCKS[id].name) + '</span></button>';
+    else html += '<div class="cell locked"><img alt="" src="' + blockIconURL(id, 64) + '" style="filter:brightness(0)"><span>？？？</span></div>';
+  }
+  html += '</div><div id="zDetail" style="margin-top:10px"></div>';
+  html += '<p class="note">' + T('ブロックを「しらべる」か、こわすと、{図鑑|ずかん}にのるよ。') + '</p>';
+  const body = openModal('📖 ' + T('{図鑑|ずかん}'), html, 'zukan');
+  function detail(id) {
+    const b = BLOCKS[id];
+    $('zDetail').innerHTML = '<div class="lvcard" style="text-align:left;border-color:var(--brand)"><div style="display:flex;gap:10px;align-items:center"><img alt="" style="width:64px;height:64px;image-rendering:pixelated" src="' + blockIconURL(id, 64) + '"><div style="font-size:19px">' + T(b.name) + '</div></div><div style="font-weight:500;font-size:15px;margin-top:4px">' + T(infoText(id)) + '</div><div class="facts" style="margin-top:4px">' + factChips(id) + '</div><div style="margin-top:6px"><button class="btn sm sub" id="zSpeak">🔊 ' + T('きく') + '</button></div></div>';
+    $('zSpeak').onclick = () => speak(b.name + '。' + infoText(id));
+  }
+  body.querySelectorAll('.cell[data-id]').forEach(c => c.addEventListener('click', () => { detail(+c.dataset.id); playSound('select'); }));
+  if (selId && G.zukan[selId]) detail(selId);
+}
+
+// ---------- メニュー ----------
+function levelCards(cur, idPrefix) {
+  const L = [
+    [1, 'ひらがな', '1・2{年生|ねんせい}'],
+    [2, '{漢字|かんじ}に ふりがな', '3・4{年生|ねんせい}'],
+    [3, '{漢字|かんじ}', '5・6{年生|ねんせい}']
+  ];
+  return L.map(l => '<button class="lvcard' + (cur === l[0] ? ' on' : '') + '" data-lv="' + l[0] + '">' + T(l[1], l[0]) + '<small>' + T(l[2], l[0]) + '</small></button>').join('');
+}
+function openMenu() {
+  const html =
+    '<h4>' + T('レベル') + '</h4><div class="seg" id="mLv" style="gap:8px">' + levelCards(G.level) + '</div>' +
+    '<h4>' + T('そうさ') + '</h4><div class="seg" id="mCtl">' +
+    '<button class="btn sub' + (G.ctrl === 'auto' ? ' on' : '') + '" data-c="auto">' + T('じどう') + '</button>' +
+    '<button class="btn sub' + (G.ctrl === 'pc' ? ' on' : '') + '" data-c="pc">⌨️ PC</button>' +
+    '<button class="btn sub' + (G.ctrl === 'touch' ? ' on' : '') + '" data-c="touch">👆 ' + T('タッチ') + '</button></div>' +
+    '<h4>' + T('おと') + '</h4><div class="seg"><button class="btn sub' + (G.sound ? ' on' : '') + '" id="mSnd">' + (G.sound ? '🔊 ON' : '🔇 OFF') + '</button></div>' +
+    '<h4>' + T('あそびかた') + '</h4><div class="note" style="line-height:2">' +
+    (touchActive() ?
+      T('{左|ひだり}の{画面|がめん}をなぞる: あるく ／ {右|みぎ}の{画面|がめん}をなぞる: まわりを{見|み}る<br>⛏こわす ・ 🧱おく ・ 🔍しらべる ・ 🕊とぶ') :
+      T('WASD: あるく ／ マウス: まわりを{見|み}る ／ {左|ひだり}クリック: こわす ／ {右|みぎ}クリック: おく<br>Space: ジャンプ(2{回|かい}で とぶ) ／ Q: しらべる ／ 1〜9: ブロックを{選|えら}ぶ ／ E: もちもの ／ Z: {図鑑|ずかん} ／ P: ロボット')) + '</div>' +
+    '<h4>' + T('おうちの ひとへ') + '</h4><div class="seg"><button class="btn sub" id="mParent">👪 ' + T('がくしゅうの きろく') + '</button></div>' +
+    '<h4>' + T('ワールド') + '</h4><div class="seg">' +
+    '<button class="btn sub" id="mTitle">🏠 ' + T('はじめの{画面|がめん}') + '</button>' +
+    '<button class="btn sub" id="mHome">📍 ' + T('はじめの{場所|ばしょ}へ') + '</button>' +
+    '<button class="btn bad" id="mReset">🗑 ' + T('さいしょから') + '</button></div>' +
+    '<p class="note">' + T('ゲームは じどうで ほぞん されるよ。') + '</p><p class="note" style="text-align:center">☁️ そらごころクラフト</p>';
+  const body = openModal('⚙️ ' + T('メニュー'), html, 'menu');
+  body.querySelectorAll('#mLv .lvcard').forEach(b => b.addEventListener('click', () => { setLevel(+b.dataset.lv); openMenu(); }));
+  body.querySelectorAll('#mCtl .btn').forEach(b => b.addEventListener('click', () => { G.ctrl = b.dataset.c; applyControlMode(); openMenu(); }));
+  $('mSnd').onclick = () => { G.sound = !G.sound; openMenu(); };
+  $('mHome').onclick = () => { respawn(); closeModal(); };
+  $('mParent').onclick = () => openParent();
+  $('mTitle').onclick = () => { closeModal(); showTitle(); };
+  $('mReset').onclick = () => {
+    const b = $('mReset');
+    if (b.dataset.sure) { resetAll(); closeModal(); toast(T('さいしょから はじめたよ！')); }
+    else { b.dataset.sure = 1; b.innerHTML = T('ほんとうに けす？ もういちど おす'); }
+  };
+}
+
+// ---------- レベル切りかえ ----------
+function setLevel(lv) {
+  G.level = lv;
+  renderAllText();
+  saveSoon();
+}
+function renderAllText() {
+  document.querySelectorAll('[data-t]').forEach(el => { el.innerHTML = T(el.dataset.t); });
+  document.documentElement.lang = 'ja';
+  renderHotbar();
+  renderMissionChip();
+  const info = $('infocard');
+  if (info && info.style.display === 'block' && info.dataset.id) showBlockInfo(+info.dataset.id);
+  renderHint();
+  if (typeof refreshProgramUI === 'function') refreshProgramUI();
+  if (!G.started && $('title').style.display !== 'none') renderTitle();
+}
+function renderHint() {
+  $('hint').innerHTML = touchActive() ? '' : T('クリックで{始|はじ}める ／ WASD あるく ／ Q しらべる');
+}
+function applyControlMode() {
+  document.body.classList.toggle('touch', touchActive());
+  renderHint();
+}
+function updateFlyButton() {
+  const d = $('tbDown'); if (d) d.style.display = P.fly ? 'flex' : 'none';
+}
+
+// ---------- タイトル ----------
+function renderTitle() {
+  const el = $('title');
+  el.innerHTML = '<div class="box">' + logoHTML() +
+    '<p class="sub">' + T('ブロックで {世界|せかい}を つくって、プログラミングと ものの ふしぎを {学|まな}ぼう！') + '</p>' +
+    '<div style="font-weight:800">' + T('{学年|がくねん}に {合|あ}わせて えらんでね') + '</div>' +
+    '<div class="lvs" id="tLv">' + levelCards(G.level) + '</div>' + titleProfileHTML() +
+    '<button class="btn ok go" id="tGo">▶ ' + T('はじめる') + '</button>' +
+    '<p class="note" style="margin-top:10px">' + T('あとから メニューで かえられるよ') + '</p></div>';
+  el.querySelectorAll('#tLv .lvcard').forEach(b => b.addEventListener('click', () => setLevel(+b.dataset.lv)));
+  $('tGo').onclick = startGame;
+}
+function showTitle() { G.started = false; $('title').style.display = 'flex'; renderTitle(); }
+function startGame() {
+  readTitleProfile();
+  ensureAudio();
+  G.started = true;
+  $('title').style.display = 'none';
+  applyControlMode();
+  renderAllText();
+  if (!G.introDone) {
+    G.introDone = true;
+    toast(T('まわりの ブロックを「しらべる」と、{図鑑|ずかん}が ふえるよ！'));
+  }
+  try { $('gl').focus(); } catch (e) { /* 何もしない */ }
+  saveSoon();
+  if (syncReady()) syncSend('start');
+}
+
+// 開発用フック(テストで使う)
+window.__game = { G, P, world, INPUT, B, BLOCKS };
+
+// ---------- 保護者向けの がくしゅうの きろく ----------
+function openParent() {
+  const c = G.counters, z = Object.keys(G.zukan).length;
+  const row = (l, v) => '<tr><td style="padding:3px 10px 3px 0">' + l + '</td><td style="font-weight:900;text-align:right">' + v + '</td></tr>';
+  const done = MISSIONS.filter((m, i) => i < G.missionIndex && (!m.minLevel || G.level >= m.minLevel)).length;
+  const total = activeMissions().length;
+  const learned = PLACEABLE.filter(id => G.zukan[id]).map(id => T(BLOCKS[id].name)).join('、') || '—';
+  const madeList = RECIPES.filter(r => G.made[r.key]).map(r => T(BLOCKS[r.out()].name)).join('、') || '—';
+  const html = '<p class="note">' + T('この{記録|きろく}は、この{端末|たんまつ}の ブラウザの {中|なか}だけに あります。 {個人|こじん}じょうほうは あつめていません。 しゅうけいURLを せっていした ときだけ、なまえと すすみぐあいを おくります。') + '</p>' +
+    '<table style="width:100%;border-collapse:collapse;font-size:15px">' +
+    row(T('ミッション'), done + ' / ' + total + ' (⭐' + G.stars + ')') +
+    row(T('{図鑑|ずかん}'), z + ' / ' + PLACEABLE.length) +
+    row(T('ブロックを おいた {数|かず}'), c.placed) + row(T('ブロックを こわした {数|かず}'), c.broken) +
+    row(T('ロボットの プログラムを うごかした{回数|かいすう}'), c.runs) +
+    row(T('ロボットが すすんだ {歩数|ほすう}'), c.robotSteps) +
+    row(T('ロボットが おいた ブロック'), c.robotPlaced) +
+    row(T('{実験|じっけん}で つくれた{数|かず}'), c.labMade) +
+    row(T('せんせいへの{質問|しつもん}'), c.asked) + '</table>' +
+    '<h4>' + T('{図鑑|ずかん}に のった もの') + '</h4><div class="note">' + learned + '</div>' +
+    '<h4>' + T('{実験|じっけん}で つくった もの') + '</h4><div class="note">' + madeList + '</div>' +
+    '<h4>' + T('まなべる ないよう') + '</h4><div class="note" style="line-height:2">' + T('プログラミング: じゅんじょ・くりかえし・じょうけん(もし)・かんすう ／ {物質|ぶっしつ}: {元素|げんそ}・{金属|きんぞく}・{状態|じょうたい}へんか・{化学反応|かがくはんのう} ／ {論理|ろんり}: AND・OR・NOT') + '</div>';
+  openModal('👪 ' + T('がくしゅうの きろく'), html + syncParentHTML(), 'parent');
+  bindSyncParent();
+}
+
+// ===== 06b-logo.js =====
+// Minecraft-style pixel logo (そらごころクラフト). 16x16 bitmaps, hex rows.
+var LOGO_GLYPHS={"そ":"03f00ff80ff001e003c007800ffe7ffe7f80070007000700070007f803f000f0","ら":"078007f003f01820180018003bf83ffc3e1c3c1c381e001c007c0ff80ff00780","ご":"000f1ffc1ff81ff0000000000000000000003000700078003ff83ff80ff80000","こ":"00001ff81ff81ff8000000000000000000003800380038003ffc1ffc07fc0000","ろ":"00001ff01ff800e001c007800ff01ffc3e3c781c700e201c003c07f807f00780","ク":"0380078007fc0ffe1e1c3c1c783c7038207800f001e003e00fc03f801e000800","ラ":"0ff81ffc1ffc000000003ffc3ffe3ffc001c003c007800f003e00fc007000000","フ":"00003ff83ffe3ffe001c001c003c00380078007000f003e00fc01f800e000000","ト":"06000f00070006000600078007f007fc077c061c06000600060007000f000000"};
+function logoDraw(text,cell,pal){
+  var n=text.length,W=n*17+1,H=18,cv=document.createElement("canvas");
+  cv.width=W*cell+cell;cv.height=H*cell+cell;var x=cv.getContext("2d");
+  var cells=[];
+  for(var i=0;i<n;i++){var h=LOGO_GLYPHS[text[i]];if(!h)continue;
+    for(var r=0;r<16;r++){var v=parseInt(h.substr(r*4,4),16);
+      for(var c=0;c<16;c++)if(v&(1<<(15-c)))cells.push([1+i*17+c,1+r]);}}
+  var on={};cells.forEach(function(p){on[p[0]+","+p[1]]=1});
+  function box(px,py,col){x.fillStyle=col;x.fillRect(px*cell,py*cell,cell,cell)}
+  cells.forEach(function(p){box(p[0]+1,p[1]+1,pal.shadow)});
+  cells.forEach(function(p){var px=p[0],py=p[1];
+    box(px,py,pal.base);
+    var s=Math.max(1,Math.round(cell/5));
+    if(!on[px+","+(py-1)]){x.fillStyle=pal.hi;x.fillRect(px*cell,py*cell,cell,s)}
+    if(!on[(px-1)+","+py]){x.fillStyle=pal.hi;x.fillRect(px*cell,py*cell,s,cell)}
+    if(!on[px+","+(py+1)]){x.fillStyle=pal.lo;x.fillRect(px*cell,(py+1)*cell-s,cell,s)}
+    if(!on[(px+1)+","+py]){x.fillStyle=pal.lo;x.fillRect((px+1)*cell-s,py*cell,s,cell)}
+  });
+  return cv.toDataURL();
+}
+function logoHTML(){
+  var a=logoDraw("そらごころ",6,{base:"#4fb3ff",hi:"#d9f0ff",lo:"#1f6fc9",shadow:"#16305c"});
+  var b=logoDraw("クラフト",6,{base:"#6cc644",hi:"#c6f29a",lo:"#3b8a26",shadow:"#23401a"});
+  return '<h1 class="brand" aria-label="そらごころクラフト"><img class="lg1" alt="" src="'+a+'"><img class="lg2" alt="" src="'+b+'"></h1>';
+}
+
+// ===== 06c-sync.js =====
+// ---------- しゅうけい(先生・保護者向け) ----------
+// 集計URLが設定されているときだけ、なまえと進捗をスプレッドシートに送る
+const PLAYER_KEY = 'blocklab-player-v1';
+const SYNC_URL_KEY = 'blocklab-sync-url';
+const SYNC_DEFAULT_URL = ''; // 配布用に固定するときはここにURLを入れる
+const GRADES = ['小1', '小2', '小3', '小4', '小5', '小6', 'その他'];
+let memPlayer = null, memSyncUrl = null;
+const SYNC = { last: 0, lastOk: null, dirtySince: 0, sig: '' };
+
+function loadPlayer() {
+  let s = null;
+  try { s = localStorage.getItem(PLAYER_KEY); } catch (e) { s = null; }
+  if (!s) s = memPlayer;
+  try { const p = s ? JSON.parse(s) : null; if (p && typeof p === 'object') return { id: String(p.id || ''), name: String(p.name || ''), grade: String(p.grade || '') }; } catch (e) { /* 何もしない */ }
+  return { id: '', name: '', grade: '' };
+}
+function savePlayer(p) {
+  const s = JSON.stringify(p);
+  memPlayer = s;
+  try { localStorage.setItem(PLAYER_KEY, s); } catch (e) { /* 何もしない */ }
+}
+function getSyncUrl() {
+  let u = null;
+  try { u = localStorage.getItem(SYNC_URL_KEY); } catch (e) { u = null; }
+  if (u == null) u = memSyncUrl;
+  return (u != null ? u : SYNC_DEFAULT_URL) || '';
+}
+function setSyncUrl(u) {
+  u = (u || '').trim();
+  memSyncUrl = u;
+  try { localStorage.setItem(SYNC_URL_KEY, u); } catch (e) { /* 何もしない */ }
+}
+function plainText(s) { return String(s || '').replace(/\{([^|}]*)\|[^}]*\}/g, '$1'); }
+
+function buildPayload(reason) {
+  const p = loadPlayer();
+  const c = G.counters;
+  const missions = MISSIONS.map((m, i) => (m.minLevel && G.level < m.minLevel) ? '-' : (i < G.missionIndex ? '✓' : ''));
+  const cur = typeof currentMission === 'function' ? currentMission() : null;
+  return {
+    app: 'soragokoro-craft', v: 1, reason: reason || 'auto',
+    id: p.id, name: p.name, grade: p.grade,
+    level: G.level, stars: G.stars,
+    cleared: MISSIONS.filter((m, i) => i < G.missionIndex && (!m.minLevel || G.level >= m.minLevel)).length,
+    total: activeMissions().length,
+    current: cur ? plainText(cur.title()) : 'ぜんぶクリア',
+    missions: missions,
+    zukan: Object.keys(G.zukan).length,
+    placed: c.placed, broken: c.broken, inspected: c.inspected, runs: c.runs,
+    labMade: c.labMade, asked: c.asked,
+    playMin: Math.round((G.playSec || 0) / 60)
+  };
+}
+function syncReady() { return !!(getSyncUrl() && loadPlayer().name); }
+function syncSend(reason, opts) {
+  opts = opts || {};
+  const url = getSyncUrl();
+  const p = loadPlayer();
+  if (!url || !p.name) return false;
+  const body = JSON.stringify(buildPayload(reason));
+  SYNC.last = Date.now();
+  SYNC.sig = body.replace(/"playMin":\d+/, '').replace(/"reason":"[^"]*"/, '');
+  try {
+    if (opts.beacon && navigator.sendBeacon) {
+      navigator.sendBeacon(url, new Blob([body], { type: 'text/plain;charset=UTF-8' }));
+      SYNC.lastOk = Date.now();
+      return true;
+    }
+    fetch(url, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: body, keepalive: body.length < 60000 })
+      .then(() => { SYNC.lastOk = Date.now(); }).catch(() => { /* つぎの じゅんびで また おくる */ });
+    return true;
+  } catch (e) { return false; }
+}
+// 毎フレーム呼ぶ: プレイ時間をためて、2分ごとに変化があれば送る
+let syncAcc = 0;
+function syncTick(dt) {
+  if (!G.started) return;
+  G.playSec = (G.playSec || 0) + dt;
+  syncAcc += dt;
+  if (syncAcc < 120) return;
+  syncAcc = 0;
+  if (!syncReady()) return;
+  const sig = JSON.stringify(buildPayload('auto')).replace(/"playMin":\d+/, '').replace(/"reason":"[^"]*"/, '');
+  if (sig !== SYNC.sig) syncSend('auto');
+}
+window.addEventListener('pagehide', () => { if (G.started && syncReady()) syncSend('leave', { beacon: true }); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && G.started && syncReady()) syncSend('leave', { beacon: true }); });
+
+function titleProfileHTML() {
+  const p = loadPlayer();
+  const opts = GRADES.map((g, i) => '<option value="' + g + '"' + (g === p.grade ? ' selected' : '') + '>' + (i < 6 ? (i + 1) + 'ねん' : 'そのた') + '</option>').join('');
+  return '<div class="profile"><label>' + T('なまえ') + '<input id="pName" maxlength="12" autocomplete="off" value="' + esc(p.name) + '" placeholder="なまえ"></label>' +
+    '<label>' + T('{学年|がくねん}') + '<select id="pGrade"><option value="">—</option>' + opts + '</select></label>' +
+    '<label>ID<input id="pId" maxlength="10" autocomplete="off" inputmode="numeric" value="' + esc(p.id) + '" placeholder="せんせいが いうよ"></label></div>';
+}
+function readTitleProfile() {
+  const n = $('pName'); if (!n) return;
+  savePlayer({ name: n.value.trim().slice(0, 12), grade: $('pGrade').value, id: $('pId').value.trim().slice(0, 10) });
+}
+function syncParentHTML() {
+  const url = getSyncUrl(), p = loadPlayer();
+  return '<h4>' + T('{先生|せんせい}・{保護者|ほごしゃ}むけ: しゅうけい') + '</h4>' +
+    '<div class="note">' + T('しゅうけいURLを いれると、なまえと すすみぐあいを スプレッドシートに おくります。からのままなら なにも おくりません。') + '</div>' +
+    '<input id="syncUrl" style="width:100%;box-sizing:border-box;margin:6px 0;padding:8px;border:2px solid #bcd6ff;border-radius:10px;font-size:14px" placeholder="https://script.google.com/macros/s/.../exec" value="' + esc(url) + '">' +
+    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn sm" id="syncSave">' + T('ほぞん') + '</button><button class="btn sm sub" id="syncTest">' + T('テストおくり') + '</button><span class="note" id="syncMsg">' + (p.name ? esc(p.name) : T('なまえが まだ ありません(タイトルで いれられます)')) + '</span></div>';
+}
+function bindSyncParent() {
+  const sv = $('syncSave'), ts = $('syncTest'); if (!sv) return;
+  sv.onclick = () => { setSyncUrl($('syncUrl').value); $('syncMsg').textContent = T('ほぞんしました'); };
+  ts.onclick = () => {
+    setSyncUrl($('syncUrl').value);
+    if (!getSyncUrl()) { $('syncMsg').textContent = T('URLを いれてね'); return; }
+    if (!loadPlayer().name) { $('syncMsg').textContent = T('なまえが ありません'); return; }
+    syncSend('test');
+    $('syncMsg').textContent = T('おくりました。スプレッドシートを みてね');
+  };
+}
+
+// ===== 07-robot.js =====
+// ---------- ロボット(ゴーレム) ----------
+const DX = [0, 1, 0, -1], DZ = [-1, 0, 1, 0];
+const ROBOT = {
+  on: false, x: 0, y: 0, z: 0, dir: 0,
+  px: 0, py: 0, pz: 0, pyaw: 0, tyaw: 0,
+  anim: null, pulse: 0, speed: 1, bump: 0,
+  run: null, useBlock: null, lastMsg: ''
+};
+
+function mod4(n) { return ((n % 4) + 4) % 4; }
+function robotOccupies(x, y, z) { return ROBOT.on && ROBOT.x === x && ROBOT.y === y && ROBOT.z === z; }
+
+function robotInit() {
+  const s = world.pendingRobot;
+  if (s && s.on) { robotPlace(s.x, s.y, s.z, s.dir); }
+}
+function robotSave() { return ROBOT.on ? { on: true, x: ROBOT.x, y: ROBOT.y, z: ROBOT.z, dir: ROBOT.dir } : null; }
+function robotReset() { ROBOT.on = false; ROBOT.run = null; ROBOT.anim = null; document.body.classList.remove('running'); setBarMode('hidden'); }
+
+function robotPlace(x, y, z, dir) {
+  ROBOT.on = true; ROBOT.x = x; ROBOT.y = y; ROBOT.z = z; ROBOT.dir = mod4(dir);
+  ROBOT.px = x; ROBOT.py = y; ROBOT.pz = z;
+  ROBOT.tyaw = -ROBOT.dir * Math.PI / 2; ROBOT.pyaw = ROBOT.tyaw;
+  ROBOT.anim = null;
+}
+
+// プレイヤーの前にロボットをよぶ
+function robotSummon() {
+  if (ROBOT.run) robotStop(true);
+  const dir = mod4(Math.round(-P.yaw / (Math.PI / 2)));
+  let x = Math.floor(P.x) + DX[dir] * 2, z = Math.floor(P.z) + DZ[dir] * 2;
+  x = clamp(x, 0, W - 1); z = clamp(z, 0, D - 1);
+  let y = Math.floor(P.y + 0.2);
+  let guard = 0;
+  while (solidAt(x, y, z) && guard++ < 12) y++;
+  robotPlace(x, y, z, dir);
+  spawnParticles(x + 0.5, y + 0.5, z + 0.5, B.IRON);
+  playSound('found');
+  if (typeof onAction === 'function') onAction('summon');
+  saveSoon();
+}
+
+// ---------- 動き ----------
+const CMD_NAMES = {
+  forward: '{前|まえ}へ', turnLeft: '{左|ひだり}を{向|む}く', turnRight: '{右|みぎ}を{向|む}く', up: '{上|うえ}へ', down: '{下|した}へ',
+  place: 'ブロックを おく({前|まえ})', placeDown: 'ブロックを おく({下|した})', dig: 'こわす({前|まえ})', digDown: 'こわす({下|した})', use: 'ブロックを {選|えら}ぶ'
+};
+const CMD_ICONS = { forward: '⬆️', turnLeft: '↩️', turnRight: '↪️', up: '🔼', down: '🔽', place: '🧱', placeDown: '🟫', dig: '⛏️', digDown: '🕳️', use: '🎨' };
+const CMD_CLASS = { forward: 'c-move', turnLeft: 'c-turn', turnRight: 'c-turn', up: 'c-move', down: 'c-move', place: 'c-block', placeDown: 'c-block', dig: 'c-block', digDown: 'c-block', use: 'c-block' };
+
+function robotBlockId() { return ROBOT.useBlock || (G.program && G.program.block) || G.hotbar[G.slot]; }
+
+function robotFront() { return [ROBOT.x + DX[ROBOT.dir], ROBOT.y, ROBOT.z + DZ[ROBOT.dir]]; }
+
+function robotCond(c) {
+  const f = robotFront();
+  switch (c) {
+    case 'frontClear': return !solidAt(f[0], f[1], f[2]);
+    case 'frontBlock': return solidAt(f[0], f[1], f[2]);
+    case 'downAir': return !solidAt(ROBOT.x, ROBOT.y - 1, ROBOT.z);
+    case 'downBlock': return solidAt(ROBOT.x, ROBOT.y - 1, ROBOT.z);
+  }
+  return false;
+}
+
+// 何も起きなかった命令(すでにブロックがある等): 待たずに次へ
+function softNo() { ROBOT.anim = null; ROBOT.pulse = 0; ROBOT.bump = 0.3; return { ok: true, soft: true }; }
+function startAnim(kind, dur, extra) {
+  ROBOT.anim = Object.assign({ kind, t: 0, dur: dur / ROBOT.speed, fx: ROBOT.px, fy: ROBOT.py, fz: ROBOT.pz }, extra || {});
+}
+
+// 1つの命令をじっこう。 { ok:true } か { error:'メッセージ' }
+function robotAct(cmd, arg) {
+  const stats = ROBOT.run ? ROBOT.run.stats : null;
+  switch (cmd) {
+    case 'forward': {
+      const f = robotFront();
+      if (f[0] < 0 || f[0] >= W || f[2] < 0 || f[2] >= D) return { error: '{世界|せかい}の はしだよ。 これより {先|さき}には いけないよ' };
+      if (solidAt(f[0], f[1], f[2])) return { error: 'まえに ブロックが あって すすめないよ' };
+      ROBOT.x = f[0]; ROBOT.z = f[2];
+      startAnim('move', 0.32);
+      G.counters.robotSteps++; if (stats) stats.moves++;
+      playSound('step');
+      return { ok: true };
+    }
+    case 'turnLeft': ROBOT.dir = mod4(ROBOT.dir + 3); ROBOT.tyaw += Math.PI / 2; startAnim('turn', 0.22); playSound('step'); return { ok: true };
+    case 'turnRight': ROBOT.dir = mod4(ROBOT.dir + 1); ROBOT.tyaw -= Math.PI / 2; startAnim('turn', 0.22); playSound('step'); return { ok: true };
+    case 'up': {
+      if (ROBOT.y + 1 >= H || solidAt(ROBOT.x, ROBOT.y + 1, ROBOT.z)) return { error: 'うえに ブロックが あって のぼれないよ' };
+      ROBOT.y++; startAnim('move', 0.3); if (stats) stats.moves++; playSound('step'); return { ok: true };
+    }
+    case 'down': {
+      if (ROBOT.y - 1 < 0 || solidAt(ROBOT.x, ROBOT.y - 1, ROBOT.z)) return { error: 'したに ブロックが あって おりられないよ' };
+      ROBOT.y--; startAnim('move', 0.3); if (stats) stats.moves++; playSound('step'); return { ok: true };
+    }
+    case 'use': {
+      if (arg && BLOCKS[arg] && arg !== B.AIR) ROBOT.useBlock = arg;
+      startAnim('pulse', 0.12);
+      return { ok: true };
+    }
+    case 'place': case 'placeDown': {
+      const t = cmd === 'place' ? robotFront() : [ROBOT.x, ROBOT.y - 1, ROBOT.z];
+      const id = robotBlockId();
+      startAnim('pulse', 0.25);
+      if (!inb(t[0], t[1], t[2])) return softNo();
+      const cur = getB(t[0], t[1], t[2]);
+      if (cur !== B.AIR && cur !== B.WATER) return softNo();
+      if (isSolid(id) && playerOverlapsCell(t[0], t[1], t[2])) return softNo();
+      setBlock(t[0], t[1], t[2], id);
+      G.counters.robotPlaced++; if (stats) { stats.placed++; stats.placedCells.push(t); }
+      spawnParticles(t[0] + 0.5, t[1] + 0.5, t[2] + 0.5, id);
+      playSound('place');
+      if (typeof onAction === 'function') onAction('robotPlace', id);
+      return { ok: true };
+    }
+    case 'dig': case 'digDown': {
+      const t = cmd === 'dig' ? robotFront() : [ROBOT.x, ROBOT.y - 1, ROBOT.z];
+      startAnim('pulse', 0.25);
+      if (!inb(t[0], t[1], t[2])) return softNo();
+      const cur = getB(t[0], t[1], t[2]);
+      if (cur === B.AIR) return softNo();
+      setBlock(t[0], t[1], t[2], B.AIR);
+      discover(cur);
+      if (stats) stats.dug++;
+      spawnParticles(t[0] + 0.5, t[1] + 0.5, t[2] + 0.5, cur);
+      playSound('break');
+      if (typeof onAction === 'function') onAction('robotDig', cur);
+      return { ok: true };
+    }
+  }
+  return { error: 'その めいれいは わからないよ' };
+}
+
+// ---------- プログラムの実行 ----------
+function robotRunProgram(ast, info) {
+  if (!ROBOT.on) robotSummon();
+  robotStop(true);
+  ROBOT.useBlock = null;
+  G.counters.runs++;
+  const stats = { moves: 0, placed: 0, dug: 0, placedCells: [], nodes: 0, acts: 0, feat: astFeatures(ast) };
+  ROBOT.run = { gen: execNodes(ast.body || ast, ast.defs || {}, stats), stats, cur: 0, error: null, done: false };
+  setBarMode('running');
+  document.body.classList.remove('panelopen');
+  closeProgramPanelState();
+  saveSoon();
+}
+function robotStop(silent) {
+  if (ROBOT.run && !ROBOT.run.done) {
+    ROBOT.run.done = true;
+    if (!silent) { toast(T('とめたよ')); }
+  }
+  ROBOT.run = null;
+  ROBOT.anim = null;
+  if (!silent) setBarMode('done', T('とめたよ'));
+  highlightNode(0, false);
+}
+const MAX_ACTS = 3000, MAX_NODES = 60000;
+function* execNodes(nodes, defs, stats) {
+  for (const n of nodes) yield* execNode(n, defs, stats, 0);
+}
+function* execNode(n, defs, stats, depth) {
+  if (depth > 40) throw new Error('くりかえしが ふかすぎるよ');
+  if (++stats.nodes > MAX_NODES) throw new Error('ずっと おわらない くりかえしみたい！ (むげんループ)');
+  switch (n.t) {
+    case 'cmd': {
+      const reps = n.n || 1;
+      for (let i = 0; i < reps; i++) {
+        if (++stats.acts > MAX_ACTS) throw new Error('めいれいが おおすぎて とまったよ');
+        yield { act: n.c, arg: n.b, node: n };
+      }
+      break;
+    }
+    case 'repeat':
+      for (let i = 0; i < n.n; i++) for (const c of n.body) yield* execNode(c, defs, stats, depth + 1);
+      break;
+    case 'while':
+      while (robotCond(n.cond.c) !== !!n.cond.not) {
+        if (++stats.nodes > MAX_NODES) throw new Error('ずっと おわらない くりかえしみたい！ (むげんループ)');
+        for (const c of n.body) yield* execNode(c, defs, stats, depth + 1);
+        yield { act: null, node: n }; // 1回ごとに ひと呼吸
+      }
+      break;
+    case 'if': {
+      const ok = robotCond(n.cond.c) !== !!n.cond.not;
+      for (const c of (ok ? n.body : (n.else || []))) yield* execNode(c, defs, stats, depth + 1);
+      break;
+    }
+    case 'def': break;
+    case 'call': {
+      const d = defs[n.name];
+      if (!d) throw new Error(n.name + ' という かんすうは ないよ');
+      for (const c of d) yield* execNode(c, defs, stats, depth + 1);
+      break;
+    }
+  }
+}
+function astFeatures(ast) {
+  const f = { repeat: false, cond: false, def: false, text: false, len: 0 };
+  (function walk(list) {
+    for (const n of list) {
+      f.len++;
+      if (n.t === 'repeat' || n.t === 'while') f.repeat = true;
+      if (n.t === 'if' || n.t === 'while') f.cond = true;
+      if (n.t === 'def' || n.t === 'call') f.def = true;
+      if (n.body) walk(n.body);
+      if (n.else) walk(n.else);
+    }
+  })(ast.body || ast);
+  if (ast.defs) for (const k in ast.defs) { f.def = true; }
+  f.text = !!ast.fromText;
+  return f;
+}
+
+function finishRun(error) {
+  const run = ROBOT.run; if (!run) return;
+  run.done = true;
+  const stats = run.stats;
+  ROBOT.run = null;
+  if (error) {
+    playSound('error');
+    setBarMode('error', T(esc(error)));
+  } else {
+    setBarMode('done', T('できた！'));
+    playSound('found');
+  }
+  if (typeof onRunFinished === 'function') onRunFinished(stats, error);
+  saveSoon();
+}
+
+function robotUpdate(dt) {
+  if (!ROBOT.on) return;
+  // 見た目の位置をなめらかに
+  const a = ROBOT.anim;
+  if (a) {
+    a.t += dt;
+    const k = Math.min(1, a.t / a.dur), e = k * k * (3 - 2 * k);
+    if (a.kind === 'move') {
+      ROBOT.px = a.fx + (ROBOT.x - a.fx) * e; ROBOT.py = a.fy + (ROBOT.y - a.fy) * e; ROBOT.pz = a.fz + (ROBOT.z - a.fz) * e;
+    } else if (a.kind === 'turn') {
+      ROBOT.pyaw += (ROBOT.tyaw - ROBOT.pyaw) * Math.min(1, dt * 18 * ROBOT.speed);
+    } else if (a.kind === 'pulse') {
+      ROBOT.pulse = Math.sin(k * Math.PI);
+    }
+    if (k >= 1) {
+      ROBOT.anim = null; ROBOT.px = ROBOT.x; ROBOT.py = ROBOT.y; ROBOT.pz = ROBOT.z; ROBOT.pyaw = ROBOT.tyaw; ROBOT.pulse = 0;
+    }
+  } else {
+    ROBOT.px = ROBOT.x; ROBOT.py = ROBOT.y; ROBOT.pz = ROBOT.z;
+    ROBOT.pyaw += (ROBOT.tyaw - ROBOT.pyaw) * Math.min(1, dt * 12);
+  }
+  if (ROBOT.bump > 0) ROBOT.bump = Math.max(0, ROBOT.bump - dt);
+  // プログラムをすすめる(動きの いらない ところは まとめて すすむ)
+  let guard = 0;
+  while (ROBOT.run && !ROBOT.run.done && !ROBOT.anim && guard++ < 400) {
+    const run = ROBOT.run;
+    let r;
+    try { r = run.gen.next(); } catch (e) { highlightNode(run.cur, true); finishRun(e.message); return; }
+    if (r.done) { highlightNode(0, false); finishRun(null); return; }
+    const y = r.value;
+    run.cur = y.node.id;
+    highlightNode(y.node.id, false);
+    if (y.act) {
+      const res = robotAct(y.act, y.arg);
+      if (res.error) { highlightNode(y.node.id, true); finishRun(res.error); return; }
+    }
+  }
+}
+
+// ---------- 見た目 ----------
+function tsMat(ox, oy, oz, sx, sy, sz) {
+  return new Float32Array([sx, 0, 0, 0, 0, sy, 0, 0, 0, 0, sz, 0, ox, oy, oz, 1]);
+}
+function robotEntity() {
+  if (!ROBOT.on) return null;
+  const bob = Math.sin(G.time * 3) * 0.03;
+  const sq = 1 + ROBOT.pulse * 0.12;
+  const base = M4.model(ROBOT.px + 0.5, ROBOT.py + bob + (ROBOT.pulse * 0.05), ROBOT.pz + 0.5, ROBOT.pyaw + Math.sin(G.time * 40) * ROBOT.bump * 0.25, 1, 1, 1);
+  const parts = [];
+  function box(cx, cy, cz, w, h, d, c) {
+    parts.push({ m: M4.mul(base, tsMat(cx - w / 2, cy, cz - d / 2, w * sq, h * sq, d * sq)), c });
+  }
+  // 足(キャタピラ)
+  box(-0.27, 0.0, 0, 0.14, 0.2, 0.56, [0.22, 0.24, 0.3]);
+  box(0.27, 0.0, 0, 0.14, 0.2, 0.56, [0.22, 0.24, 0.3]);
+  // からだ
+  box(0, 0.1, 0, 0.5, 0.36, 0.46, [0.42, 0.68, 1.0]);
+  box(0, 0.22, -0.235, 0.22, 0.12, 0.02, [1.0, 0.8, 0.2]); // むねのライト
+  // あたま
+  box(0, 0.48, 0, 0.42, 0.3, 0.4, [0.96, 0.97, 1.0]);
+  box(-0.1, 0.56, -0.205, 0.08, 0.1, 0.02, [0.05, 0.08, 0.15]); // め
+  box(0.1, 0.56, -0.205, 0.08, 0.1, 0.02, [0.05, 0.08, 0.15]);
+  box(0, 0.5, -0.215, 0.07, 0.05, 0.04, [1.0, 0.55, 0.15]);   // はな(むき)
+  // アンテナ
+  box(0, 0.78, 0, 0.04, 0.12, 0.04, [0.4, 0.4, 0.45]);
+  box(0, 0.88, 0, 0.1, 0.1, 0.1, [1.0, 0.35 + 0.3 * Math.sin(G.time * 4), 0.3]);
+  return { parts };
+}
+
+// ===== 08-lang.js =====
+// ---------- プログラムの ことば(カード ⇄ Python風コード) ----------
+let _nid = 1;
+function newId() { return _nid++; }
+function cmdNode(c, n, b) { const o = { t: 'cmd', c, id: newId() }; if (n) o.n = n; if (b) o.b = b; return o; }
+
+const TEXT_CMDS = {
+  forward: 'forward', turn_left: 'turnLeft', turn_right: 'turnRight', up: 'up', down: 'down',
+  place: 'place', place_down: 'placeDown', dig: 'dig', dig_down: 'digDown'
+};
+const CMD_TO_TEXT = {}; Object.keys(TEXT_CMDS).forEach(k => { CMD_TO_TEXT[TEXT_CMDS[k]] = k; });
+const TEXT_CONDS = { front_is_clear: 'frontClear', front_is_block: 'frontBlock', down_is_air: 'downAir', down_is_block: 'downBlock' };
+const COND_TO_TEXT = {}; Object.keys(TEXT_CONDS).forEach(k => { COND_TO_TEXT[TEXT_CONDS[k]] = k; });
+const COND_LIST = ['frontClear', 'frontBlock', 'downAir', 'downBlock'];
+const COND_NAMES = {
+  frontClear: '{前|まえ}が あいている', frontBlock: '{前|まえ}に ブロックが ある',
+  downAir: '{下|した}が あいている', downBlock: '{下|した}に ブロックが ある'
+};
+const BLOCK_BY_KEY = {}; BLOCKS.forEach(b => { if (b && b.key) BLOCK_BY_KEY[b.key] = b.id; });
+
+// ---- 文字 → AST ----
+function parseProgram(text) {
+  const errors = [];
+  const raw = String(text).replace(/\r/g, '').split('\n');
+  const lines = [];
+  raw.forEach((ln, i) => {
+    const noc = ln.replace(/#.*$/, '').replace(/\s+$/, '');
+    if (!noc.trim()) return;
+    const m = noc.match(/^[ \t]*/)[0];
+    let indent = 0; for (const ch of m) indent += ch === '\t' ? 4 : 1;
+    lines.push({ indent, text: noc.trim(), line: i + 1 });
+  });
+  const defs = {};
+  let pos = 0;
+  function err(line, msg) { errors.push({ line, msg }); }
+
+  function parseBlock(indent) {
+    const out = [];
+    while (pos < lines.length) {
+      const L = lines[pos];
+      if (L.indent < indent) break;
+      if (L.indent > indent) { err(L.line, 'ここの ひっこみが おおすぎるよ'); pos++; continue; }
+      pos++;
+      const node = parseStatement(L, indent);
+      if (node) out.push(node);
+    }
+    return out;
+  }
+  function parseBody(L, indent) {
+    if (pos >= lines.length || lines[pos].indent <= indent) { err(L.line, 'この つぎの ぎょうに ひっこみ(スペース) が ひつようだよ'); return []; }
+    return parseBlock(lines[pos].indent);
+  }
+  function parseCond(s, line) {
+    let not = false;
+    let m = s.match(/^not\s+(.*)$/);
+    if (m) { not = true; s = m[1]; }
+    m = s.match(/^([a-z_]+)\(\)$/);
+    if (!m || !TEXT_CONDS[m[1]]) { err(line, '「' + s + '」は じょうけんに つかえないよ。 front_is_clear() などを つかってね'); return { c: 'frontClear', not: false }; }
+    return { c: TEXT_CONDS[m[1]], not };
+  }
+  function parseStatement(L, indent) {
+    const s = L.text;
+    let m;
+    if (s === 'pass') return null;
+    if ((m = s.match(/^for\s+[A-Za-z_][A-Za-z0-9_]*\s+in\s+range\(\s*(\d+)\s*\)\s*:$/))) {
+      const n = +m[1];
+      if (n > 1000) err(L.line, 'くりかえしの かいすうは 1000 までだよ');
+      const body = parseBody(L, indent);
+      return { t: 'repeat', n: clamp(n, 0, 1000), body, id: newId(), line: L.line };
+    }
+    if ((m = s.match(/^while\s+(.+):$/))) {
+      const cond = parseCond(m[1].trim(), L.line);
+      const body = parseBody(L, indent);
+      return { t: 'while', cond, body, id: newId(), line: L.line };
+    }
+    if ((m = s.match(/^if\s+(.+):$/))) {
+      const cond = parseCond(m[1].trim(), L.line);
+      const body = parseBody(L, indent);
+      let els = [];
+      if (pos < lines.length && lines[pos].indent === indent && /^else\s*:$/.test(lines[pos].text)) {
+        const EL = lines[pos]; pos++;
+        els = parseBody(EL, indent);
+      }
+      return { t: 'if', cond, body, else: els, id: newId(), line: L.line };
+    }
+    if (/^else\s*:$/.test(s)) { err(L.line, 'else の まえに if が ひつようだよ'); return null; }
+    if ((m = s.match(/^def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*\)\s*:$/))) {
+      const name = m[1];
+      if (TEXT_CMDS[name] || name === 'use') { err(L.line, name + ' は もとから ある めいれいだよ。 べつの なまえに してね'); }
+      const body = parseBody(L, indent);
+      defs[name] = body;
+      return { t: 'def', name, body, id: newId(), line: L.line };
+    }
+    if ((m = s.match(/^use\(\s*['"]([a-z_]+)['"]\s*\)$/))) {
+      const id = BLOCK_BY_KEY[m[1]];
+      if (!id) { err(L.line, '「' + m[1] + '」という ブロックは ないよ。 (' + Object.keys(BLOCK_BY_KEY).filter(k => k !== 'air').join(', ') + ')'); return null; }
+      const n = cmdNode('use', 0, id); n.line = L.line; return n;
+    }
+    if ((m = s.match(/^([A-Za-z_][A-Za-z0-9_]*)\(\s*(\d*)\s*\)$/))) {
+      const name = m[1], arg = m[2] === '' ? 0 : +m[2];
+      if (TEXT_CMDS[name]) {
+        const c = TEXT_CMDS[name];
+        if (arg > 200) err(L.line, 'かずは 200 までだよ');
+        if ((c === 'place' || c === 'placeDown' || c === 'dig' || c === 'digDown') && m[2] !== '') err(L.line, name + '() には かずを いれられないよ');
+        const n = cmdNode(c, arg > 1 ? Math.min(arg, 200) : 0); n.line = L.line; return n;
+      }
+      if (m[2] !== '') { err(L.line, name + '() には かずを いれられないよ'); return null; }
+      return { t: 'call', name, id: newId(), line: L.line };
+    }
+    err(L.line, '「' + s + '」は わからないよ。 つづりを たしかめてね');
+    return null;
+  }
+
+  const body = parseBlock(lines.length ? lines[0].indent : 0);
+  if (pos < lines.length) err(lines[pos].line, 'ひっこみが そろっていないよ');
+  // 呼びだしの確認
+  (function check(list) {
+    for (const n of list) {
+      if (n.t === 'call' && !defs[n.name]) err(n.line, n.name + '() という かんすうが みつからないよ。 def ' + n.name + '(): で つくってね');
+      if (n.body) check(n.body);
+      if (n.else) check(n.else);
+    }
+  })(body);
+  return { ast: { body, defs, fromText: true }, errors };
+}
+
+// ---- AST → 文字 ----
+function toText(ast) {
+  const out = [];
+  function condText(c) { return (c.not ? 'not ' : '') + COND_TO_TEXT[c.c] + '()'; }
+  function emitBody(list, ind) {
+    if (!list || !list.length) out.push('    '.repeat(ind) + 'pass'); else emit(list, ind);
+  }
+  function emit(list, ind) {
+    const pad = '    '.repeat(ind);
+    for (const n of list) {
+      if (n.t === 'cmd') {
+        if (n.c === 'use') { const k = BLOCKS[n.b] && BLOCKS[n.b].key; out.push(pad + "use('" + k + "')"); }
+        else out.push(pad + CMD_TO_TEXT[n.c] + '(' + (n.n > 1 ? n.n : '') + ')');
+      } else if (n.t === 'repeat') { out.push(pad + 'for i in range(' + n.n + '):'); emitBody(n.body, ind + 1); }
+      else if (n.t === 'while') { out.push(pad + 'while ' + condText(n.cond) + ':'); emitBody(n.body, ind + 1); }
+      else if (n.t === 'if') {
+        out.push(pad + 'if ' + condText(n.cond) + ':'); emitBody(n.body, ind + 1);
+        if (n.else && n.else.length) { out.push(pad + 'else:'); emitBody(n.else, ind + 1); }
+      } else if (n.t === 'def') { out.push(pad + 'def ' + n.name + '():'); emitBody(n.body, ind + 1); }
+      else if (n.t === 'call') out.push(pad + n.name + '()');
+    }
+  }
+  emit(ast.body, 0);
+  return out.join('\n');
+}
+
+function cloneAst(list) { return JSON.parse(JSON.stringify(list)); }
+function reId(list) { for (const n of list) { n.id = newId(); if (n.body) reId(n.body); if (n.else) reId(n.else); } return list; }
+
+// ===== 09-program-ui.js =====
+// ---------- プログラム画面(カード / コード) ----------
+const PROG_DEFAULT_TEXT = "# ロボットに めいれいしよう\nfor i in range(5):\n    forward()\n    place_down()\n";
+G.program = { mode: 'cards', body: [], text: PROG_DEFAULT_TEXT, block: null };
+let progTarget = { id: 0, key: 'body' };
+let progErrors = [];
+let runNodeMap = {};
+
+function programSave() { return { mode: G.program.mode, body: G.program.body, text: G.program.text, block: G.program.block }; }
+function programReset() {
+  G.program = { mode: G.level >= 3 ? 'text' : 'cards', body: [], text: PROG_DEFAULT_TEXT, block: null };
+  progTarget = { id: 0, key: 'body' }; progErrors = [];
+  if (document.body.classList.contains('panelopen')) renderProgram();
+}
+function restoreProgram(d) {
+  if (!d || !Array.isArray(d.body)) return;
+  G.program.mode = d.mode === 'text' ? 'text' : 'cards';
+  G.program.body = reId(d.body);
+  G.program.text = typeof d.text === 'string' ? d.text : PROG_DEFAULT_TEXT;
+  G.program.block = d.block && BLOCKS[d.block] ? d.block : null;
+}
+
+function findNode(list, id, parent) {
+  for (let i = 0; i < list.length; i++) {
+    const n = list[i];
+    if (n.id === id) return { node: n, list, idx: i };
+    if (n.body) { const r = findNode(n.body, id); if (r) return r; }
+    if (n.else) { const r = findNode(n.else, id); if (r) return r; }
+  }
+  return null;
+}
+function targetList() {
+  if (!progTarget.id) return G.program.body;
+  const f = findNode(G.program.body, progTarget.id);
+  if (!f) { progTarget = { id: 0, key: 'body' }; return G.program.body; }
+  if (progTarget.key === 'else') { f.node.else = f.node.else || []; return f.node.else; }
+  return f.node.body;
+}
+function collectDefs(list, defs) {
+  defs = defs || {};
+  for (const n of list) { if (n.t === 'def') defs[n.name] = n.body; if (n.body) collectDefs(n.body, defs); }
+  return defs;
+}
+
+// ---- 画面のかきだし ----
+function cardHTML(n) {
+  const lv = G.level;
+  const ctl = (extra) => '<span class="sp"></span>' + extra +
+    '<button class="mini" data-act="up" data-id="' + n.id + '" aria-label="up">▲</button><button class="mini" data-act="down" data-id="' + n.id + '" aria-label="down">▼</button><button class="mini" data-act="del" data-id="' + n.id + '" aria-label="delete">✕</button>';
+  if (n.t === 'cmd') {
+    let label = T(CMD_NAMES[n.c]);
+    let mid = '';
+    if (n.c === 'use') {
+      mid = '<button class="mini" data-act="pick" data-id="' + n.id + '" style="padding:0 4px"><img alt="" style="width:26px;height:26px;image-rendering:pixelated;vertical-align:middle" src="' + blockIconURL(n.b || G.hotbar[G.slot], 64) + '"></button>';
+    } else if (lv >= 2 && (n.c === 'forward' || n.c === 'up' || n.c === 'down')) {
+      mid = '<button class="mini" data-act="dec" data-id="' + n.id + '">−</button><b>' + (n.n || 1) + '</b><button class="mini" data-act="inc" data-id="' + n.id + '">＋</button><span>' + T('{回|かい}') + '</span>';
+    }
+    return '<div class="card ' + (CMD_CLASS[n.c] || '') + '" data-id="' + n.id + '"><span class="ic">' + CMD_ICONS[n.c] + '</span><span>' + label + '</span>' + mid + ctl('') + '</div>';
+  }
+  if (n.t === 'call') return '<div class="card c-ctl" data-id="' + n.id + '"><span class="ic">🧩</span><span>' + esc(n.name) + '()</span>' + ctl('') + '</div>';
+  const isT = progTarget.id === n.id;
+  const condChip = c => '<button class="mini" data-act="cond" data-id="' + n.id + '" style="padding:0 8px;font-size:13px">' + (c.not ? T('じゃない: ') : '') + T(COND_NAMES[c.c]) + '</button>';
+  let head = '';
+  if (n.t === 'repeat') head = '<span class="ic">🔁</span><span>' + T('くりかえし') + '</span><button class="mini" data-act="dec" data-id="' + n.id + '">−</button><b>' + n.n + '</b><button class="mini" data-act="inc" data-id="' + n.id + '">＋</button><span>' + T('{回|かい}') + '</span>';
+  if (n.t === 'while') head = '<span class="ic">🔄</span>' + condChip(n.cond) + '<span>' + T('{間|あいだ}') + '</span>';
+  if (n.t === 'if') head = '<span class="ic">❓</span><span>' + T('もし') + '</span>' + condChip(n.cond) + '<span>' + T('なら') + '</span>';
+  if (n.t === 'def') head = '<span class="ic">🧩</span><span>' + T('かんすう') + ' ' + esc(n.name) + '</span>';
+  let html = '<div class="ctl' + (isT && progTarget.key === 'body' ? ' target' : '') + '" data-id="' + n.id + '"><div class="card c-ctl" style="margin:0 0 3px" data-id="' + n.id + '">' + head;
+  html += '<span class="sp"></span><button class="mini" data-act="up" data-id="' + n.id + '">▲</button><button class="mini" data-act="down" data-id="' + n.id + '">▼</button><button class="mini" data-act="del" data-id="' + n.id + '">✕</button></div>';
+  html += '<div class="body">' + listHTML(n.body) + '<button class="slotbtn' + (isT && progTarget.key === 'body' ? ' target' : '') + '" data-act="target" data-id="' + n.id + '" data-key="body">' + (isT && progTarget.key === 'body' ? '⬇ ' + T('ここに ふえるよ') : '＋ ' + T('ここに ふやす')) + '</button></div>';
+  if (n.t === 'if') {
+    html += '<div style="font-weight:800;font-size:13px;margin:2px 0 0 4px;color:#6d28d9">' + T('そうでなければ') + '</div><div class="body">' + listHTML(n.else || []) +
+      '<button class="slotbtn' + (isT && progTarget.key === 'else' ? ' target' : '') + '" data-act="target" data-id="' + n.id + '" data-key="else">' + (isT && progTarget.key === 'else' ? '⬇ ' + T('ここに ふえるよ') : '＋ ' + T('ここに ふやす')) + '</button></div>';
+  }
+  return html + '</div>';
+}
+function listHTML(list) { return (list || []).map(cardHTML).join(''); }
+
+function paletteHTML() {
+  const lv = G.level;
+  const item = (act, ic, label) => '<button class="btn sm sub" data-act="add" data-c="' + act + '">' + ic + ' ' + T(label) + '</button>';
+  let h = '';
+  h += item('forward', '⬆️', '{前|まえ}') + item('turnLeft', '↩️', '{左|ひだり}') + item('turnRight', '↪️', '{右|みぎ}') + item('up', '🔼', '{上|うえ}') + item('down', '🔽', '{下|した}');
+  h += item('place', '🧱', 'おく({前|まえ})') + item('placeDown', '🟫', 'おく({下|した})') + item('dig', '⛏️', 'こわす({前|まえ})') + item('digDown', '🕳️', 'こわす({下|した})');
+  if (lv >= 2) {
+    h += item('use', '🎨', 'ブロック{選|えら}び') + item('repeat', '🔁', 'くりかえし') + item('while', '🔄', '{間|あいだ}') + item('if', '❓', 'もし');
+  }
+  return h;
+}
+
+function renderProgram() {
+  const panel = $('progPanel');
+  const lv = G.level, P_ = G.program;
+  if (lv === 1) P_.mode = 'cards';
+  const speedBtn = (v, ic) => '<button class="btn sm sub' + (ROBOT.speed === v ? ' on' : '') + '" data-act="speed" data-v="' + v + '" style="' + (ROBOT.speed === v ? 'background:#e0ecff' : '') + '">' + ic + '</button>';
+  let html = '<div class="mhead"><h2 style="font-size:17px">🤖 ' + T('ロボットの プログラム') + '</h2><button class="x" data-act="closePanel" aria-label="close">✕</button></div>';
+  html += '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:6px 8px;border-bottom:3px solid var(--line)">' +
+    '<button class="btn ok sm" data-act="run" id="pRun">▶ ' + T('うごかす') + '</button>' +
+    '<button class="btn sub sm" data-act="summon">🤖 ' + T('よぶ') + '</button>' +
+    '<button class="btn sub sm" data-act="lookRobot">👀</button>' +
+    speedBtn(0.6, '🐢') + speedBtn(1, '🚶') + speedBtn(2.6, '🐇') +
+    '<button class="btn sub sm" data-act="blockpick" title="block"><img alt="" style="width:22px;height:22px;image-rendering:pixelated;vertical-align:middle" src="' + blockIconURL(robotBlockId(), 64) + '"> ' + (P_.block ? '' : T('もちもの')) + '</button>' +
+    '<button class="btn bad sm" data-act="clear" aria-label="clear">🗑</button></div>';
+  if (lv >= 2) {
+    html += '<div class="tabs"><button class="tab' + (P_.mode === 'cards' ? ' on' : '') + '" data-act="tab" data-m="cards">🃏 ' + T('カード') + '</button><button class="tab' + (P_.mode === 'text' ? ' on' : '') + '" data-act="tab" data-m="text">💻 ' + T('コード') + '</button></div>';
+  }
+  html += '<div class="pbody" id="pBody">';
+  if (P_.mode === 'cards') {
+    if (!P_.body.length) html += '<p class="note" style="margin:6px 2px">' + T('したの ボタンを おして、カードを ならべよう。 ならべたら「うごかす」を おすと、ロボットが うごくよ！') + '</p>';
+    html += listHTML(P_.body);
+    html += '<button class="slotbtn' + (progTarget.id === 0 ? ' target' : '') + '" data-act="target" data-id="0" data-key="body">' + (progTarget.id === 0 ? '⬇ ' + T('ここに ふえるよ') : '＋ ' + T('いちばん したに ふやす')) + '</button>';
+    if (lv >= 2) html += '<h4 style="font-size:13px;color:var(--ink2)">' + T('コードで {見|み}ると…') + '</h4><pre class="codeview">' + esc(toText({ body: P_.body }) || '# (からっぽ)') + '</pre>';
+  } else {
+    html += '<textarea class="code" id="pText" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" ' + (lv < 3 ? 'readonly' : '') + '>' + esc(P_.text) + '</textarea>';
+    html += '<div id="pErr" class="err"></div>';
+    if (lv >= 3) html += '<details style="margin-top:6px"><summary style="font-weight:800">📘 ' + T('つかえる めいれい') + '</summary><pre class="codeview" style="font-size:12.5px">' + esc(
+      "forward()   forward(3)  # 前へ(回数)\nturn_left()  turn_right()\nup()  down()\nplace()  place_down()   # ブロックを置く\ndig()    dig_down()     # こわす\nuse('brick')             # 使うブロック\n\nfor i in range(5):       # くりかえし\n    forward()\nwhile front_is_clear():  # 条件でくりかえし\n    forward()\nif front_is_block():     # もし〜なら\n    up()\nelse:\n    forward()\n\ndef step():              # 関数\n    forward()\n    place_down()\nstep()\n\n# 条件: front_is_clear() front_is_block()\n#       down_is_air() down_is_block()  (not も使える)") + '</pre></details>';
+  }
+  html += '</div>';
+  if (P_.mode === 'cards') html += '<div class="palette">' + paletteHTML() + '</div>';
+  panel.innerHTML = html;
+  if (P_.mode === 'text') showTextErrors();
+  const ta = $('pText');
+  if (ta) {
+    ta.addEventListener('input', () => { P_.text = ta.value; showTextErrors(); });
+    ta.addEventListener('keydown', e => {
+      if (e.key === 'Tab') { e.preventDefault(); const s = ta.selectionStart; ta.value = ta.value.slice(0, s) + '    ' + ta.value.slice(ta.selectionEnd); ta.selectionStart = ta.selectionEnd = s + 4; P_.text = ta.value; }
+    });
+  }
+}
+function showTextErrors() {
+  const el = $('pErr'); if (!el) return;
+  const r = parseProgram(G.program.text);
+  progErrors = r.errors;
+  el.innerHTML = r.errors.length ? r.errors.slice(0, 4).map(e => esc(e.line + ' ぎょうめ: ' + e.msg)).join('<br>') : (G.program.text.trim() ? '<span class="good">✔ ' + T('だいじょうぶ！') + '</span>' : '');
+}
+function refreshProgramUI() {
+  if (document.body.classList.contains('panelopen')) {
+    const st = $('pBody') ? $('pBody').scrollTop : 0;
+    renderProgram();
+    if ($('pBody')) $('pBody').scrollTop = st;
+  }
+  renderBar();
+}
+
+function openProgram() {
+  if (G.modal) return;
+  closeInfo();
+  try { if (document.exitPointerLock) document.exitPointerLock(); } catch (e) { /* 何もしない */ }
+  INPUT.breakHeld = INPUT.placeHeld = false;
+  if (ROBOT.run) robotStop(true);
+  setBarMode('hidden');
+  if (!ROBOT.on) robotSummon();
+  document.body.classList.add('panelopen');
+  G.panel = true;
+  if (G.level >= 3 && !G.program.body.length && !G.program.mode) G.program.mode = 'text';
+  renderProgram();
+  if (typeof onAction === 'function') onAction('openProgram');
+}
+function closeProgramPanelState() { G.panel = false; }
+function closePanel() {
+  document.body.classList.remove('panelopen');
+  G.panel = false;
+}
+
+// 入力
+function addCard(c) {
+  const list = targetList();
+  let n;
+  if (c === 'repeat') n = { t: 'repeat', n: 3, body: [], id: newId() };
+  else if (c === 'while') n = { t: 'while', cond: { c: 'frontClear', not: false }, body: [], id: newId() };
+  else if (c === 'if') n = { t: 'if', cond: { c: 'frontClear', not: false }, body: [], else: [], id: newId() };
+  else if (c === 'use') n = cmdNode('use', 0, G.hotbar[G.slot]);
+  else n = cmdNode(c);
+  list.push(n);
+  if (n.body) progTarget = { id: n.id, key: 'body' };
+  playSound('select');
+  refreshProgramUI();
+  const pb = $('pBody'); if (pb) pb.scrollTop = pb.scrollHeight;
+}
+
+function readProgramForRun() {
+  const P_ = G.program;
+  if (P_.mode === 'text') {
+    const r = parseProgram(P_.text);
+    if (r.errors.length) { showTextErrors(); playSound('error'); toast(T('コードに まちがいが あるよ。 あかい ところを なおしてね')); return null; }
+    if (!r.ast.body.length) { toast(T('コードを かいてね')); return null; }
+    runNodeMap = {}; (function m(l) { l.forEach(n => { runNodeMap[n.id] = n; if (n.body) m(n.body); if (n.else) m(n.else); }); })(r.ast.body);
+    return r.ast;
+  }
+  if (!P_.body.length) { toast(T('カードを ならべてね')); playSound('error'); return null; }
+  runNodeMap = {};
+  return { body: P_.body, defs: collectDefs(P_.body), fromText: false };
+}
+function runProgramNow() {
+  const ast = readProgramForRun();
+  if (!ast) return;
+  robotRunProgram(ast);
+}
+
+// ---- クリック処理(まとめて) ----
+function onProgClick(e) {
+  const b = e.target.closest('[data-act]');
+  if (!b) return;
+  const act = b.dataset.act, id = +b.dataset.id;
+  const P_ = G.program;
+  switch (act) {
+    case 'closePanel': closePanel(); break;
+    case 'run': runProgramNow(); break;
+    case 'summon': robotSummon(); refreshProgramUI(); break;
+    case 'lookRobot': lookAtRobot(); break;
+    case 'speed': ROBOT.speed = +b.dataset.v; refreshProgramUI(); break;
+    case 'clear': if (P_.mode === 'text') P_.text = ''; else { P_.body = []; progTarget = { id: 0, key: 'body' }; } refreshProgramUI(); break;
+    case 'tab': {
+      const m = b.dataset.m;
+      if (m === P_.mode) break;
+      if (m === 'text') { P_.text = toText({ body: P_.body }) || P_.text; P_.mode = 'text'; }
+      else {
+        if (G.level >= 3) {
+          const r = parseProgram(P_.text);
+          if (r.errors.length) { toast(T('コードに まちがいが あるから カードに できないよ')); playSound('error'); break; }
+          P_.body = r.ast.body;
+        }
+        P_.mode = 'cards';
+      }
+      refreshProgramUI(); break;
+    }
+    case 'add': addCard(b.dataset.c); break;
+    case 'target': progTarget = { id, key: b.dataset.key || 'body' }; refreshProgramUI(); break;
+    case 'del': { const f = findNode(P_.body, id); if (f) { f.list.splice(f.idx, 1); if (progTarget.id === id) progTarget = { id: 0, key: 'body' }; } refreshProgramUI(); break; }
+    case 'up': { const f = findNode(P_.body, id); if (f && f.idx > 0) { const t = f.list[f.idx]; f.list[f.idx] = f.list[f.idx - 1]; f.list[f.idx - 1] = t; } refreshProgramUI(); break; }
+    case 'down': { const f = findNode(P_.body, id); if (f && f.idx < f.list.length - 1) { const t = f.list[f.idx]; f.list[f.idx] = f.list[f.idx + 1]; f.list[f.idx + 1] = t; } refreshProgramUI(); break; }
+    case 'inc': case 'dec': {
+      const f = findNode(P_.body, id); if (!f) break;
+      const n = f.node, d = act === 'inc' ? 1 : -1;
+      if (n.t === 'repeat') n.n = clamp(n.n + d, 1, 99);
+      else { const cur = n.n || 1; const nv = clamp(cur + d, 1, 99); n.n = nv > 1 ? nv : 0; }
+      refreshProgramUI(); break;
+    }
+    case 'cond': {
+      const f = findNode(P_.body, id); if (!f) break;
+      const c = f.node.cond;
+      if (c.not) { c.not = false; } else { c.c = COND_LIST[(COND_LIST.indexOf(c.c) + 1) % COND_LIST.length]; }
+      refreshProgramUI(); break;
+    }
+    case 'pick': {
+      const f = findNode(P_.body, id); if (!f) break;
+      openInventory({ onPick: bid => { f.node.b = bid; refreshProgramUI(); } }); break;
+    }
+    case 'blockpick': openInventory({ onPick: bid => { G.program.block = bid; refreshProgramUI(); }, allowClear: true }); break;
+    case 'barStop': robotStop(false); break;
+    case 'barAgain': runProgramNow(); break;
+    case 'barEdit': openProgram(); break;
+    case 'barClose': setBarMode('hidden'); break;
+    case 'barSpeed': ROBOT.speed = +b.dataset.v; renderBar(); break;
+  }
+}
+
+function lookAtRobot() {
+  if (!ROBOT.on) return;
+  const dx = ROBOT.x + 0.5 - P.x, dz = ROBOT.z + 0.5 - P.z, dy = ROBOT.y + 0.5 - (P.y + P.eye);
+  P.yaw = Math.atan2(-dx, -dz);
+  P.pitch = clamp(Math.atan2(dy, Math.hypot(dx, dz)), -1.4, 1.4);
+}
+
+// ---- 実行中のバー ----
+let barMode = 'hidden', barMsg = '';
+function setBarMode(mode, msg) {
+  barMode = mode; barMsg = msg || '';
+  document.body.classList.toggle('running', mode !== 'hidden');
+  renderBar();
+}
+function renderBar() {
+  const bar = $('progBar'); if (!bar) return;
+  const spd = (v, ic) => '<button class="btn sm sub" data-act="barSpeed" data-v="' + v + '" style="' + (ROBOT.speed === v ? 'background:#e0ecff' : '') + '">' + ic + '</button>';
+  let html = '';
+  if (barMode === 'running') html = '<span style="font-weight:800">🤖 ' + T('うごいているよ') + '</span><button class="btn bad sm" data-act="barStop">■ ' + T('とめる') + '</button>' + spd(0.6, '🐢') + spd(1, '🚶') + spd(2.6, '🐇') + '<button class="btn sub sm" data-act="lookRobot">👀</button>';
+  else if (barMode === 'done') html = '<span style="font-weight:800">✅ ' + barMsg + '</span><button class="btn ok sm" data-act="barAgain">▶ ' + T('もういちど') + '</button><button class="btn sub sm" data-act="barEdit">✏️ ' + T('なおす') + '</button><button class="btn sub sm" data-act="barClose">✕</button>';
+  else if (barMode === 'error') html = '<span style="font-weight:800;color:var(--bad);max-width:46vw;line-height:1.6">⚠️ ' + barMsg + '</span><button class="btn sub sm" data-act="barEdit">✏️ ' + T('なおす') + '</button><button class="btn sub sm" data-act="barClose">✕</button>';
+  bar.innerHTML = html;
+}
+function highlightNode(id, isErr) {
+  document.querySelectorAll('#progPanel .card.running, #progPanel .card.err').forEach(el => el.classList.remove('running', 'err'));
+  if (!id) return;
+  const el = document.querySelector('#progPanel .card[data-id="' + id + '"]');
+  if (el) { el.classList.add(isErr ? 'err' : 'running'); }
+}
+
+// 起動時に一度だけイベントをつなぐ
+(function () {
+  const init = () => {
+    $('progPanel').addEventListener('click', onProgClick);
+    $('progBar').addEventListener('click', onProgClick);
+    $('progPanel').addEventListener('pointerdown', e => e.stopPropagation());
+    $('progBar').addEventListener('pointerdown', e => e.stopPropagation());
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+
+// ===== 10-save.js =====
+// ---------- ほぞん ----------
+const SAVE_KEY = 'blocklab-save-v1';
+let memSave = null; // localStorage が使えないときの代わり
+let saveTimer = null;
+
+function saveSoon() {
+  if (saveTimer) return;
+  saveTimer = setTimeout(() => { saveTimer = null; saveNow(); }, 1200);
+}
+function collectSave() {
+  return {
+    v: 1, seed: world.seed, level: G.level, ctrl: G.ctrl, sound: G.sound,
+    hotbar: G.hotbar, slot: G.slot, zukan: G.zukan, made: G.made, counters: G.counters,
+    missionIndex: G.missionIndex, stars: G.stars, playSec: Math.round(G.playSec || 0), mBase: G.mBase, introDone: !!G.introDone,
+    player: { x: P.x, y: P.y, z: P.z, yaw: P.yaw, pitch: P.pitch },
+    edits: Array.from(world.edits.entries()),
+    robot: typeof robotSave === 'function' ? robotSave() : null,
+    program: typeof programSave === 'function' ? programSave() : null
+  };
+}
+function saveNow() {
+  let s;
+  try { s = JSON.stringify(collectSave()); } catch (e) { return false; }
+  memSave = s;
+  try { localStorage.setItem(SAVE_KEY, s); return true; } catch (e) { return false; }
+}
+function readSave() {
+  let s = null;
+  try { s = localStorage.getItem(SAVE_KEY); } catch (e) { s = null; }
+  if (!s) s = memSave;
+  if (!s) return null;
+  try { const d = JSON.parse(s); return d && d.v === 1 ? d : null; } catch (e) { return null; }
+}
+function applySave(d) {
+  if (!d) return;
+  if (d.level >= 1 && d.level <= 3) G.level = d.level;
+  if (d.ctrl) G.ctrl = d.ctrl;
+  if (typeof d.sound === 'boolean') G.sound = d.sound;
+  if (Array.isArray(d.hotbar) && d.hotbar.length === 9 && d.hotbar.every(id => BLOCKS[id] && id !== B.AIR)) G.hotbar = d.hotbar;
+  if (d.slot >= 0 && d.slot < 9) G.slot = d.slot;
+  if (d.zukan) G.zukan = d.zukan;
+  if (d.made) G.made = d.made;
+  if (d.counters) Object.assign(G.counters, d.counters);
+  if (d.missionIndex >= 0) G.missionIndex = d.missionIndex;
+  if (d.stars >= 0) G.stars = d.stars;
+  if (d.playSec >= 0) G.playSec = d.playSec;
+  G.mBase = d.mBase || null;
+  G.introDone = !!d.introDone;
+  world.edits = new Map((d.edits || []).filter(e => Array.isArray(e) && e[0] >= 0 && e[0] < W * D * H && BLOCKS[e[1]]));
+  if (d.seed) world.seed = d.seed;
+  if (d.player && isFinite(d.player.x)) {
+    P.x = d.player.x; P.y = d.player.y; P.z = d.player.z; P.yaw = d.player.yaw || 0; P.pitch = d.player.pitch || 0;
+  }
+  world.pendingRobot = d.robot || null;
+  world.pendingProgram = d.program || null;
+}
+function resetAll() {
+  try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* 何もしない */ }
+  memSave = null;
+  world.edits = new Map();
+  G.zukan = {}; G.tempWasFrozen = false; G.tempIronMelted = false; G.made = {}; G.missionIndex = 0; G.stars = 0; G.playSec = 0; G.introDone = true;
+  Object.keys(G.counters).forEach(k => { G.counters[k] = 0; });
+  G.hotbar = [B.GRASS, B.DIRT, B.STONE, B.PLANKS, B.BRICK, B.GLASS, B.LOG, B.SAND, B.LEAVES];
+  G.slot = 0;
+  genWorld(world.seed);
+  markAllDirty(); flushDirty();
+  respawn();
+  if (typeof robotReset === 'function') robotReset();
+  if (typeof programReset === 'function') programReset();
+  snapshotBase();
+  renderHotbar(); renderMissionChip(); closeInfo();
+  saveNow();
+}
+
+// ===== 11-missions.js =====
+// ---------- ミッション ----------
+G.mBase = null; // ミッション開始時のカウンター
+
+// title: 学年(level)によって かわる もんだい文  prog: 進み具合 [いま, 目標] / run: プログラムを実行した時の判定
+const MISSIONS = [
+  {
+    key: 'place', icon: '🧱', title: () => 'ブロックを 5こ おこう',
+    hint: () => touchActive() ? '🧱「おく」ボタンを おしてね' : '{右|みぎ}クリックで ブロックを おけるよ',
+    prog: d => [d.placed, 5]
+  },
+  {
+    key: 'break', icon: '⛏️', title: () => 'ブロックを 5こ こわそう',
+    hint: () => touchActive() ? '⛏「こわす」ボタンを おしてね' : '{左|ひだり}クリックで こわせるよ',
+    prog: d => [d.broken, 5]
+  },
+  {
+    key: 'inspect', icon: '🔍', title: () => 'ブロックを 3つ しらべよう',
+    hint: () => touchActive() ? '🔍「しらべる」ボタンを ブロックに むけて おしてね' : 'ブロックを ねらって Qキー ({真|ま}ん{中|なか}クリック) で しらべるよ',
+    prog: d => [d.inspected, 3]
+  },
+  {
+    key: 'summon', icon: '🤖', title: () => 'ロボットを よぼう',
+    hint: () => 'うえの 🤖ロボット ボタンを おしてね',
+    prog: d => [d.summons, 1]
+  },
+  {
+    key: 'walk', icon: '🚶', title: () => 'ロボットを {前|まえ}に 4ほ すすめよう',
+    hint: () => G.level === 1 ? '⬆️「まえ」カードを 4まい ならべて ▶うごかす' : '⬆️「{前|まえ}」カードを ならべて ▶うごかす',
+    prog: d => [d.robotSteps, 4]
+  },
+  {
+    key: 'bridge', icon: '🌉',
+    title: () => G.level === 1 ? 'ロボットに ブロックを 3こ ならべて もらおう' : G.level === 2 ? 'くりかえしで ブロックを 10こ ならべよう' : 'for ぶんで ブロックを 20こ ならべよう',
+    hint: () => G.level === 1 ? '「おく(した)」と「まえ」を ならべよう' : G.level === 2 ? '🔁「くりかえし」に 「おく(した)」と「{前|まえ}」を いれよう' : 'for i in range(20): の なかに place_down() と forward()',
+    run: (st, err) => !err && st.placed >= (G.level === 1 ? 3 : G.level === 2 ? 10 : 20) && (G.level === 1 || st.feat.repeat)
+  },
+  {
+    key: 'cond', icon: '🧠', minLevel: 2,
+    title: () => G.level === 2 ? '「もし」か「{間|あいだ}」を つかって うごかそう' : 'while か if を つかって うごかそう',
+    hint: () => G.level === 2 ? '❓「もし」や 🔄「{間|あいだ}」の カードを つかってみよう' : 'while front_is_clear(): forward() など',
+    run: (st, err) => !err && st.feat.cond && st.moves >= 3
+  },
+  {
+    key: 'iron', icon: '🧪', title: () => '{実験|じっけん}で {鉄|てつ}を つくろう',
+    hint: () => '🧪{実験|じっけん}で {鉄鉱石|てっこうせき}と {石炭|せきたん}を まぜて あつくしよう',
+    prog: d => [G.made.iron ? 1 : 0, 1]
+  },
+  {
+    key: 'ice', icon: '❄️', title: () => '{水|みず}を こおらせよう',
+    hint: () => '🧪{実験|じっけん}の「おんど」で {水|みず}を 0℃より ひくく してみよう',
+    prog: d => [d.frozen, 1]
+  },
+  {
+    key: 'ask', icon: '🎓', title: () => 'せんせいに {質問|しつもん}しよう',
+    hint: () => '🎓せんせいを ひらいて {質問|しつもん}を えらぼう',
+    prog: d => [d.asked, 1]
+  },
+  {
+    key: 'logic', icon: '💡', title: () => 'でんきの ゲートで ランプを 3しゅるい ひからせよう',
+    hint: () => '🧪{実験|じっけん}の「でんき」で ゲートを かえて ランプを ひからせよう',
+    prog: () => [Object.keys(G.made).filter(k => k.indexOf('gate_') === 0).length, 3]
+  },
+  {
+    key: 'zukan10', icon: '📖', title: () => '{図鑑|ずかん}を 10こ うめよう',
+    hint: () => 'はくぶつかんの ブロックを しらべたり、ほったり してみよう',
+    prog: () => [Object.keys(G.zukan).length, 10]
+  },
+  {
+    key: 'all', icon: '🏆', title: () => 'ぜんぶの ブロックを みつけよう',
+    hint: () => '{鉱石|こうせき}や {雪|ゆき}も さがしてみよう',
+    prog: () => [Object.keys(G.zukan).length, PLACEABLE.length]
+  }
+];
+function activeMissions() { return MISSIONS.filter(m => !m.minLevel || G.level >= m.minLevel); }
+function missionDelta() {
+  const c = G.counters, b = G.mBase || {}, d = {};
+  for (const k in c) d[k] = c[k] - (b[k] || 0);
+  return d;
+}
+function snapshotBase() { G.mBase = Object.assign({}, G.counters); }
+function currentMission() {
+  // missionIndex は MISSIONS 全体の番号。学年でスキップするものはとばす
+  while (G.missionIndex < MISSIONS.length) {
+    const m = MISSIONS[G.missionIndex];
+    if (m.minLevel && G.level < m.minLevel) { G.missionIndex++; continue; }
+    return m;
+  }
+  return null;
+}
+function missionProgress(m) {
+  if (m.prog) { const p = m.prog(missionDelta()); return p; }
+  return [0, 1];
+}
+function checkMissions(runInfo) {
+  if (!G.started) return;
+  let guard = 0;
+  while (guard++ < 5) {
+    const m = currentMission();
+    if (!m) break;
+    let ok = false;
+    if (m.prog) { const p = missionProgress(m); ok = p[0] >= p[1]; }
+    else if (m.run && runInfo) ok = !!m.run(runInfo.stats, runInfo.err);
+    if (!ok) break;
+    completeMission(m);
+    runInfo = null; // 1回の実行で2つ進めない
+  }
+  renderMissionChip();
+}
+function completeMission(m) {
+  G.stars++;
+  G.missionIndex++;
+  snapshotBase();
+  showClear(m);
+  playSound('win');
+  saveSoon();
+  if (typeof syncReady === 'function' && syncReady()) syncSend('clear');
+}
+function showClear(m) {
+  let el = $('clear');
+  if (!el) { el = document.createElement('div'); el.id = 'clear'; $('app').appendChild(el); }
+  el.innerHTML = '<div class="bub">🎉 ' + T('ミッション クリア！') + '<small>' + m.icon + ' ' + T(m.title()) + ' ⭐×' + G.stars + '</small></div>';
+  el.style.display = 'flex';
+  const emo = ['⭐', '🎉', '✨', '🟡', '🟦', '🟥', '🟩'];
+  for (let i = 0; i < 26; i++) {
+    const c = document.createElement('div');
+    c.className = 'conf'; c.textContent = emo[i % emo.length];
+    c.style.left = Math.random() * 100 + 'vw'; c.style.animationDelay = Math.random() * 0.6 + 's'; c.style.fontSize = 18 + Math.random() * 20 + 'px';
+    el.appendChild(c);
+  }
+  clearTimeout(showClear.t);
+  showClear.t = setTimeout(() => { el.style.display = 'none'; el.innerHTML = ''; }, 2600);
+}
+
+function renderMissionChip() {
+  const el = $('missionChip'); if (!el) return;
+  if (!G.started) { el.style.display = 'none'; return; }
+  const m = currentMission();
+  el.style.display = 'block';
+  el.onclick = () => openMissions();
+  if (!m) { el.className = 'done'; el.innerHTML = '🏆 ' + T('ぜんぶの ミッションを クリアしたよ！ すごい！'); return; }
+  el.className = '';
+  const list = activeMissions();
+  const idx = list.indexOf(m) + 1;
+  const p = m.prog ? missionProgress(m) : null;
+  el.innerHTML = '⭐ <b>' + idx + '/' + list.length + '</b> ' + m.icon + ' ' + T(m.title()) + (p ? ' (' + Math.min(p[0], p[1]) + '/' + p[1] + ')' : '');
+}
+
+function openMissions() {
+  const cur = currentMission();
+  const list = activeMissions();
+  let html = '<div style="font-size:18px;font-weight:800">⭐ × ' + G.stars + '</div><ul class="mlist" style="margin-top:8px">';
+  list.forEach(m => {
+    const i = MISSIONS.indexOf(m);
+    const done = i < G.missionIndex, isCur = m === cur;
+    html += '<li class="' + (done ? 'done' : isCur ? 'cur' : '') + '"><span class="st">' + (done ? '✅' : isCur ? '👉' : '⬜') + '</span><span>' + m.icon + ' ' + T(m.title()) +
+      (isCur ? '<div class="note" style="font-weight:600">💡 ' + T(m.hint()) + '</div>' : '') + '</span></li>';
+  });
+  html += '</ul>';
+  openModal('⭐ ' + T('ミッション'), html, 'missions');
+}
+
+// ---------- イベント ----------
+function onAction(kind, id) {
+  if (kind === 'summon') G.counters.summons = (G.counters.summons || 0) + 1;
+  checkMissions();
+}
+function onDiscover(id) { checkMissions(); }
+function onRunFinished(stats, err) { checkMissions({ stats, err }); }
+function onLabEvent() { checkMissions(); }
+
+// ===== 12-lab.js =====
+// ---------- じっけんしつ(まぜる / おんど) ----------
+// ざいりょう: ブロック(図鑑にのったもの) と 気体・ねんど
+const SPECIAL_MATS = {
+  h2: { name: '{水素|すいそ}', sub: 'H₂', emoji: '🎈', gas: true },
+  o2: { name: '{酸素|さんそ}', sub: 'O₂', emoji: '🫧', gas: true },
+  clay: { name: 'ねんど', sub: '', emoji: '🟤' }
+};
+const bk = k => BLOCK_BY_KEY[k];
+// 材料は "block:キー" か "special:キー"。 heat: 'hot' / 'cold' / null
+const RECIPES = [
+  {
+    key: 'water', mats: ['special:h2', 'special:o2'], heat: 'hot', out: () => bk('water'),
+    txt: [
+      'すいそが さんそと くっついて、みずが できたよ！ (もえると みずに なるんだ)',
+      '{水素|すいそ}が{酸素|さんそ}と{結|むす}びついて{水|みず}になった。{水素|すいそ}がもえると{水|みず}ができるよ。',
+      '水素と酸素が反応して水ができた。2H₂ + O₂ → 2H₂O。水素は燃えても二酸化炭素を出さないため、燃料として注目されている。'
+    ]
+  },
+  {
+    key: 'iron', mats: ['block:iron_ore', 'block:coal_ore'], heat: 'hot', out: () => bk('iron'),
+    txt: [
+      'てつこうせきを せきたんと いっしょに あつくしたら、てつが とれたよ！',
+      '{鉄鉱石|てっこうせき}を{石炭|せきたん}といっしょに{熱|ねつ}すると、{鉄|てつ}がとれる。{石炭|せきたん}が{鉱石|こうせき}から{酸素|さんそ}をうばうんだ。',
+      '酸化鉄を炭素と加熱すると、炭素が酸素を奪い(還元)鉄が得られる。2Fe₂O₃ + 3C → 4Fe + 3CO₂。高炉での製鉄の原理である。'
+    ]
+  },
+  {
+    key: 'copper', mats: ['block:copper_ore', 'block:coal_ore'], heat: 'hot', out: () => bk('copper'),
+    txt: [
+      'どうこうせきを せきたんと あつくしたら、どうが とれたよ！',
+      '{銅鉱石|どうこうせき}を{石炭|せきたん}と{一緒|いっしょ}に{熱|ねつ}すると{銅|どう}がとれる。{昔|むかし}の{人|ひと}も{同|おな}じやり{方|かた}で{銅|どう}をつくったんだ。',
+      '酸化銅などの銅鉱石を炭素と加熱して還元すると銅が得られる。2CuO + C → 2Cu + CO₂。銅は人類が最初に使った金属の一つ。'
+    ]
+  },
+  {
+    key: 'glass', mats: ['block:sand'], heat: 'hot', out: () => bk('glass'),
+    txt: [
+      'すなを とっても あつくして とかして、かためたら ガラスに なったよ！',
+      '{砂|すな}をとても{高|たか}い{温度|おんど}で{溶|と}かして{冷|さ}ますと、すきとおったガラスになる。',
+      '砂(SiO₂)を約1700℃以上で融解し、冷却して固めるとガラスができる。結晶にならずに固まるため、光を通す。'
+    ]
+  },
+  {
+    key: 'brick', mats: ['special:clay'], heat: 'hot', out: () => bk('brick'),
+    txt: [
+      'ねんどを あつい ひで やいたら、かたい レンガに なったよ！',
+      '{粘土|ねんど}を{高|たか}い{温度|おんど}で{焼|や}くと、{固|かた}くてじょうぶなレンガになる。',
+      '粘土を約1000℃で焼成すると、粘土鉱物の結晶水が抜けて化学変化が起こり、水に溶けない硬いレンガになる。'
+    ]
+  },
+  {
+    key: 'ice', mats: ['block:water'], heat: 'cold', out: () => bk('ice'),
+    txt: [
+      'みずを つめたく したら、かたまって こおりに なったよ！',
+      '{水|みず}を0℃よりひくくすると、かたまって{氷|こおり}になる。',
+      '水を0℃以下に冷やすと、水分子の運動がゆっくりになり規則正しく並んで氷(結晶)になる。凝固という。'
+    ]
+  },
+  {
+    key: 'melt', mats: ['block:ice'], heat: 'hot', out: () => bk('water'),
+    txt: [
+      'こおりを あたためたら、とけて みずに なったよ！',
+      '{氷|こおり}を{温|あたた}めると、0℃でとけて{水|みず}にもどる。',
+      '氷を加熱すると0℃で融解して水になる。融解している間は、加えた熱が状態変化に使われるので温度は上がらない。'
+    ]
+  },
+  {
+    key: 'melt2', mats: ['block:snow'], heat: 'hot', out: () => bk('water'),
+    txt: [
+      'ゆきを あたためたら、とけて みずに なったよ！',
+      '{雪|ゆき}を{温|あたた}めると、とけて{水|みず}になる。{雪|ゆき}も{氷|こおり}と{同|おな}じ{水|みず}のなかまだよ。',
+      '雪は氷の結晶の集まりなので、0℃を超えると融解して水になる。'
+    ]
+  }
+];
+let labSel = [], labHeat = null, labTab = 'mix', labAnimHandle = 0;
+
+function matInfo(ref) {
+  const [kind, key] = ref.split(':');
+  if (kind === 'block') { const id = bk(key); return { ref, name: BLOCKS[id].name, icon: blockIconURL(id, 64), id }; }
+  const s = SPECIAL_MATS[key];
+  return { ref, name: s.name, sub: s.sub, emoji: s.emoji };
+}
+function availableMats() {
+  const out = [];
+  Object.keys(SPECIAL_MATS).forEach(k => out.push('special:' + k));
+  PLACEABLE.forEach(id => { if (G.zukan[id] && id !== B.LEAVES && id !== B.GRASS && id !== B.LOG && id !== B.PLANKS && id !== B.DIRT && id !== B.STONE) out.push('block:' + BLOCKS[id].key); });
+  return out;
+}
+function matCell(m, extra) {
+  const inner = m.icon ? '<img alt="" src="' + m.icon + '">' : '<div style="font-size:40px;line-height:54px">' + m.emoji + '</div>';
+  return '<button class="cell" data-ref="' + m.ref + '" ' + (extra || '') + '>' + inner + '<span>' + T(m.name) + (m.sub ? ' ' + m.sub : '') + '</span></button>';
+}
+
+function openLab(tab) {
+  if (tab) labTab = tab;
+  stopLabAnim();
+  const tabs = '<div class="seg" style="margin-bottom:8px"><button class="btn sub' + (labTab === 'mix' ? ' on' : '') + '" data-tab="mix">⚗️ ' + T('まぜる') + '</button><button class="btn sub' + (labTab === 'temp' ? ' on' : '') + '" data-tab="temp">🌡️ ' + T('おんど') + '</button><button class="btn sub' + (labTab === 'logic' ? ' on' : '') + '" data-tab="logic">💡 ' + T('でんき') + '</button></div>';
+  const body = openModal('🧪 ' + T('{実験室|じっけんしつ}'), tabs + '<div id="labBody"></div>', 'lab');
+  body.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { openLab(b.dataset.tab); }));
+  modalOnClose = stopLabAnim;
+  if (labTab === 'mix') renderMix(); else if (labTab === 'logic') renderLogic(); else renderTemp();
+}
+
+// ---- まぜる ----
+function renderMix() {
+  const lv = G.level;
+  const slots = [0, 1].map(i => {
+    const r = labSel[i];
+    if (!r) return '<div class="lab-slot">' + T('ざいりょう') + '<br>' + (i + 1) + '</div>';
+    const m = matInfo(r);
+    return '<button class="lab-slot" data-rm="' + i + '" style="border-style:solid">' + (m.icon ? '<img alt="" style="width:48px;height:48px;image-rendering:pixelated" src="' + m.icon + '">' : '<div style="font-size:36px">' + m.emoji + '</div>') + '<span>' + T(m.name) + '</span></button>';
+  }).join('<div style="font-size:26px;font-weight:900">＋</div>');
+  const hb = (k, ic, label) => '<button class="btn sub' + (labHeat === k ? ' on' : '') + '" data-heat="' + (k || '') + '">' + ic + ' ' + T(label) + '</button>';
+  let html = '<p class="note">' + T('ざいりょうを 2つまで えらんで、ねつを くわえたり ひやしたり して「まぜる」を おそう！') + '</p>' +
+    '<div style="display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap">' + slots + '</div>' +
+    '<div class="seg" style="margin:10px 0">' + hb('cold', '❄️', 'ひやす') + hb(null, '➖', 'そのまま') + hb('hot', '🔥', 'あつくする') + '</div>' +
+    '<div style="text-align:center"><button class="btn ok" id="labGo" style="font-size:18px;padding:8px 30px">⚗️ ' + T('まぜる！') + '</button> <button class="btn sub sm" id="labClr">' + T('やりなおす') + '</button></div>' +
+    '<div id="labRes" style="margin-top:10px"></div>' +
+    '<h4>' + T('ざいりょう') + '</h4><div class="grid" id="labMats">' + availableMats().map(r => matCell(matInfo(r))).join('') + '</div>' +
+    '<p class="note">' + T('ブロックの ざいりょうは、{図鑑|ずかん}に のったものが つかえるよ。') + '</p>' +
+    '<h4>📒 ' + T('つくれた もの') + '</h4><div class="note">' + (RECIPES.filter(r => G.made[r.key]).map(r => { const id = r.out(); return T(BLOCKS[id].name); }).join(' ／ ') || '—') + '</div>';
+  $('labBody').innerHTML = html;
+  $('labBody').querySelectorAll('#labMats .cell').forEach(c => c.addEventListener('click', () => {
+    const ref = c.dataset.ref;
+    if (labSel.includes(ref)) return;
+    if (labSel.length >= 2) labSel.shift();
+    labSel.push(ref); playSound('select'); renderMix();
+  }));
+  $('labBody').querySelectorAll('[data-rm]').forEach(c => c.addEventListener('click', () => { labSel.splice(+c.dataset.rm, 1); renderMix(); }));
+  $('labBody').querySelectorAll('[data-heat]').forEach(c => c.addEventListener('click', () => { labHeat = c.dataset.heat || null; renderMix(); }));
+  $('labClr').onclick = () => { labSel = []; labHeat = null; renderMix(); };
+  $('labGo').onclick = doMix;
+}
+function doMix() {
+  const sel = labSel.slice().sort().join(',');
+  const rec = RECIPES.find(r => r.mats.slice().sort().join(',') === sel && r.heat === labHeat);
+  const el = $('labRes');
+  if (!labSel.length) { el.innerHTML = '<span class="note">' + T('ざいりょうを えらんでね') + '</span>'; playSound('error'); return; }
+  if (!rec) {
+    // ヒント
+    const close = RECIPES.find(r => r.mats.slice().sort().join(',') === sel);
+    el.innerHTML = '<div class="ans" style="border-color:#f59e0b;background:#fffaf0">😶 ' + T('なにも おこらなかった…') + (close ? '<br>💡 ' + T(close.heat === 'hot' ? 'ねつを くわえてみよう' : 'ひやしてみよう') : '<br>💡 ' + T('べつの くみあわせを ためしてみよう')) + '</div>';
+    playSound('error');
+    return;
+  }
+  const id = rec.out();
+  const first = !G.made[rec.key];
+  G.made[rec.key] = true;
+  if (rec.key === 'iron') G.made.iron = true;
+  G.counters.labMade++;
+  discover(id);
+  G.hotbar[G.slot] = id; renderHotbar();
+  playSound('win');
+  const resHtml = '<div class="ans">🎉 <b>' + T(BLOCKS[id].name) + '</b> ' + T('が できた！') + '<br>' + T(rec.txt[G.level - 1]) +
+    '<br><span class="note">' + T('ホットバーの スロット') + (G.slot + 1) + T('に いれたよ') + '</span>' +
+    '<div style="margin-top:6px"><button class="btn sm sub" id="labSay">🔊 ' + T('きく') + '</button></div></div>';
+  labSel = []; labHeat = null;
+  renderMix();
+  $('labRes').innerHTML = resHtml;
+  $('labSay').onclick = () => speak(rec.txt[G.level - 1]);
+  onLabEvent();
+  saveSoon();
+}
+
+// ---- おんど(状態へんか) ----
+const TEMP_SUBJECTS = ['water', 'iron', 'gold', 'copper', 'sand'];
+let tempSubject = 'water', tempValue = 20;
+function tempStates(key) {
+  const id = bk(key), c = BLOCKS[id].chem;
+  const water = key === 'water';
+  return {
+    id, mp: c.mp, bp: c.bp,
+    names: water ? ['こおり', 'みず', 'ゆげ(すいじょうき)'] : ['かたまり', 'どろどろに とけた', 'ガス'],
+    namesHi: water ? ['{氷|こおり}({固体|こたい})', '{水|みず}({液体|えきたい})', '{水蒸気|すいじょうき}({気体|きたい})'] : ['{固体|こたい}', '{液体|えきたい}', '{気体|きたい}']
+  };
+}
+function renderTemp() {
+  const S = tempStates(tempSubject);
+  const min = -50, max = Math.round(S.bp * 1.15 / 10) * 10;
+  tempValue = clamp(tempValue, min, max);
+  const lv = G.level;
+  let html = '<p class="note">' + T('ものの おんどを かえると、すがたが かわるよ。 スライダーを うごかしてみよう！') + '</p><div class="seg" id="tSubj">' +
+    TEMP_SUBJECTS.map(k => '<button class="btn sub sm' + (k === tempSubject ? ' on' : '') + '" data-k="' + k + '"><img alt="" style="width:22px;height:22px;image-rendering:pixelated;vertical-align:middle" src="' + blockIconURL(bk(k === 'water' ? 'ice' : k), 64) + '"> ' + T(BLOCKS[bk(k)].name) + '</button>').join('') + '</div>' +
+    '<canvas class="sim" id="simCv" width="600" height="240" style="margin-top:8px"></canvas>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin:6px 2px"><div id="tState" style="font-weight:900;font-size:19px"></div><div style="font-weight:900;font-size:19px" id="tVal"></div></div>' +
+    '<input type="range" class="thermo" id="tRange" min="' + min + '" max="' + max + '" value="' + tempValue + '" step="1">' +
+    '<div class="note" id="tNote"></div>';
+  $('labBody').innerHTML = html;
+  $('tSubj').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { tempSubject = b.dataset.k; tempValue = tempSubject === 'water' ? 20 : 20; renderTemp(); }));
+  const upd = () => {
+    tempValue = +$('tRange').value;
+    const st = tempValue < S.mp ? 0 : tempValue < S.bp ? 1 : 2;
+    $('tVal').textContent = '🌡 ' + tempValue + '℃';
+    $('tState').innerHTML = T(lv === 1 ? S.names[st] : S.namesHi[st]);
+    let note = '';
+    if (lv >= 2) note += T('とける{温度|おんど}') + ': ' + S.mp + '℃ ／ ' + T('ふっとうする{温度|おんど}') + ': ' + S.bp + '℃';
+    else note += tempSubject === 'water' ? T('0ど より ひくいと こおり、100ど より たかいと ゆげに なるよ') : T('ものすごく あつくすると とけるよ');
+    $('tNote').innerHTML = note;
+    if (tempSubject === 'water') {
+      if (tempValue < 0 && !G.tempWasFrozen) { G.tempWasFrozen = true; G.counters.frozen++; playSound('found'); toast('❄️ ' + T('{水|みず}が こおったよ！')); onLabEvent(); }
+      else if (tempValue >= 1) G.tempWasFrozen = false;
+    }
+    if (tempSubject === 'iron') {
+      if (tempValue >= S.mp && !G.tempIronMelted) { G.tempIronMelted = true; G.counters.ironMelted = (G.counters.ironMelted || 0) + 1; playSound('found'); toast('🔥 ' + T('{鉄|てつ}が とけたよ！')); }
+      else if (tempValue < S.mp - 20) G.tempIronMelted = false;
+    }
+    simState = st;
+  };
+  $('tRange').addEventListener('input', upd);
+  upd();
+  startLabAnim();
+}
+
+let simState = 1, simParts = null;
+function startLabAnim() {
+  const cv = $('simCv'); if (!cv) return;
+  const ctx = cv.getContext('2d');
+  const cols = 10, rows = 4;
+  simParts = [];
+  for (let i = 0; i < 40; i++) simParts.push({ x: 60 + Math.random() * 480, y: 120 + Math.random() * 100, vx: 0, vy: 0, hx: 40 + (i % cols) * 52 + 26, hy: 120 + Math.floor(i / cols) * 26 });
+  let last = performance.now();
+  function tick(now) {
+    if (G.modal !== 'lab' || !$('simCv')) { labAnimHandle = 0; return; }
+    labAnimHandle = requestAnimationFrame(tick);
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    const w = cv.width, h = cv.height;
+    ctx.clearRect(0, 0, w, h);
+    const bg = ctx.createLinearGradient(0, 0, 0, h); bg.addColorStop(0, '#10213f'); bg.addColorStop(1, '#1b3566');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+    const isWater = tempSubject === 'water';
+    const colr = isWater ? (simState === 0 ? '#bfe9ff' : simState === 1 ? '#4c90ff' : '#e8f1ff') : (tempSubject === 'iron' ? '#c8cbd3' : tempSubject === 'gold' ? '#ffd23c' : tempSubject === 'copper' ? '#e0874f' : '#e6d79b');
+    const speed = simState === 0 ? 10 : simState === 1 ? 60 : 200;
+    for (const p of simParts) {
+      if (simState === 0) { // 固体: 格子の位置でふるえる
+        p.vx = 0; p.vy = 0;
+        p.x += (p.hx - p.x) * Math.min(1, dt * 8) + (Math.random() - 0.5) * 1.2;
+        p.y += (p.hy - p.y) * Math.min(1, dt * 8) + (Math.random() - 0.5) * 1.2;
+      } else {
+        p.vx += (Math.random() - 0.5) * speed * dt * 8; p.vy += (Math.random() - 0.5) * speed * dt * 8;
+        if (simState === 1) p.vy += 120 * dt;
+        const m = Math.hypot(p.vx, p.vy), lim = speed;
+        if (m > lim) { p.vx = p.vx / m * lim; p.vy = p.vy / m * lim; }
+        p.x += p.vx * dt; p.y += p.vy * dt;
+        const top = simState === 1 ? h * 0.45 : 10;
+        if (p.x < 10) { p.x = 10; p.vx = Math.abs(p.vx); } if (p.x > w - 10) { p.x = w - 10; p.vx = -Math.abs(p.vx); }
+        if (p.y < top) { p.y = top; p.vy = Math.abs(p.vy); } if (p.y > h - 10) { p.y = h - 10; p.vy = -Math.abs(p.vy); }
+      }
+      ctx.fillStyle = colr; ctx.beginPath(); ctx.arc(p.x, p.y, 9, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.arc(p.x - 3, p.y - 3, 3, 0, 7); ctx.fill();
+    }
+    if (simState !== 0) { // とけたら 戻りやすいように 格子の家を更新
+      for (const p of simParts) { p.x = clamp(p.x, 5, w - 5); p.y = clamp(p.y, 5, h - 5); }
+    }
+  }
+  labAnimHandle = requestAnimationFrame(tick);
+}
+function stopLabAnim() { if (labAnimHandle) cancelAnimationFrame(labAnimHandle); labAnimHandle = 0; }
+
+
+// ---- でんき(ロジックゲート) ----
+let logicGate = 'and', logicA = false, logicB = false;
+const GATES = {
+  and: { label: ['りょうほう', 'AND({両方|りょうほう})', 'AND'], fn: (a, b) => a && b, two: true,
+    txt: ['りょうほうの スイッチを いれたときだけ、ランプが ひかるよ。',
+      '{両方|りょうほう}のスイッチがONのときだけ、ランプが{光|ひか}る。「AかつB」だね。',
+      'AND(論理積): 入力AとBがどちらも1(ON)のときだけ出力が1になる。直列につないだスイッチと同じ働き。'] },
+  or: { label: ['どちらか', 'OR({片方|かたほう})', 'OR'], fn: (a, b) => a || b, two: true,
+    txt: ['どちらかひとつでも いれれば、ランプが ひかるよ。',
+      'どちらか{片方|かたほう}でもONなら、ランプが{光|ひか}る。「AまたはB」だね。',
+      'OR(論理和): 入力AとBのどちらか一方でも1なら出力が1になる。並列につないだスイッチと同じ働き。'] },
+  not: { label: ['はんたい', 'NOT({反対|はんたい})', 'NOT'], fn: a => !a, two: false,
+    txt: ['スイッチを いれると ランプが きえて、きると ひかるよ。 はんたいに なるんだ。',
+      'スイッチがONだとランプが{消|き}え、OFFだと{光|ひか}る。{反対|はんたい}になる。',
+      'NOT(否定): 入力が1なら出力は0、入力が0なら出力は1になる(反転)。'] },
+  xor: { label: [null, 'XOR({違|ちが}うとき)', 'XOR'], fn: (a, b) => a !== b, two: true, minLevel: 2,
+    txt: [null,
+      'AとBが{違|ちが}うときだけ、ランプが{光|ひか}る。',
+      'XOR(排他的論理和): 入力AとBが異なるときだけ出力が1。階段の電灯を上と下のスイッチで切り替える回路に使われる。'] }
+};
+function logicGates() { return Object.keys(GATES).filter(k => !GATES[k].minLevel || G.level >= GATES[k].minLevel); }
+function renderLogic() {
+  const lv = G.level;
+  const gates = logicGates();
+  if (!gates.includes(logicGate)) logicGate = 'and';
+  const g = GATES[logicGate];
+  const out = g.two ? g.fn(logicA, logicB) : g.fn(logicA);
+  const sw = (id, on, label) => '<button class="btn sub" data-sw="' + id + '" style="min-width:86px;min-height:54px;' + (on ? 'background:#fef3c7;border-color:#f59e0b' : '') + '">' + label + '<br>' + (on ? '🟢 ON' : '⚪ OFF') + '</button>';
+  const lamp = '<div style="font-size:64px;line-height:1;transition:filter .2s;' + (out ? 'filter:drop-shadow(0 0 16px #ffd43b) drop-shadow(0 0 6px #ffb100)' : 'filter:grayscale(1) brightness(.7)') + '">💡</div>';
+  const wire = on => '<div style="font-size:22px;font-weight:900;color:' + (on ? '#f59e0b' : '#9aa7c0') + '">➜</div>';
+  let html = '<p class="note">' + T('スイッチを おして、ランプが ひかるか みてみよう。 ゲートを かえると ルールが かわるよ。') + '</p>' +
+    '<div class="seg" id="lgSel">' + gates.map(k => '<button class="btn sub sm' + (k === logicGate ? ' on' : '') + '" data-g="' + k + '">' + T(GATES[k].label[lv - 1] || GATES[k].label[1]) + '</button>').join('') + '</div>' +
+    '<div style="display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:nowrap;margin:14px 0">' +
+    '<div style="display:flex;flex-direction:column;gap:8px">' + sw('A', logicA, 'A') + (g.two ? sw('B', logicB, 'B') : '') + '</div>' +
+    wire(logicA || (g.two && logicB)) +
+    '<div style="border:4px solid var(--brand);border-radius:16px;background:#eef4ff;padding:14px 12px;font-weight:900;font-size:20px;text-align:center;min-width:76px">' + g.label[2] + '</div>' +
+    wire(out) + lamp + '</div>' +
+    '<div class="ans" style="margin-top:0">' + T(g.txt[lv - 1] || g.txt[1]) + '</div>';
+  // しんりひょう(レベル2以上)
+  if (lv >= 2) {
+    const rows = g.two ? [[0, 0], [0, 1], [1, 0], [1, 1]] : [[0], [1]];
+    html += '<h4>' + T('{真理値表|しんりちひょう}') + '</h4><table style="border-collapse:collapse;text-align:center;min-width:220px"><tr><th style="padding:2px 12px;border-bottom:3px solid var(--line)">A</th>' + (g.two ? '<th style="padding:2px 12px;border-bottom:3px solid var(--line)">B</th>' : '') + '<th style="padding:2px 12px;border-bottom:3px solid var(--line)">' + T('ランプ') + '</th></tr>' +
+      rows.map(r => {
+        const o = g.two ? g.fn(!!r[0], !!r[1]) : g.fn(!!r[0]);
+        const cur = g.two ? (!!r[0] === logicA && !!r[1] === logicB) : (!!r[0] === logicA);
+        return '<tr style="' + (cur ? 'background:#fff3bf;font-weight:900' : '') + '"><td style="padding:2px 12px">' + r[0] + '</td>' + (g.two ? '<td style="padding:2px 12px">' + r[1] + '</td>' : '') + '<td style="padding:2px 12px">' + (o ? '1 💡' : '0') + '</td></tr>';
+      }).join('') + '</table>';
+  }
+  $('labBody').innerHTML = html;
+  $('labBody').querySelectorAll('[data-g]').forEach(b => b.addEventListener('click', () => { logicGate = b.dataset.g; playSound('select'); renderLogic(); }));
+  $('labBody').querySelectorAll('[data-sw]').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.sw === 'A') logicA = !logicA; else logicB = !logicB;
+    playSound('select');
+    renderLogic();
+  }));
+  if (out) {
+    const key = 'gate_' + logicGate;
+    if (!G.made[key]) { G.made[key] = true; playSound('found'); toast('💡 ' + T('ランプが ひかったよ！')); onLabEvent(); saveSoon(); }
+  }
+}
+
+// ===== 13-teacher.js =====
+// ---------- せんせい(よくある しつもん) ----------
+// kw: 入力ぶんの キーワード(ひらがな・カタカナ・かんじ)
+const FAQ = [
+  {
+    q: 'どうして {氷|こおり}は {水|みず}に うくの？', kw: ['氷', 'こおり', 'うく', '浮'],
+    a: [
+      'こおりに なると、みずの つぶ(ぶんし)が すきまを あけて ならぶんだ。 すきまが あるぶん かるく なるから、みずに うくよ。',
+      '{水|みず}は{氷|こおり}になると、つぶ(ぶんし)が{決|き}まった{形|かたち}にならんで、すきまができる。そのぶん{軽|かる}くなるので{水|みず}にうくんだ。',
+      '水が凍ると、水分子が水素結合で隙間の多い六角形の構造に並び、体積が約9%増える。そのため密度が約0.92 g/cm³と水(1.0 g/cm³)より小さくなり、氷は水に浮く。'
+    ]
+  },
+  {
+    q: '{空|そら}は どうして {青|あお}いの？', kw: ['空', 'そら', '青', 'あお'],
+    a: [
+      'たいようの ひかりには いろんな いろが まざっているよ。 あおい ひかりは くうきに ぶつかって ぜんぶの ほうこうに ちらばるから、そらが あおく みえるんだ。',
+      '{太陽|たいよう}の{光|ひかり}にはいろいろな{色|いろ}がまざっている。{青|あお}い{光|ひかり}は{空気|くうき}のつぶに{当|あ}たって、あちこちに{散|ち}らばる。だから{空|そら}が{青|あお}く{見|み}えるよ。',
+      '太陽光は様々な波長の光を含む。波長の短い青い光は大気中の分子に散乱されやすい(レイリー散乱)。散乱した青い光が四方から目に届くので空は青く見える。夕焼けが赤いのは、光が長い距離を通る間に青い光が散乱されて減るため。'
+    ]
+  },
+  {
+    q: '{鉄|てつ}は どうして さびるの？', kw: ['鉄', 'てつ', 'さび', '錆'],
+    a: [
+      'てつは くうきの なかの さんそと、みずが あると くっついて、あかい さびに なるよ。 ペンキを ぬると さびにくく なるんだ。',
+      '{鉄|てつ}は{水|みず}と{空気|くうき}の{中|なか}の{酸素|さんそ}と{結|むす}びついて、{赤|あか}いさびになる。ペンキをぬったり、{油|あぶら}をぬったりすると、さびにくくなるよ。',
+      '鉄は水と酸素の存在下で酸化され、水酸化鉄(III)や酸化鉄(III) Fe₂O₃などの赤さびになる。さびは内部まで進行しやすいので、塗装やめっきで酸素と水を遮断して防ぐ。'
+    ]
+  },
+  {
+    q: '{水|みず}は どうして {沸騰|ふっとう}するの？', kw: ['沸騰', 'ふっとう', 'ゆげ', '湯気', '水蒸気', 'わく'],
+    a: [
+      'みずを あつくすると、みずの つぶが どんどん はやく うごくよ。 100どに なると、つぶが みずから とびだして、ゆげ(すいじょうき)に なるんだ。',
+      '{水|みず}を{熱|あつ}くすると、{水|みず}のつぶがどんどん{速|はや}くうごく。100℃になると{水|みず}の{中|なか}からもあわ({水蒸気|すいじょうき})がでてくる。これが{沸騰|ふっとう}だよ。',
+      '水を加熱すると分子の運動が激しくなる。水の飽和蒸気圧が外の気圧(1気圧)と等しくなる100℃で、水の内部からも気化が起こる。これが沸騰。気圧が低い高山では100℃より低い温度で沸騰する。'
+    ]
+  },
+  {
+    q: 'プログラムって なあに？', kw: ['プログラム', 'ぷろぐらむ', 'プログラミング'],
+    a: [
+      'プログラムは、コンピュータや ロボットに「こうしてね」と つたえる めいれいの ならびだよ。 じゅんばんを かえると、うごきも かわるよ！',
+      'プログラムは、コンピュータやロボットに「こうしてね」と{伝|つた}える{命令|めいれい}の{並|なら}び。{順番|じゅんばん}をかえると、{動|うご}きもかわる。',
+      'プログラムは、コンピュータに実行させる命令を順番に並べたもの(アルゴリズムを言語で表したもの)。命令は上から順に実行され、順番を変えると結果も変わる。'
+    ]
+  },
+  {
+    q: 'くりかえし(ループ)って なあに？', kw: ['くりかえし', '繰り返し', 'ループ', 'for', 'while'],
+    a: [
+      'おなじ ことを なんども するときに つかうよ。 「まえへ」を 10かい ならべるより、「10かい くりかえす」のほうが かんたんだよね！',
+      '{同|おな}じことを{何回|なんかい}もするときに{使|つか}う。「{前|まえ}へ」を10{枚|まい}ならべるより、「10{回|かい}くりかえす」の{方|ほう}がかんたんで、まちがいも{少|すく}ない。',
+      'ループは同じ処理を繰り返す構文。回数が決まっていれば for、条件が成り立つ間続けるなら while を使う。コードが短くなり、修正も1か所で済む。'
+    ]
+  },
+  {
+    q: '「もし〜なら」って なあに？', kw: ['もし', '条件', 'じょうけん', 'if'],
+    a: [
+      '「もし まえに ブロックが あったら、うえに のぼる」のように、ばあいによって ちがう ことを させる ときに つかうよ。',
+      '「もし{前|まえ}にブロックがあったら{上|うえ}にのぼる」のように、{場合|ばあい}によってちがうことをさせるときに{使|つか}う。これを{条件|じょうけん}{分岐|ぶんき}という。',
+      '条件分岐(if)は、条件が成り立つかどうかで実行する処理を切り替える仕組み。if 条件: の後ろに成立時の処理、else: の後ろに不成立時の処理を書く。'
+    ]
+  },
+  {
+    q: '{原子|げんし}って なあに？', kw: ['原子', 'げんし', 'つぶ'],
+    a: [
+      'ものは、とっても ちいさな つぶで できているよ。 その ちいさな つぶを「げんし」と いうんだ。 めには みえないよ。',
+      'ものは、とても{小|ちい}さなつぶでできている。そのつぶを{原子|げんし}という。{原子|げんし}がいくつかくっついたものを{分子|ぶんし}という。',
+      '原子は物質を構成する基本的な粒子で、中心の原子核(陽子と中性子)と、周りを回る電子からできている。原子がいくつか結合したものが分子。例えば水分子H₂Oは水素原子2個と酸素原子1個。'
+    ]
+  },
+  {
+    q: '{元素|げんそ}って なあに？', kw: ['元素', 'げんそ', '元素記号', '周期表'],
+    a: [
+      'てつ・きん・さんそ など、ものを つくっている もとの しゅるいを「げんそ」と いうよ。 いまは 118しゅるい みつかっているんだ。',
+      '{鉄|てつ}・{金|きん}・{酸素|さんそ}など、ものをつくっているもとの{種類|しゅるい}を{元素|げんそ}という。{今|いま}は118{種類|しゅるい}が{見|み}つかっていて、{記号|きごう}(Fe, Au, Oなど)であらわす。',
+      '元素は原子番号(原子核の陽子の数)で区別される原子の種類。現在118種が確認されている。元素記号(Fe、Au、Oなど)で表し、周期表にまとめられている。'
+    ]
+  },
+  {
+    q: 'ガラスは どうして すきとおるの？', kw: ['ガラス', 'がらす', '透明', 'すきとお', '透き'],
+    a: [
+      'ガラスの なかでは、つぶが ばらばらに ならんでいて、ひかりを さえぎる ものが ないから、ひかりが とおりぬけるんだ。',
+      'ガラスは{光|ひかり}をさえぎるものが{少|すく}なく、{光|ひかり}が{通|とお}りぬけるから{透|す}きとおって{見|み}える。{砂|すな}を{溶|と}かして{冷|さ}ましてつくるよ。',
+      'ガラスは可視光を吸収する電子の状態が無く、光が吸収されずに透過する。また結晶粒の境界がない非晶質なので、光が散乱されにくい。'
+    ]
+  },
+  {
+    q: '{金|きん}は どうして さびないの？', kw: ['金', 'きん', 'ゴールド'],
+    a: [
+      'きんは、さんそや みずと とっても くっつきにくい きんぞくなんだ。 だから ずっと ぴかぴか!',
+      '{金|きん}は{酸素|さんそ}や{水|みず}とほとんど{反応|はんのう}しない{金属|きんぞく}。だからさびずに、ずっとピカピカのままだよ。',
+      '金(Au)はイオン化傾向が非常に小さく、酸素や水と反応しにくい。そのため空気中でも酸化されず、光沢を保つ。'
+    ]
+  },
+  {
+    q: '{木|き}は どうして もえるの？', kw: ['木', 'もえる', '燃える', '燃焼', '火'],
+    a: [
+      'きは たんそを たくさん ふくんでいるよ。 あつくなって さんそと くっつくと、ひかりと ねつを だして もえるんだ。',
+      '{木|き}には{炭素|たんそ}がたくさんふくまれている。{熱|あつ}くなって{酸素|さんそ}と{結|むす}びつくと、{光|ひかり}と{熱|ねつ}をだしてもえる。もえるには「{燃|も}えるもの・{酸素|さんそ}・{熱|ねつ}」の3つがひつようだよ。',
+      '燃焼は物質が酸素と激しく結びつき、熱と光を出す酸化反応。燃焼には「可燃物・酸素・発火点以上の温度」の3つが必要で、どれか1つ欠ければ消火できる。木材のセルロースは燃えると二酸化炭素と水になる。'
+    ]
+  },
+  {
+    q: '{雪|ゆき}と{氷|こおり}は なにが ちがうの？', kw: ['雪', 'ゆき', '結晶'],
+    a: [
+      'どっちも みずが こおった ものだよ。 ゆきは そらで できた ちいさな けっしょうで、ふわふわ。 こおりは かたまって かたいんだ。',
+      'どちらも{水|みず}がこおったもの。{雪|ゆき}は{空|そら}の{上|うえ}でできた{小|ちい}さな{結晶|けっしょう}がふわふわ{集|あつ}まったもの。{氷|こおり}は{水|みず}がかたまった{固|かた}まりだよ。',
+      'どちらもH₂Oの固体。雪は大気中の水蒸気が直接氷の結晶になり、結晶の間に多くの空気を含む。氷は液体の水が凍ってできた塊で、空気をあまり含まず透明で硬い。'
+    ]
+  },
+  {
+    q: 'ロボットが うまく うごかない とき は？', kw: ['うごかない', '動かない', 'ロボット', 'エラー', 'バグ', 'まちがい'],
+    a: [
+      'だいじょうぶ！ まちがいを さがすのも プログラミングの おおきな しごとだよ。 ロボットが とまった カードを みてみよう。 その まえに ブロックが ないかな？ カードの じゅんばんを かえて、もういちど ためしてね。',
+      'だいじょうぶ！まちがいを{探|さが}すこと(デバッグ)もプログラミングの{大事|だいじ}な{仕事|しごと}。ロボットが{止|と}まったカードが{赤|あか}くなるよ。{原因|げんいん}を{考|かんが}えて、{少|すこ}しずつ{直|なお}して{試|ため}そう。',
+      'バグ(プログラムの誤り)を見つけて直す作業をデバッグという。まず、どの命令で止まったか(赤く表示される行)を確認し、そのときのロボットの位置や向きを想定して原因を考える。小さな単位で実行して確かめるのがコツ。'
+    ]
+  }
+];
+
+let teacherCur = -1;
+function openTeacher() {
+  let html = '<p class="note">' + T('しりたい ことを えらんでね。 じぶんで ことばを いれても いいよ。') + '</p>';
+  html += '<div style="display:flex;gap:6px"><input class="q" id="qIn" placeholder="' + esc(Tp('れい: こおり')) + '" maxlength="40"><button class="btn sm" id="qGo">' + T('さがす') + '</button></div>';
+  html += '<div id="qAns"></div><div id="qList">';
+  FAQ.forEach((f, i) => { html += '<button class="qbtn" data-i="' + i + '">❓ ' + T(f.q) + '</button>'; });
+  html += '</div>';
+  const body = openModal('🎓 ' + T('せんせい'), html, 'teacher');
+  body.querySelectorAll('.qbtn').forEach(b => b.addEventListener('click', () => showAnswer(+b.dataset.i)));
+  $('qGo').onclick = () => {
+    const w = $('qIn').value.trim();
+    if (!w) return;
+    const hit = FAQ.findIndex(f => f.kw.some(k => w.includes(k) || k.includes(w)));
+    if (hit >= 0) showAnswer(hit);
+    else { $('qAns').innerHTML = '<div class="ans">🤔 ' + T('うーん、まだ わからないみたい。 したの しつもんから えらんでみてね。 おうちの ひとや がっこうの せんせいに きいても いいね！') + '</div>'; G.counters.asked++; onLabEvent(); }
+  };
+  $('qIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('qGo').click(); });
+  if (teacherCur >= 0) showAnswer(teacherCur);
+}
+function showAnswer(i) {
+  teacherCur = i;
+  const f = FAQ[i], t = f.a[G.level - 1];
+  $('qAns').innerHTML = '<div class="ans"><b>🎓 ' + T(f.q) + '</b><br>' + T(t) + '<div style="margin-top:6px"><button class="btn sm sub" id="qSay">🔊 ' + T('きく') + '</button></div></div>';
+  $('qSay').onclick = () => speak(t);
+  G.counters.asked++;
+  playSound('found');
+  onLabEvent();
+  saveSoon();
+}
+
+// ===== 99-main.js =====
+// ---------- メインループ ----------
+let canvasEl = null;
+let lastTs = 0, acc = 0;
+let curTarget = null;
+
+function update(dt) {
+  G.time += dt;
+  if (typeof syncTick === 'function') syncTick(dt);
+  pollKeyboard();
+  handleHold(dt);
+  const paused = !!G.modal || !G.started;
+  if (!paused) {
+    acc += dt;
+    let n = 0;
+    while (acc >= 1 / 60 && n < 6) { physicsStep(1 / 60); acc -= 1 / 60; n++; }
+    if (n === 6) acc = 0;
+  } else acc = 0;
+  if (typeof robotUpdate === 'function') robotUpdate(dt);
+  updateParticles(dt);
+  curTarget = (G.started && !G.modal) ? computeTarget() : null;
+  if (dirtyChunks.size) flushDirty();
+}
+
+function render() {
+  const cam = { x: P.x, y: P.y + P.eye, z: P.z, yaw: P.yaw, pitch: P.pitch, fov: 72 * Math.PI / 180 };
+  const ents = [];
+  if (typeof robotEntity === 'function') { const e = robotEntity(); if (e) ents.push(e); }
+  ents.push(cloudEntity(G.time));
+  if (particles.length) ents.push(particleEntity());
+  drawScene(canvasEl, cam, ents, curTarget, G.time);
+}
+
+function loop(ts) {
+  requestAnimationFrame(loop);
+  const t = ts / 1000;
+  let dt = lastTs ? t - lastTs : 0.016;
+  lastTs = t;
+  dt = Math.min(dt, 0.1);
+  try { update(dt); render(); } catch (e) { reportError(e); }
+}
+
+let errShown = false;
+function reportError(e) {
+  console.error(e);
+  window.__lastError = String(e && e.stack || e);
+  if (!errShown) {
+    errShown = true;
+    try { toast('⚠️ ' + esc(String(e && e.message || e))); } catch (x) { /* 何もしない */ }
+  }
+}
+
+function boot() {
+  canvasEl = $('gl');
+  const d = readSave();
+  if (d) applySave(d);
+  if (!initGL(canvasEl)) {
+    $('title').innerHTML = '<div class="box"><h1>😢</h1><p class="sub">WebGLが つかえません。<br>べつの ブラウザで ひらいてね。</p></div>';
+    return;
+  }
+  genWorld(world.seed);
+  markAllDirty(); flushDirty();
+  if (!G.mBase) snapshotBase();
+  robotInit();
+  if (world.pendingProgram) restoreProgram(world.pendingProgram);
+  setupInput(canvasEl);
+  setupUI();
+  applyControlMode();
+  renderHotbar();
+  renderMissionChip();
+  renderTitle();
+  window.addEventListener('resize', applyControlMode);
+  window.addEventListener('beforeunload', saveNow);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
+  window.addEventListener('error', e => reportError(e.error || e.message));
+  requestAnimationFrame(loop);
+  window.__ready = true;
+}
+
+function setupUI() {
+  $('bZukan').onclick = () => openZukan();
+  $('bRobot').onclick = () => openProgram();
+  $('bLab').onclick = () => openLab();
+  $('bTeacher').onclick = () => openTeacher();
+  $('bMission').onclick = () => openMissions();
+  $('menuBtn').onclick = () => openMenu();
+  $('invBtn').onclick = () => openInventory();
+  ['bZukan', 'bRobot', 'bLab', 'bTeacher', 'bMission', 'menuBtn', 'invBtn'].forEach(id => {
+    $(id).addEventListener('pointerdown', e => e.stopPropagation());
+  });
+}
+
+// テスト用の入り口
+Object.assign(window.__game, {
+  actBreak, actPlace, actInspect, computeTarget, robotSummon, robotRunProgram, robotStop, ROBOT, parseProgram, toText,
+  openProgram, openZukan, openLab, openTeacher, openMissions, openMenu, openInventory, closeModal, setLevel, startGame,
+  showTitle, setBlock, getB, solidAt, checkMissions, currentMission, MISSIONS, FAQ, RECIPES, PLACEABLE, resetAll, saveNow,
+  readSave, respawn, renderProgram, showBlockInfo, raycast, genWorld, markAllDirty, flushDirty, addCard, execNodes, astFeatures,
+  findNode, progState: () => ({ target: progTarget }), collectDefs, setBarMode, dirtyChunks
+});
+
+boot();
+
+})();
+</script>
+</body>
+</html>
