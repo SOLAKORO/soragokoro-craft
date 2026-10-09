@@ -124,6 +124,16 @@ h4{margin:10px 0 4px;font-size:16px}
 .bar i{display:block;height:100%;background:linear-gradient(90deg,#34d399,#3b82f6)}
 
 /* タイトル */
+#evtBanner .evtb{margin:10px auto;padding:10px 12px;border-radius:16px;background:linear-gradient(160deg,#3b1d5c,#1d0f30);color:#fff;border:3px solid #ff7a1a;text-align:left;font-weight:700;line-height:1.7}
+#evtBanner .evtb-h{display:flex;align-items:center;gap:8px;font-size:17px}
+#evtBanner .evtb-p{font-size:28px;display:inline-block;animation:evtbSwing 1.2s ease-in-out infinite alternate;transform-origin:50% 90%}
+@keyframes evtbSwing{from{transform:rotate(-12deg)}to{transform:rotate(12deg)}}
+#evtBanner .evtb-d{margin-left:auto;font-size:13px;color:#ffd27a}
+#evtBanner .evtb-t{font-size:13px;color:#f3e9ff;margin-top:2px}
+#evtBanner .evtb-t b{color:#ffd27a}
+#evtBanner .evtb-bar{position:relative;height:20px;margin-top:6px;background:#0006;border-radius:999px;overflow:hidden;border:2px solid #fff3}
+#evtBanner .evtb-bar i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#ff7a1a,#ffd27a);border-radius:999px}
+#evtBanner .evtb-bar span{position:absolute;inset:0;text-align:center;font-size:12px;line-height:16px;text-shadow:0 1px 2px #000}
 #title{position:absolute;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:10px;
   background:linear-gradient(180deg,rgba(112,190,255,.94),rgba(190,228,255,.94) 60%,rgba(170,220,130,.94))}
 #title .box{width:min(96vw,640px);max-height:96dvh;max-height:96vh;overflow:auto;background:#ffffffee;border:5px solid #fff;border-radius:26px;box-shadow:var(--shadow);padding:16px 18px;text-align:center}
@@ -1911,6 +1921,7 @@ function renderTitle() {
   el.querySelectorAll('#tLv .lvcard').forEach(b => b.addEventListener('click', () => { setLevel(+b.dataset.lv); }));
   if ($('tGo')) $('tGo').onclick = startGame;
   bindTitleLogin();
+  if ($('evtBanner')) loadEventBanner();
 }
 function showTitle() { G.started = false; $('title').style.display = 'flex'; renderTitle(); }
 function startGame() {
@@ -2172,6 +2183,7 @@ function titleWelcomeHTML() {
   return '<div class="welcome">👋 <b>' + esc(p.name) + '</b> ' + T('さん、ようこそ！') + '</div>' +
     '<div style="font-weight:800">' + T('{漢字|かんじ}の レベルを えらんでね') + '</div>' +
     '<div class="lvs" id="tLv">' + levelCards(G.level) + '</div>' +
+    '<div id="evtBanner"></div>' +
     '<button class="btn ok go" id="tGo">▶ ' + T('はじめる') + '</button>' +
     '<button class="tlink" id="lOut">' + T('べつの ひとが あそぶ') + '</button>';
 }
@@ -2493,6 +2505,38 @@ function earnEnqueue(kind, key) {
   if (!earnQ.some(x => x.kind === kind && x.key === key)) { earnQ.push({ kind: kind, key: key }); earnSave(); }
   earnFlush();
 }
+// ===== ハロウィンイベント(そらごころテストと連動) =====
+// クラフトのミッションクリア・まいにちチャレンジが、そらごころテストの「みんなのゲージ」にたまる。
+// 期間前は テストID(0000)だけに表示する
+const EVT = {
+  api: 'https://script.google.com/macros/s/AKfycbxLYTYEXErcKC47y7TYOtZViEm4NYP01Lke9k5RwS9baji25wgCxatdJNs75Pttv9Sy/exec',
+  start: '2026-10-12', end: '2026-10-31', demoIds: ['0000'],
+  missionValue: 5, dailyValue: 3
+};
+function evtToday() { return new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10); }
+function eventOn() {
+  const t = evtToday();
+  if (t > EVT.end) return false;
+  if (t >= EVT.start) return true;
+  const p = loadPlayer();
+  return !!(p && p.auth && EVT.demoIds.indexOf(String(p.id)) >= 0);
+}
+function loadEventBanner() {
+  const el = $('evtBanner');
+  if (!el || !eventOn()) return;
+  const left = Math.round((new Date(EVT.end) - new Date(evtToday())) / 86400000);
+  const draw = (g) => {
+    const pct = g ? Math.min(100, Math.floor(g.total / g.goal * 100)) : 0;
+    el.innerHTML = '<div class="evtb"><div class="evtb-h"><span class="evtb-p">🎃</span><b>' + T('ハロウィンイベント') + '</b><span class="evtb-d">' +
+      (left > 0 ? T('10/31まで あと') + ' ' + left + T('{日|にち}') : T('きょうが さいご！')) + '</span></div>' +
+      '<div class="evtb-t">' + T('ミッションを 1つ クリアすると、そらごころテストの「みんなのゲージ」に') + ' <b>' + EVT.missionValue + T('{問|もん}ぶん</b>、まいにちチャレンジで') + ' <b>' + EVT.dailyValue + T('{問|もん}ぶん</b> たまるよ！') + '</div>' +
+      (g ? '<div class="evtb-bar"><i style="width:' + pct + '%"></i><span>⭐ ' + g.total + ' / ' + g.goal + '（' + pct + '%）</span></div>' : '') + '</div>';
+  };
+  draw(null);
+  fetch(EVT.api, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ action: 'getEventSummary' }) })
+    .then(r => r.json()).then(d => { if (d && d.status === 'success') { EVT.missionValue = d.craft.missionValue; EVT.dailyValue = d.craft.dailyValue; if ($('evtBanner')) draw(d.gauge); } })
+    .catch(() => { /* ゲージが よめなくても せつめいだけ だす */ });
+}
 function earnFlush() {
   if (earnBusy || !earnQ.length || !cloudOn()) return;
   earnBusy = true;
@@ -2502,6 +2546,7 @@ function earnFlush() {
     if (r && r.ok) {
       earnQ.shift(); earnSave();
       if (r.added > 0) { toast('🪙 +' + r.added + ' ' + T('ポイント！ そらごころテストで つかえるよ')); G.pointsGot = (G.pointsGot || 0) + r.added; }
+      if (r.added > 0 && eventOn()) setTimeout(() => toast('🎃 ' + T('ハロウィンの みんなのゲージに') + ' +' + (it.kind === 'mission' ? EVT.missionValue : EVT.dailyValue) + T('{問|もん}ぶん！')), 1800);
       if (earnQ.length) setTimeout(earnFlush, 400);
     } else if (r && ['bad', 'date', 'noid'].indexOf(r.error) >= 0) {
       earnQ.shift(); earnSave(); // もらえない ものは あきらめる
@@ -4214,6 +4259,7 @@ Object.assign(window.__game, {
 boot();
 
 })();
+
 </script>
 </body>
 </html>
