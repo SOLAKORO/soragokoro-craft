@@ -25,7 +25,7 @@ var SAVE_MAX = 600000;   // 1人あたり保存できる文字数の上限
 var SAVE_CHUNK = 40000;  // 1セルに入れる文字数(セルの上限は5万字)
 
 function doGet() {
-  return out_('soragokoro-craft ok v3 (login+token)');
+  return out_('soragokoro-craft ok v4 (login+token, 番号)');
 }
 
 function doPost(e) {
@@ -40,6 +40,9 @@ function doPost(e) {
     // 進捗の記録・セーブ・ポイントは、ログインで発行した「通行証」がある人だけ
     var isApi = d.action === 'save' || d.action === 'load' || d.action === 'earn';
     if (!checkToken_(d.token, d.id)) return isApi ? json_({ ok: false, error: 'auth' }) : out_('denied');
+    // ★ 10/9 より前の通行証はログインID（「かなた」など）で出していたので、番号に直す
+    d.id = toNo_(d.id);
+    if (!d.id) return isApi ? json_({ ok: false, error: 'auth' }) : out_('denied');
     lock.waitLock(20000);
     if (d.action === 'save') return json_(save_(d));
     if (d.action === 'load') return json_(load_(d));
@@ -117,7 +120,32 @@ function checkToken_(token, id) {
   } catch (e) { return false; }
 }
 
+// ---- 名簿の「番号」 ----
+// 名簿: A=ID B=パスワード C=名前 D=ポイント E=最終ログイン F=学年 G=番号（見出しの名前で列をさがす）
+// ログインIDが同じ人がいても見分けられるよう、記録はすべて番号で行う（そらごころテストと同じ）
+var rosterCache_ = null;
+function roster_() {
+  if (rosterCache_) return rosterCache_;
+  var sh = SpreadsheetApp.openById(ROSTER_SSID).getSheetByName(ROSTER_SHEET);
+  var rows = sh.getDataRange().getDisplayValues();
+  var h = rows[0];
+  rosterCache_ = { sh: sh, rows: rows, cId: h.indexOf('ID'), cPw: h.indexOf('パスワード'), cName: h.indexOf('名前'), cGrade: h.indexOf('学年'), cPt: h.indexOf('ポイント'), cNo: h.indexOf('番号') };
+  return rosterCache_;
+}
+// 番号か、古い通行証のログインIDを、番号にする。
+// ログインIDが同じ人がいるときは名簿の上の人にする（10/9 までのログインで入れたのは その人だけだったため）
+function toNo_(v) {
+  var key = norm_(v);
+  if (!key) return '';
+  var R = roster_();
+  if (R.cNo < 0) return '';
+  for (var i = 1; i < R.rows.length; i++) if (norm_(R.rows[i][R.cNo]) === key) return key;
+  for (var j = 1; j < R.rows.length; j++) if (norm_(R.rows[j][R.cId]) === key) return norm_(R.rows[j][R.cNo]);
+  return '';
+}
+
 // ID とパスワードを名簿と照らす。パスワードは返さない。
+// ★ IDが同じ人がいても、パスワードが合う人をさがす。通行証と記録には「番号」を使う
 function login_(d) {
   var id = norm_(d.id), pw = norm_(d.password);
   if (!id || !pw) return { ok: false, error: 'empty' };
@@ -125,19 +153,18 @@ function login_(d) {
   var failKey = 'fail:' + id;
   var fails = Number(cache.get(failKey) || 0);
   if (fails >= MAX_FAILS) return { ok: false, error: 'locked' };
-  var sh = SpreadsheetApp.openById(ROSTER_SSID).getSheetByName(ROSTER_SHEET);
-  if (!sh) return { ok: false, error: 'server' };
-  var rows = sh.getDataRange().getDisplayValues();
-  var head = rows[0];
-  var cId = head.indexOf('ID'), cPw = head.indexOf('パスワード'), cName = head.indexOf('名前'), cGrade = head.indexOf('学年');
-  if (cId < 0 || cPw < 0 || cName < 0) return { ok: false, error: 'server' };
+  var R = roster_();
+  var rows = R.rows, cId = R.cId, cPw = R.cPw, cName = R.cName, cGrade = R.cGrade, cNo = R.cNo;
+  if (cId < 0 || cPw < 0 || cName < 0 || cNo < 0) return { ok: false, error: 'server' };
   for (var i = 1; i < rows.length; i++) {
     if (norm_(rows[i][cId]) !== id) continue;
-    if (norm_(rows[i][cPw]) !== pw) break;
+    if (norm_(rows[i][cPw]) !== pw) continue;   // 同じIDの べつの人かもしれないので つぎを さがす
+    var no = norm_(rows[i][cNo]);
+    if (!no) return { ok: false, error: 'server' };
     cache.remove(failKey);
     var g = parseGrade_(cGrade >= 0 ? rows[i][cGrade] : '');
-    var tk = makeToken_(String(rows[i][cId]).trim());
-    return { ok: true, id: String(rows[i][cId]).trim(), name: String(rows[i][cName]).trim(), grade: g.grade, level: g.level, token: tk.token, exp: tk.exp };
+    var tk = makeToken_(no);
+    return { ok: true, id: no, loginId: String(rows[i][cId]).trim(), name: String(rows[i][cName]).trim(), grade: g.grade, level: g.level, token: tk.token, exp: tk.exp };
   }
   cache.put(failKey, String(fails + 1), LOCK_SECONDS);
   return { ok: false, error: 'wrong' };
@@ -207,7 +234,7 @@ function record_(d) {
 // ---- 名簿から ID・名前・学年を集計表にうつす(パスワードは うつさない) ----
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('そらごころクラフト')
-    .addItem('名簿から みんなを とうろく(ID・なまえ・学年)', 'syncRoster')
+    .addItem('名簿から みんなを とうろく(番号・なまえ・学年)', 'syncRoster')
     .addToUi();
 }
 
@@ -217,8 +244,8 @@ function syncRoster() {
   if (!sh) throw new Error('名簿シートが見つかりません');
   var rows = sh.getDataRange().getDisplayValues();
   var head = rows[0];
-  var cId = head.indexOf('ID'), cName = head.indexOf('名前'), cGrade = head.indexOf('学年');
-  if (cId < 0 || cName < 0) throw new Error('名簿に ID と 名前 の列がありません');
+  var cId = head.indexOf('番号'), cName = head.indexOf('名前'), cGrade = head.indexOf('学年');   // ★ 番号で登録する
+  if (cId < 0 || cName < 0) throw new Error('名簿に 番号 と 名前 の列がありません');
   var prog = ss.getSheetByName(SH_PROG), mis = ss.getSheetByName(SH_MIS);
   var added = 0;
   for (var i = 1; i < rows.length; i++) {
@@ -313,10 +340,8 @@ function earn_(d) {
       if (norm_(rows[i][0]) === id && rows[i][1] === kind && rows[i][2] === key) return { ok: true, added: 0, dup: true };
     }
   }
-  var rs = SpreadsheetApp.openById(ROSTER_SSID).getSheetByName(ROSTER_SHEET);
-  if (!rs) return { ok: false, error: 'server' };
-  var data = rs.getDataRange().getDisplayValues();
-  var cId = data[0].indexOf('ID'), cPt = data[0].indexOf('ポイント');
+  var RR = roster_(), rs = RR.sh, data = RR.rows;
+  var cId = RR.cNo, cPt = RR.cPt;   // ★ 番号で名簿の行をさがす
   if (cId < 0 || cPt < 0) return { ok: false, error: 'server' };
   for (var r = 1; r < data.length; r++) {
     if (norm_(data[r][cId]) !== id) continue;

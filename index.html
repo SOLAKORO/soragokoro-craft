@@ -2510,7 +2510,7 @@ function earnEnqueue(kind, key) {
 // 期間前は テストID(0000)だけに表示する
 const EVT = {
   api: 'https://script.google.com/macros/s/AKfycbxLYTYEXErcKC47y7TYOtZViEm4NYP01Lke9k5RwS9baji25wgCxatdJNs75Pttv9Sy/exec',
-  start: '2026-10-12', end: '2026-10-31', demoIds: ['0000'],
+  start: '2026-10-12', end: '2026-10-31', demoIds: ['1', '0000'],   // テストID(番号1。10/9までのログインは0000)
   missionValue: 5, dailyValue: 3
 };
 function evtToday() { return new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10); }
