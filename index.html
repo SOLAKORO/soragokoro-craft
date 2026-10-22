@@ -277,6 +277,12 @@ body.tutOn.touch #infocard{top:calc(250px + var(--sat))}
 #dailyChip{position:absolute;left:50%;transform:translateX(-50%);top:calc(92px + var(--sat));max-width:min(92vw,520px);padding:3px 11px;border-radius:12px;
  background:rgba(255,248,225,.92);border:2px solid #fff;box-shadow:var(--shadow);font-size:12px;font-weight:700;text-align:center;line-height:1.7;display:none;cursor:pointer;z-index:3}
 #dailyChip b{color:#c2410c}#dailyChip.done{background:#dcfce7}
+/* してん */
+#viewBtn{position:absolute;right:calc(8px + var(--sar));top:calc(60px + var(--sat))}
+body.touch #viewBtn{right:auto;left:calc(8px + var(--sal));top:calc(176px + var(--sat))}
+body.touch #hwBtn{right:auto;left:calc(8px + var(--sal))}
+body.viewFront #crosshair{display:none}
+@media (max-width:640px){ #viewBtn{right:auto;left:calc(8px + var(--sal));top:calc(176px + var(--sat))} #hwBtn{right:auto;left:calc(8px + var(--sal))} }
 /* ハロウィン */
 #hwBtn{position:absolute;right:calc(8px + var(--sar));top:calc(124px + var(--sat));background:rgba(124,45,18,.82);border-color:#fdba74}
 #hwBtn.pulse{animation:hwPulse 1s ease-in-out infinite alternate}
@@ -306,6 +312,7 @@ body.tutOn.touch #infocard{top:calc(250px + var(--sat))}
     <button class="hbtn" id="menuBtn"><span class="ic">⚙️</span><span data-t="メニュー"></span></button>
     <div id="missionChip"></div>
     <div id="dailyChip"></div>
+    <button class="hbtn" id="viewBtn"><span class="ic">👁️</span><span data-t="してん"></span></button>
     <button class="hbtn" id="hwBtn" style="display:none"><span class="ic">🎃</span><span class="lb"></span></button>
     <div id="infocard"></div>
     <div id="toast"></div>
@@ -1282,6 +1289,70 @@ function cloudEntity(t) {
   return { parts };
 }
 
+// ---------- してん(カメラ)と じぶんの からだ ----------
+const VIEW_NAMES = ['じぶんの {目|め}', 'うしろから', 'まえから'];
+function cycleView() {
+  G.view = (G.view + 1) % 3;
+  toast('👁️ ' + T('してん: ') + T(VIEW_NAMES[G.view]));
+  playSound('select');
+  document.body.classList.toggle('view3', G.view !== 0);
+  document.body.classList.toggle('viewFront', G.view === 2);
+  saveSoon();
+}
+function cameraNow() {
+  const fov = 72 * Math.PI / 180;
+  const ex = P.x, ey = P.y + P.eye, ez = P.z;
+  if (!G.view) return { x: ex, y: ey, z: ez, yaw: P.yaw, pitch: P.pitch, fov };
+  const d = lookDir(), sg = G.view === 1 ? -1 : 1;
+  let dist = 4;
+  // かべに めりこまないように ちかづける
+  const hit = raycast(ex, ey, ez, d[0] * sg, d[1] * sg, d[2] * sg, dist + 0.4, false);
+  if (hit) dist = Math.max(0.5, hit.t - 0.3);
+  const x = ex + d[0] * sg * dist, y = ey + d[1] * sg * dist, z = ez + d[2] * sg * dist;
+  return G.view === 1 ? { x, y, z, yaw: P.yaw, pitch: P.pitch, fov } : { x, y, z, yaw: P.yaw + Math.PI, pitch: -P.pitch, fov };
+}
+// x じくで まわす(手足を ふる)
+function rotXMat(a) { const c = Math.cos(a), s = Math.sin(a); return new Float32Array([1, 0, 0, 0, 0, c, s, 0, 0, -s, c, 0, 0, 0, 0, 1]); }
+function transMat(x, y, z) { return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1]); }
+const PLAYER_LOOK = { skin: [0.96, 0.8, 0.66], hair: [0.3, 0.2, 0.13], shirt: [0.3, 0.58, 0.96], pants: [0.2, 0.25, 0.5], shoe: [0.35, 0.35, 0.4], eye: [0.12, 0.14, 0.25] };
+let walkT = 0, walkAmp = 0, walkLast = 0;
+function playerEntity() {
+  if (!G.view) return null;
+  const dt = Math.min(0.1, Math.max(0, G.time - walkLast)); walkLast = G.time;
+  const sp = Math.hypot(P.vx, P.vz);
+  walkT += sp * dt * 2.2;
+  walkAmp += ((P.onGround || P.inWater ? Math.min(1, sp / 4) : 0.3) - walkAmp) * Math.min(1, dt * 10);
+  const sw = Math.sin(walkT) * 0.75 * walkAmp;
+  const base = M4.model(P.x, P.y, P.z, P.yaw, 1, 1, 1);
+  const L = PLAYER_LOOK, parts = [];
+  // ox,oy,oz: ふる ところ(かた・こし)  a: ふる かくど
+  function box(cx, cy, cz, w, h, d, c, pv, a) {
+    let m = tsMat(cx - w / 2, cy, cz - d / 2, w, h, d);
+    if (pv) m = M4.mul(transMat(pv[0], pv[1], pv[2]), M4.mul(rotXMat(a), M4.mul(transMat(-pv[0], -pv[1], -pv[2]), m)));
+    parts.push({ m: M4.mul(base, m), c });
+  }
+  // あし
+  box(-0.12, 0.08, 0, 0.23, 0.62, 0.23, L.pants, [0, 0.7, 0], sw);
+  box(-0.12, 0, 0, 0.24, 0.1, 0.24, L.shoe, [0, 0.7, 0], sw);
+  box(0.12, 0.08, 0, 0.23, 0.62, 0.23, L.pants, [0, 0.7, 0], -sw);
+  box(0.12, 0, 0, 0.24, 0.1, 0.24, L.shoe, [0, 0.7, 0], -sw);
+  // からだ
+  box(0, 0.7, 0, 0.48, 0.66, 0.25, L.shirt);
+  // うで(そでと て)
+  box(-0.36, 0.98, 0, 0.22, 0.38, 0.22, L.shirt, [0, 1.3, 0], -sw);
+  box(-0.36, 0.72, 0, 0.21, 0.27, 0.21, L.skin, [0, 1.3, 0], -sw);
+  box(0.36, 0.98, 0, 0.22, 0.38, 0.22, L.shirt, [0, 1.3, 0], sw);
+  box(0.36, 0.72, 0, 0.21, 0.27, 0.21, L.skin, [0, 1.3, 0], sw);
+  // あたま(まえは -z)
+  box(0, 1.36, 0, 0.44, 0.44, 0.44, L.skin);
+  box(0, 1.7, 0.02, 0.46, 0.12, 0.46, L.hair);
+  box(0, 1.42, 0.2, 0.46, 0.32, 0.06, L.hair);
+  box(-0.1, 1.52, -0.225, 0.08, 0.06, 0.02, L.eye);
+  box(0.1, 1.52, -0.225, 0.08, 0.06, 0.02, L.eye);
+  box(0, 1.42, -0.225, 0.12, 0.03, 0.02, [0.75, 0.45, 0.4]);
+  return { parts };
+}
+
 // ===== 04-player.js =====
 // ---------- ゲームのじょうたい・プレイヤー ----------
 const G = {
@@ -1296,6 +1367,7 @@ const G = {
   stars: 0,
   sound: true,
   started: false,
+  view: 0,                  // してん 0=じぶんの目 1=うしろから 2=まえから
   modal: null,              // 開いているモーダル
   panel: null,              // プログラム用パネル
   time: 0
@@ -1581,7 +1653,9 @@ function setupInput(canvas) {
     const tag = (e.target && e.target.tagName) || '';
     if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') return;
     if (e.code === 'Escape') { if (G.modal) closeModal(); else if (G.started) openMenu(); e.preventDefault(); return; }
+    if (e.code === 'F5' && G.started) e.preventDefault();   // ゲーム中は F5 で よみこみなおさない
     if (inputBlocked()) return;
+    if ((e.code === 'F5' || e.code === 'KeyV') && !e.repeat) cycleView();
     keys[e.code] = true;
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
     if (e.code === 'Space' && !e.repeat) {
@@ -1929,8 +2003,8 @@ function openMenu() {
     '<h4>' + T('おと') + '</h4><div class="seg"><button class="btn sub' + (G.sound ? ' on' : '') + '" id="mSnd">' + (G.sound ? '🔊 ON' : '🔇 OFF') + '</button></div>' +
     '<h4>' + T('あそびかた') + '</h4><div class="note" style="line-height:2">' +
     (touchActive() ?
-      T('{左|ひだり}の{画面|がめん}をなぞる: あるく ／ {右|みぎ}の{画面|がめん}をなぞる: まわりを{見|み}る<br>⛏こわす ・ 🧱おく ・ 🔍しらべる ・ 🕊とぶ') :
-      T('WASD: あるく ／ マウス: まわりを{見|み}る ／ {左|ひだり}クリック: こわす ／ {右|みぎ}クリック: おく<br>Space: ジャンプ(2{回|かい}で とぶ) ／ Q: しらべる ／ 1〜9: ブロックを{選|えら}ぶ ／ E: もちもの ／ Z: {図鑑|ずかん} ／ P: ロボット')) + '</div>' +
+      T('{左|ひだり}の{画面|がめん}をなぞる: あるく ／ {右|みぎ}の{画面|がめん}をなぞる: まわりを{見|み}る<br>⛏こわす ・ 🧱おく ・ 🔍しらべる ・ 🕊とぶ ・ 👁️してん') :
+      T('WASD: あるく ／ マウス: まわりを{見|み}る ／ {左|ひだり}クリック: こわす ／ {右|みぎ}クリック: おく<br>Space: ジャンプ(2{回|かい}で とぶ) ／ Q: しらべる ／ 1〜9: ブロックを{選|えら}ぶ ／ E: もちもの ／ Z: {図鑑|ずかん} ／ P: ロボット ／ F5・V: してん')) + '</div>' +
     '<div style="margin-top:8px"><button class="btn sub" id="mTut">🎓 ' + T('そうさの れんしゅう') + '</button>' +
     (loadPlayer().auth ? ' <button class="btn sub" id="mOut">🔄 ' + T('べつの ひとが あそぶ') + '</button>' : '') + '</div>' +
     '<h4>' + T('おうちの ひとへ') + '</h4><div class="seg"><button class="btn sub" id="mParent">👪 ' + T('がくしゅうの きろく') + '</button></div>' +
@@ -3754,7 +3828,7 @@ function saveSoon() {
 }
 function collectSave() {
   return {
-    v: 1, ts: G.saveTs || 0, daily: G.daily || null, seed: world.seed, level: G.level, ctrl: G.ctrl, sound: G.sound,
+    v: 1, ts: G.saveTs || 0, daily: G.daily || null, seed: world.seed, level: G.level, ctrl: G.ctrl, sound: G.sound, view: G.view,
     hotbar: G.hotbar, slot: G.slot, zukan: G.zukan, made: G.made, counters: G.counters,
     missionIndex: G.missionIndex, stars: G.stars, playSec: Math.round(G.playSec || 0), mBase: G.mBase, introDone: !!G.introDone,
     player: { x: P.x, y: P.y, z: P.z, yaw: P.yaw, pitch: P.pitch },
@@ -3784,6 +3858,9 @@ function applySave(d) {
   if (d.level >= 1 && d.level <= 3) G.level = d.level;
   if (d.ctrl) G.ctrl = d.ctrl;
   if (typeof d.sound === 'boolean') G.sound = d.sound;
+  G.view = (d.view === 1 || d.view === 2) ? d.view : 0;
+  document.body.classList.toggle('view3', G.view !== 0);
+  document.body.classList.toggle('viewFront', G.view === 2);
   if (Array.isArray(d.hotbar) && d.hotbar.length === 9 && d.hotbar.every(id => BLOCKS[id] && id !== B.AIR)) G.hotbar = d.hotbar;
   if (d.slot >= 0 && d.slot < 9) G.slot = d.slot;
   if (d.zukan) G.zukan = d.zukan;
@@ -4531,8 +4608,9 @@ function update(dt) {
 }
 
 function render() {
-  const cam = { x: P.x, y: P.y + P.eye, z: P.z, yaw: P.yaw, pitch: P.pitch, fov: 72 * Math.PI / 180 };
+  const cam = cameraNow();
   const ents = [];
+  const me = playerEntity(); if (me) ents.push(me);
   if (typeof robotEntity === 'function') { const e = robotEntity(); if (e) ents.push(e); }
   ents.push(cloudEntity(G.time));
   if (typeof hwEntity === 'function') { const e = hwEntity(); if (e) ents.push(e); }
@@ -4597,7 +4675,8 @@ function setupUI() {
   $('menuBtn').onclick = () => openMenu();
   $('invBtn').onclick = () => openInventory();
   $('hwBtn').onclick = () => openHw();
-  ['bZukan', 'bRobot', 'bLab', 'bTeacher', 'bMission', 'menuBtn', 'invBtn', 'hwBtn'].forEach(id => {
+  $('viewBtn').onclick = () => cycleView();
+  ['bZukan', 'bRobot', 'bLab', 'bTeacher', 'bMission', 'menuBtn', 'invBtn', 'hwBtn', 'viewBtn'].forEach(id => {
     $(id).addEventListener('pointerdown', e => e.stopPropagation());
   });
 }
@@ -4608,7 +4687,7 @@ Object.assign(window.__game, {
   openProgram, openZukan, openLab, openTeacher, openMissions, openMenu, openInventory, closeModal, setLevel, startGame,
   showTitle, setBlock, getB, solidAt, checkMissions, currentMission, MISSIONS, FAQ, RECIPES, PLACEABLE, resetAll, saveNow,
   readSave, respawn, renderProgram, showBlockInfo, raycast, genWorld, markAllDirty, flushDirty, addCard, execNodes, astFeatures,
-  cloudSave, cloudPull, saveSig, openDaily, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
+  cloudSave, cloudPull, saveSig, openDaily, cycleView, cameraNow, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
   startTutorial, endTutorial, tutGoto: i => { TUT.i = i; tutInitStep(); }, tutState: () => ({ on: TUT.on, i: TUT.i, n: TUT.steps.length, doneAt: TUT.doneAt }), tutSeen, findNode, progState: () => ({ target: progTarget }), collectDefs, setBarMode, dirtyChunks
 });
 
