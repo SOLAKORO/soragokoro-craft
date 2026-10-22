@@ -289,6 +289,19 @@ body.tutOn.touch #infocard{top:calc(250px + var(--sat))}
 #hwBtn{top:calc(320px + var(--sat))!important}
 #houseBtn{position:absolute;right:calc(8px + var(--sar));top:calc(268px + var(--sat));background:rgba(146,64,14,.82);border-color:#fcd34d}
 body.touch #houseBtn{top:calc(60px + var(--sat))}
+#stampBtn{position:absolute;right:calc(8px + var(--sar));top:calc(372px + var(--sat));background:rgba(13,110,140,.82);border-color:#7dd3fc}
+body.touch #stampBtn{top:calc(112px + var(--sat))}
+.bubble{position:absolute;display:none;transform:translate(-50%,-100%);background:#fff;border:3px solid #1f2a4d;border-radius:16px;padding:4px 10px;font-size:16px;font-weight:800;white-space:nowrap;pointer-events:none;z-index:3;box-shadow:0 3px 0 rgba(0,0,0,.2)}
+.bubble::after{content:'';position:absolute;left:50%;bottom:-10px;transform:translateX(-50%);border:7px solid transparent;border-top-color:#1f2a4d}
+#visitCard{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(84px + var(--sab));width:min(92vw,440px);display:none;gap:10px;align-items:flex-start;background:rgba(255,255,255,.97);border:3px solid #fcd34d;border-radius:16px;padding:10px;box-shadow:var(--shadow);z-index:5;font-size:14px}
+body.touch #visitCard{bottom:auto;top:calc(104px + var(--sat));left:calc(62px + var(--sal));transform:none;width:min(calc(100vw - 124px - var(--sal) - var(--sar)),440px)}
+#visitCard img{width:52px;height:64px;image-rendering:pixelated;flex:none}
+#visitCard .vc-b{flex:1;line-height:1.6}#visitCard .vc-m{margin:2px 0 6px}
+#visitCard .vc-btns{display:flex;flex-wrap:wrap;gap:6px}
+#visitCard .x{border:none;background:#e6ecfb;border-radius:50%;width:30px;height:30px;font-size:15px;flex:none}
+.stamps{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.stamp{border:2px solid var(--line);border-radius:14px;background:#fff;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;font-weight:700;font-size:12px}
+.stamp .se{font-size:30px}.stamp.locked{opacity:.5}
 #mapBtn{position:absolute;right:calc(8px + var(--sar));top:calc(216px + var(--sat))}
 #mapBtn.pulse{animation:hwPulse 1s ease-in-out infinite alternate}
 body.touch #mapBtn{right:auto;left:calc(8px + var(--sal));top:calc(332px + var(--sat))}
@@ -319,6 +332,7 @@ body.inspArm #inspBtn{background:rgba(234,88,12,.9);border-color:#fed7aa}
   #farmBtn{right:auto;left:calc(8px + var(--sal));top:calc(280px + var(--sat))}
   #mapBtn{right:auto;left:calc(8px + var(--sal));top:calc(332px + var(--sat))}
   #houseBtn{top:calc(60px + var(--sat))}
+  #stampBtn{top:calc(112px + var(--sat))}
 }
 /* ハロウィン */
 #hwBtn{position:absolute;right:calc(8px + var(--sar));top:calc(124px + var(--sat));background:rgba(124,45,18,.82);border-color:#fdba74}
@@ -351,6 +365,8 @@ body.inspArm #inspBtn{background:rgba(234,88,12,.9);border-color:#fed7aa}
     <div id="dailyChip"></div>
     <button class="hbtn" id="viewBtn"><span class="ic">👁️</span><span data-t="してん"></span></button>
     <button class="hbtn" id="skinBtn"><span class="ic">👕</span><span data-t="きがえ"></span></button>
+    <button class="hbtn" id="stampBtn" style="display:none"><span class="ic">💬</span><span data-t="スタンプ"></span></button>
+    <div id="meBubble" class="bubble"></div><div id="vBubble" class="bubble"></div><div id="visitCard"></div>
     <button class="hbtn" id="houseBtn" style="display:none"><span class="ic">🏠</span><span data-t="おうち"></span></button>
     <button class="hbtn" id="mapBtn" style="display:none"><span class="ic">🗺️</span><span data-t="マップ"></span></button>
     <button class="hbtn" id="farmBtn" style="display:none"><span class="ic">🌱</span><span class="lb">はたけ</span></button>
@@ -3067,7 +3083,8 @@ function saveSig() {
     Object.keys(G.zukan).length, Object.keys(G.made).length, G.level, prog, G.daily ? (G.daily.done ? 1 : 0) + ':' + (G.daily.stamps || []).length : '',
     G.hw ? [G.hw.found, G.hw.seen, G.hw.visited, G.hw.result, G.hw.prank.length, G.hw.hat, G.hw.cleaned].join(',') : '',
     G.farm ? Object.keys(G.farm).length + ':' + Object.values(G.farm).filter(f => f.p >= 1).length + ':' + JSON.stringify(G.food) + ':' + Object.keys(G.ty.done).length : '',
-    G.house ? Object.keys(G.house.furn).length + ':' + G.house.best + ':' + (G.house.spawn || []).join(',') : ''].join('|');
+    G.house ? Object.keys(G.house.furn).length + ':' + G.house.best + ':' + (G.house.spawn || []).join(',') : '',
+    G.visit ? G.visit.count + ':' + Object.keys(G.visit.stamps).length + ':' + G.visit.last : ''].join('|');
 }
 
 function cloudPost(player, body, ms) {
@@ -3746,6 +3763,7 @@ function renderFarmBtn() {
   b.classList.toggle('pulse', ty.state === 'warn' && Object.keys(G.farm).length > 0);
   if (typeof renderMapBtn === 'function') renderMapBtn();
   if (typeof renderHouseBtn === 'function') renderHouseBtn();
+  if (typeof renderStampBtn === 'function') renderStampBtn();
 }
 function openFarm() {
   const ty = tyState();
@@ -4283,6 +4301,7 @@ function houseRun() {
     if (facts.length) html += '<p class="note">' + facts.map(it => '💡 ' + T(it[2]) + ': ' + T(it[3])).join('<br>') + '</p>';
     if (r.level === 3) html += '<p class="note">🌺 ' + T('むかしの おきなわの いえには、もんの うちがわに「ヒンプン」という かべも あったよ。かぜや ひとの めを さえぎるんだ。') + '</p>';
     G.counters.houseChecks = (G.counters.houseChecks || 0) + 1;
+    if (typeof visitOnHouse === 'function') setTimeout(() => visitOnHouse(r.level), 600);
     saveSoon();
   }
   openHouse(html);
@@ -4346,6 +4365,264 @@ function openHouse(resultHtml) {
 }
 function renderHouseBtn() {
   const b = $('houseBtn'); if (!b) return;
+  b.style.display = G.started ? 'flex' : 'none';
+}
+
+// ===== 06j-visit.js =====
+// ---------- スタンプと おきゃくさん(CPU) ----------
+// スタンプ: えらぶと じぶんの あたまの うえに ふきだしが でる(のちの「ともだちの せかい」や チャットでも つかう)
+// おきゃくさん: そらごころテストの キャラが ときどき はじまりの島に あそびに きて、おねがいを する
+//   (クイズ / いろの たべもの / おうちを みせて)。かなえると あたらしい スタンプを くれる
+const STAMPS = [
+  { k: 'hi', e: '👋', t: 'やあ！' }, { k: 'good', e: '👍', t: 'いいね！' }, { k: 'thanks', e: '😊', t: 'ありがとう' },
+  { k: 'wow', e: '🎉', t: 'すごい！' }, { k: 'q', e: '❓', t: 'おしえて' }, { k: 'come', e: '🏠', t: 'あそびに きて' },
+  { k: 'food', e: '🍙', t: 'おなか すいた' }, { k: 'fight', e: '💪', t: 'がんばろう' }, { k: 'sorry', e: '🙏', t: 'ごめんね' },
+  { k: 'bye', e: '🖐️', t: 'またね' }, { k: 'sleep', e: '😴', t: 'おやすみ' }, { k: 'ty', e: '🌀', t: 'たいふうに きをつけて' },
+  { k: 'shisa', e: '🦁', t: 'シーサー' }, { k: 'mensore', e: '🌺', t: 'めんそーれ' }, { k: 'nifee', e: '🌈', t: 'にふぇーでーびる' }
+];
+const STAMP_BY_KEY = {}; STAMPS.forEach(s => { STAMP_BY_KEY[s.k] = s; });
+const STAMP_START = ['hi', 'good', 'thanks'];
+G.visit = { last: 0, count: 0, met: {}, stamps: {} };
+function visitFromSave(d) {
+  G.visit = { last: 0, count: 0, met: {}, stamps: {} };
+  STAMP_START.forEach(k => { G.visit.stamps[k] = 1; });
+  const v = d && d.visit; if (!v || typeof v !== 'object') return;
+  G.visit.last = +v.last || 0; G.visit.count = Math.max(0, Math.floor(+v.count || 0));
+  if (v.met && typeof v.met === 'object') Object.keys(v.met).forEach(k => { if (SKINS[k]) G.visit.met[k] = Math.max(0, Math.floor(+v.met[k] || 0)); });
+  if (v.stamps && typeof v.stamps === 'object') Object.keys(v.stamps).forEach(k => { if (STAMP_BY_KEY[k]) G.visit.stamps[k] = 1; });
+}
+
+// ---- ふきだし(3Dの いちを がめんに うつす) ----
+function worldToScreen(x, y, z) {
+  const cv = canvasEl; if (!cv) return null;
+  const cam = cameraNow(), w = cv.clientWidth, h = cv.clientHeight;
+  const m = M4.mul(M4.persp(cam.fov, w / h, 0.08, 400), M4.view(cam.yaw, cam.pitch, cam.x, cam.y, cam.z));
+  const cw = m[3] * x + m[7] * y + m[11] * z + m[15];
+  if (cw <= 0.1) return null;
+  const cx = (m[0] * x + m[4] * y + m[8] * z + m[12]) / cw, cy = (m[1] * x + m[5] * y + m[9] * z + m[13]) / cw;
+  if (Math.abs(cx) > 1.1 || Math.abs(cy) > 1.1) return null;
+  return [(cx + 1) / 2 * w, (1 - cy) / 2 * h];
+}
+const bubbles = { me: null, v: null };   // { e: えもじ, t: もじ, until: G.time }
+function bubbleSay(who, s, sec) { bubbles[who] = { e: s.e, t: s.t, until: G.time + (sec || 3.5) }; }
+function bubblesTick() {
+  let mePos = null;
+  ['me', 'v'].forEach(who => {
+    const el = $(who === 'me' ? 'meBubble' : 'vBubble'); if (!el) return;
+    const b = bubbles[who];
+    let pos = null;
+    if (b && G.time < b.until) {
+      if (who === 'me') pos = G.view ? worldToScreen(P.x, P.y + 2.25, P.z) : [el.parentElement.clientWidth / 2, el.parentElement.clientHeight * 0.62];
+      else if (visitor) pos = worldToScreen(visitor.x, visitor.y + 2.3, visitor.z);
+    } else bubbles[who] = null;
+    if (!pos) { el.style.display = 'none'; return; }
+    if (who === 'me') mePos = pos;
+    else if (mePos && Math.abs(mePos[0] - pos[0]) < 140 && Math.abs(mePos[1] - pos[1]) < 44) pos = [pos[0], mePos[1] - 46];   // かさならないように うえへ
+    const html = b.e + ' ' + T(b.t);
+    if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; }
+    el.style.display = 'block';
+    el.style.left = Math.round(pos[0]) + 'px'; el.style.top = Math.round(pos[1]) + 'px';
+  });
+}
+
+// ---- スタンプを おくる ----
+function openStamps() {
+  const have = STAMPS.filter(s => G.visit.stamps[s.k]);
+  let html = '<p class="note">' + T('スタンプを えらぶと、あたまの うえに でるよ。') + (visitor ? T('おきゃくさんも へんじを してくれるよ。') : '') + '</p><div class="stamps">';
+  STAMPS.forEach(s => {
+    const got = G.visit.stamps[s.k];
+    html += '<button class="stamp' + (got ? '' : ' locked') + '"' + (got ? ' data-s="' + s.k + '"' : ' disabled') + '><span class="se">' + (got ? s.e : '🔒') + '</span><span>' + (got ? T(s.t) : '？？？') + '</span></button>';
+  });
+  html += '</div><p class="note">🎁 ' + T('あそびに きた おきゃくさんの おねがいを かなえると、あたらしい スタンプが もらえるよ。') + ' (' + have.length + '/' + STAMPS.length + ')</p>';
+  const body = openModal('💬 ' + T('スタンプ'), html, 'stamp');
+  body.querySelectorAll('[data-s]').forEach(b => b.addEventListener('click', () => { closeModal(); sendStamp(b.dataset.s); }));
+}
+function sendStamp(k) {
+  const s = STAMP_BY_KEY[k]; if (!s) return;
+  bubbleSay('me', s); playSound('select');
+  if (visitor && visitor.state !== 'leave') setTimeout(() => { if (visitor) visitorReact(k); }, 900);
+}
+const STAMP_REPLY = { hi: 'hi', good: 'thanks', thanks: 'good', wow: 'thanks', q: 'q', come: 'good', food: 'food', fight: 'fight', sorry: 'good', bye: 'bye', sleep: 'sleep', ty: 'thanks', shisa: 'wow', mensore: 'nifee', nifee: 'thanks' };
+function visitorReact(k) { bubbleSay('v', STAMP_BY_KEY[STAMP_REPLY[k] || 'good']); }
+
+// ---- おきゃくさんの おねがい ----
+const VISIT_QUIZ = [
+  ['{水|みず}が {氷|こおり}に なる おんどは？', ['0℃', '50℃', '100℃'], 0],
+  ['{電気|でんき}を とおすのは どれ？', ['{銅|どう}', 'ガラス', '{木|き}'], 0],
+  ['{磁石|じしゃく}に くっつくのは どれ？', ['{鉄|てつ}', '{銅|どう}', '{金|きん}'], 0],
+  ['ガラスの もとに なるのは？', ['{砂|すな}', '{土|つち}', '{葉|は}っぱ'], 0],
+  ['からだを つくる「あか」の たべものは？', ['{大豆|だいず}', 'さとうきび', 'ゴーヤー'], 0],
+  ['エネルギーに なる「き」の たべものは？', ['{紅|べに}いも', 'たまご', 'ゴーヤー'], 0],
+  ['からだの ちょうしを ととのえる「みどり」の たべものは？', ['ゴーヤー', 'ミルク', '{黒糖|こくとう}'], 0],
+  ['{黒糖|こくとう}は なにから つくる？', ['さとうきび', '{大豆|だいず}', '{紅|べに}いも'], 0],
+  ['とうふは なにから つくる？', ['{大豆|だいず}', 'たまご', 'ミルク'], 0],
+  ['おきなわの ことばで「ようこそ」は？', ['めんそーれ', 'にふぇーでーびる', 'ちゃーがんじゅう'], 0],
+  ['ヤギは おきなわの ことばで なんと いう？', ['ヒージャー', 'ウシ', 'ワー'], 0],
+  ['{赤瓦|あかがわら}の やねを とめる しろい ものは？', ['しっくい', 'さとう', '{雪|ゆき}'], 0],
+  ['{台風|たいふう}が くる まえに する ことは？', ['ものを しまって {窓|まど}を まもる', 'そとで あそぶ', 'まどを あける'], 0],
+  ['ペンギンが すんでいるのは きたと みなみ どっち？', ['みなみ', 'きた', 'どちらも'], 0],
+  ['{金属|きんぞく}を あたためると おおきさは？', ['すこし ふえる', 'すこし へる', 'かわらない'], 0]
+];
+function foodOfColor(col) {
+  const out = [];
+  Object.keys(G.food).forEach(k => {
+    if (!(G.food[k] > 0)) return;
+    let name, emoji, cols;
+    if (k.indexOf('dish:') === 0) { const d = DISHES[k.slice(5)]; if (!d) return; name = d.name; emoji = d.emoji; cols = d.colors; }
+    else { const c = CROP_BY_KEY[k] || GIFTS[k]; if (!c) return; name = c.name; emoji = c.emoji; cols = [c.color]; }
+    if (!col || cols.indexOf(col) >= 0) out.push({ k, name, emoji, n: G.food[k] });
+  });
+  return out;
+}
+function pickRequest(who) {
+  const opts = [];
+  const cols = Object.keys(FOOD_COLORS).filter(c => foodOfColor(c).length);
+  if (cols.length) opts.push({ type: 'food', col: cols[Math.floor(Math.random() * cols.length)] }, { type: 'food', col: cols[Math.floor(Math.random() * cols.length)] });
+  if (G.house.best >= 1) opts.push({ type: 'house' });
+  opts.push({ type: 'quiz', q: Math.floor(Math.random() * VISIT_QUIZ.length) });
+  if (!opts.some(o => o.type !== 'quiz')) opts.push({ type: 'quiz', q: Math.floor(Math.random() * VISIT_QUIZ.length) });
+  return opts[Math.floor(Math.random() * opts.length)];
+}
+
+// ---- おきゃくさんの うごき ----
+let visitor = null;   // { k, x, y, z, yaw, walk, state: come|talk|leave, t, req, ok }
+let visitPlay = 0;
+const VISIT_EVERY = 15 * 60 * 1000, VISIT_AFTER = 90;
+function visitCanStart() {
+  return G.started && world.area === 'home' && !G.modal && !visitor && !(typeof hwVisit !== 'undefined' && hwVisit) && !(typeof TUT !== 'undefined' && TUT.on);
+}
+function visitStart(force) {
+  if (!force && !visitCanStart()) return false;
+  const keys = SKIN_ORDER.filter(k => k !== 'default');
+  keys.sort((a, b) => (G.visit.met[a] || 0) - (G.visit.met[b] || 0) + (Math.random() - 0.5) * 1.5);
+  const k = keys[0];
+  for (let i = 0; i < 16; i++) {   // 7〜9ブロック はなれた じめんに あらわれる
+    const ang = Math.random() * 6.28, r = 7 + Math.random() * 2;
+    const x = P.x + Math.cos(ang) * r, z = P.z + Math.sin(ang) * r;
+    const y = animalGround(x, z, P.y + 4);
+    if (y < 1 || Math.abs(y - P.y) > 3 || getB(Math.floor(x), y - 1, Math.floor(z)) === B.WATER || isSolid(getB(Math.floor(x), y + 1, Math.floor(z)))) continue;
+    visitor = { k, x, y, z, yaw: 0, walk: 0, state: 'come', t: 0, req: pickRequest(k), ok: false };
+    G.visit.last = Date.now();
+    toast('🚶 ' + T('だれかが あそびに きたよ！'));
+    playSound('found');
+    return true;
+  }
+  return false;
+}
+function visitorStep(dt, tx, tz, speed) {
+  const v = visitor, dx = tx - v.x, dz = tz - v.z, d = Math.hypot(dx, dz);
+  if (d < 0.05) return d;
+  const nx = v.x + dx / d * speed * dt, nz = v.z + dz / d * speed * dt;
+  const ny = animalGround(nx, nz, v.y + 1.2);
+  v.yaw = Math.atan2(-dx, -dz);
+  if (ny > 0 && ny - v.y <= 1 && !isSolid(getB(Math.floor(nx), ny + 1, Math.floor(nz)))) { v.x = nx; v.z = nz; v.y += (ny - v.y) * Math.min(1, dt * 10); v.walk += dt * 9; }
+  else v.stuck = (v.stuck || 0) + dt;
+  return d;
+}
+function visitTick(dt) {
+  if (!visitor) {
+    if (G.started && !G.modal) visitPlay += dt;
+    const force = testParam('visit') === '1' && visitPlay > 3 && !G.visit.forced;
+    if (force && visitCanStart()) { G.visit.forced = true; visitStart(); }
+    else if (visitPlay > VISIT_AFTER && Date.now() - G.visit.last > VISIT_EVERY && visitCanStart()) visitStart();
+    return;
+  }
+  const v = visitor; v.t += dt;
+  if (world.area !== 'home') { visitor = null; visitCardHide(); return; }
+  const d = Math.hypot(P.x - v.x, P.z - v.z);
+  if (v.state === 'come') {
+    if (d > 2.4) visitorStep(dt, P.x, P.z, 2.6);
+    if (v.stuck > 2.5) {   // ひっかかったら そばに ワープ
+      const a = Math.atan2(v.z - P.z, v.x - P.x), x = P.x + Math.cos(a) * 2, z = P.z + Math.sin(a) * 2, y = animalGround(x, z, P.y + 2);
+      if (y > 0) { v.x = x; v.z = z; v.y = y; } v.stuck = 0;
+    }
+    if (d <= 2.6 || v.t > 25) { v.state = 'talk'; v.t = 0; bubbleSay('v', STAMP_BY_KEY.hi); visitCardShow(); }
+  } else if (v.state === 'talk') {
+    if (d > 4.5) visitorStep(dt, P.x, P.z, 3.2); else v.yaw = Math.atan2(-(P.x - v.x), -(P.z - v.z));
+    if (d > 24 || v.t > 240) visitLeave(false);
+  } else {   // leave
+    visitorStep(dt, v.ox, v.oz, 2.4);
+    if (v.t > 7) visitor = null;
+  }
+}
+function visitLeave(happy) {
+  const v = visitor; if (!v || v.state === 'leave') return;
+  const a = Math.atan2(v.z - P.z, v.x - P.x);
+  v.state = 'leave'; v.t = 0; v.ox = v.x + Math.cos(a) * 30; v.oz = v.z + Math.sin(a) * 30;
+  bubbleSay('v', STAMP_BY_KEY[happy ? 'bye' : 'bye'], 3);
+  setTimeout(visitCardHide, happy ? 5000 : 0);
+  saveSoon();
+}
+function visitorEntity() {
+  const v = visitor; if (!v) return null;
+  const moving = v.state !== 'talk', sw = moving ? Math.sin(v.walk) * 0.6 : 0;
+  const base = M4.model(v.x, v.y, v.z, v.yaw, 1, 1, 1);
+  const SW = { legL: [0.7, sw], legR: [0.7, -sw], armL: [1.3, -sw], armR: [1.3, sw] };
+  const parts = [];
+  for (const p of skinBoxes(v.k)) {
+    const [cx, cy, cz, w, h, d] = p.b;
+    let m = tsMat(cx - w / 2, cy, cz - d / 2, w, h, d);
+    const s = SW[p.g];
+    if (s) m = M4.mul(transMat(0, s[0], 0), M4.mul(rotXMat(s[1]), M4.mul(transMat(0, -s[0], 0), m)));
+    parts.push({ m: M4.mul(base, m), c: p.c });
+  }
+  return { parts };
+}
+
+// ---- おはなしカード ----
+function visitCardHide() { const el = $('visitCard'); if (el) el.style.display = 'none'; }
+function visitCardShow(extraHtml) {
+  const v = visitor; if (!v) return;
+  const el = $('visitCard'), r = v.req;
+  let msg, btns = '';
+  if (v.ok) msg = extraHtml;
+  else if (r.type === 'quiz') {
+    const q = VISIT_QUIZ[r.q];
+    msg = T('クイズを だすよ！') + '<br><b>' + T(q[0]) + '</b>';
+    if (!r.order) r.order = [0, 1, 2].sort(() => Math.random() - 0.5);
+    btns = r.order.map(i => '<button class="btn sm" data-va="' + i + '">' + T(q[1][i]) + '</button>').join('');
+  } else if (r.type === 'food') {
+    const c = FOOD_COLORS[r.col];
+    msg = T('おなかが すいたなあ。') + '<br>' + T(c.txt) + ' ' + foodChip(r.col) + ' ' + T('の たべものを ちょうだい！');
+    btns = foodOfColor(r.col).map(f => '<button class="btn sm" data-vf="' + f.k + '">' + f.emoji + ' ' + T(f.name) + '</button>').join('') ||
+      '<span class="note">' + T('いまは もっていないみたい… 🌱はたけで そだてよう') + '</span>';
+  } else {
+    msg = T('きみの おうちに いってみたいな！') + '<br>' + T('おうちに はいって 🏠「いまの へやを しらべる」を してね。');
+  }
+  el.innerHTML = '<img alt="" src="' + skinPreviewURL(v.k) + '"><div class="vc-b"><b>' + esc(v.k) + '</b><div class="vc-m">' + (extraHtml && !v.ok ? extraHtml + '<br>' : '') + msg + '</div>' +
+    (btns ? '<div class="vc-btns">' + btns + '</div>' : '') + '</div><button class="x" id="vcX" aria-label="close">✕</button>';
+  el.style.display = 'flex';
+  $('vcX').onclick = () => { if (visitor && !visitor.ok) { bubbleSay('v', STAMP_BY_KEY.bye); visitLeave(false); } visitCardHide(); };
+  el.querySelectorAll('[data-va]').forEach(b => b.addEventListener('click', () => {
+    if (+b.dataset.va === VISIT_QUIZ[r.q][2]) visitHappy(T('せいかい！ よく しってるね！'));
+    else { playSound('error'); b.disabled = true; b.style.opacity = 0.45; bubbleSay('v', STAMP_BY_KEY.q); }
+  }));
+  el.querySelectorAll('[data-vf]').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.vf; if (!(G.food[k] > 0)) return;
+    G.food[k]--;
+    if (typeof renderFarmBtn === 'function') renderFarmBtn();
+    visitHappy(T('おいしい！ ') + T(FOOD_COLORS[r.col].txt) + T(' ちからが わいてきた！'));
+  }));
+  el.querySelectorAll('button').forEach(b => b.addEventListener('pointerdown', e => e.stopPropagation()));
+}
+function visitHappy(msg) {
+  const v = visitor; if (!v || v.ok) return;
+  v.ok = true;
+  G.visit.count++; G.visit.met[v.k] = (G.visit.met[v.k] || 0) + 1;
+  const left = STAMPS.filter(s => !G.visit.stamps[s.k]);
+  let gift = '';
+  if (left.length) { const s = left[0]; G.visit.stamps[s.k] = 1; gift = '<br>🎁 ' + T('スタンプ「') + s.e + ' ' + T(s.t) + T('」を もらった！'); }
+  playSound('found'); bubbleSay('v', STAMP_BY_KEY.wow);
+  visitCardShow(msg + gift + '<br>' + T('ありがとう！ また くるね！'));
+  setTimeout(() => visitLeave(true), 3500);
+  saveSoon();
+}
+// おうちチェックが できたら(houseRun から)
+function visitOnHouse(level) {
+  if (visitor && !visitor.ok && visitor.req.type === 'house' && level >= 1) visitHappy(T('すてきな おうち！ ⭐') + level);
+}
+function renderStampBtn() {
+  const b = $('stampBtn'); if (!b) return;
   b.style.display = G.started ? 'flex' : 'none';
 }
 
@@ -5236,7 +5513,7 @@ function collectSave() {
     edits: Array.from(G.areaEdits.home.entries()), snowEdits: Array.from(G.areaEdits.snow.entries()), area: world.area, areaPos: G.areaPos, animals: G.animals,
     robot: typeof robotSave === 'function' ? robotSave() : null,
     program: typeof programSave === 'function' ? programSave() : null,
-    hw: G.hw, farm: G.farm, food: G.food, ty: G.ty, house: G.house
+    hw: G.hw, farm: G.farm, food: G.food, ty: G.ty, house: G.house, visit: G.visit
   };
 }
 function saveNow() {
@@ -5296,6 +5573,7 @@ function applySave(d) {
   G.hw = hwFromSave(d.hw);
   farmFromSave(d);
   houseFromSave(d);
+  visitFromSave(d);
   areaFromSave(d);
   G.animals = d.animals && typeof d.animals === 'object' ? d.animals : {};
 }
@@ -5304,7 +5582,7 @@ function resetAll() {
   delete memSaves[saveKey()];
   areaReset(); G.animals = {};
   G.zukan = {}; G.tempWasFrozen = false; G.tempIronMelted = false; G.made = {}; G.missionIndex = 0; G.stars = 0; G.playSec = 0; G.introDone = true;
-  G.mDone = {}; G.mFocus = 'build'; farmFromSave(null); houseFromSave(null);
+  G.mDone = {}; G.mFocus = 'build'; farmFromSave(null); houseFromSave(null); visitFromSave(null); visitor = null; visitCardHide();
   G.hw = hwFromSave(null); hwVisit = null;
   Object.keys(G.counters).forEach(k => { G.counters[k] = 0; });
   G.hotbar = [B.GRASS, B.DIRT, B.STONE, B.PLANKS, B.BRICK, B.GLASS, B.LOG, B.SAND, B.LEAVES];
@@ -5331,7 +5609,7 @@ function loadUserWorld() {
   G.slot = 0;
   world.pendingRobot = null; world.pendingProgram = null;
   G.daily = null; G.saveTs = 0;
-  G.hw = hwFromSave(null); hwVisit = null; farmFromSave(null); houseFromSave(null);
+  G.hw = hwFromSave(null); hwVisit = null; farmFromSave(null); houseFromSave(null); visitFromSave(null); visitor = null; visitCardHide();
   G.skin = ''; SKIN.owned = null; SKIN.equipped = '';
   respawn();
   if (typeof robotReset === 'function') robotReset();
@@ -6050,6 +6328,7 @@ function update(dt) {
   if (typeof hwTick === 'function') hwTick(dt);
   if (typeof farmTick === 'function') farmTick(dt);
   if (typeof areaTick === 'function') areaTick(dt);
+  if (typeof visitTick === 'function') { visitTick(dt); bubblesTick(); }
   pollKeyboard();
   handleHold(dt);
   const paused = !!G.modal || !G.started;
@@ -6091,6 +6370,7 @@ function render() {
   if (typeof rainEntity === 'function') { const e = rainEntity(); if (e) ents.push(e); }
   if (typeof animalEntity === 'function') { const e = animalEntity(); if (e) ents.push(e); }
   if (typeof snowEntity === 'function') { const e = snowEntity(); if (e) ents.push(e); }
+  if (typeof visitorEntity === 'function') { const e = visitorEntity(); if (e) ents.push(e); }
   if (particles.length) ents.push(particleEntity());
   drawScene(canvasEl, cam, ents, curTarget, G.time);
 }
@@ -6158,13 +6438,15 @@ function setupUI() {
   $('farmBtn').onclick = () => openFarm();
   $('mapBtn').onclick = () => openMap();
   $('houseBtn').onclick = () => openHouse();
+  $('stampBtn').onclick = () => openStamps();
+  $('visitCard').addEventListener('pointerdown', e => e.stopPropagation());
   $('inspBtn').onclick = () => {
     if (!keyMode()) { actInspect(); return; }
     G.inspArm = !G.inspArm;
     document.body.classList.toggle('inspArm', G.inspArm);
     if (G.inspArm) toast('🔍 ' + T('しらべたい ブロックを クリックしてね'));
   };
-  ['bZukan', 'bRobot', 'bLab', 'bTeacher', 'bMission', 'menuBtn', 'invBtn', 'hwBtn', 'viewBtn', 'skinBtn', 'inspBtn', 'farmBtn', 'mapBtn', 'houseBtn'].forEach(id => {
+  ['bZukan', 'bRobot', 'bLab', 'bTeacher', 'bMission', 'menuBtn', 'invBtn', 'hwBtn', 'viewBtn', 'skinBtn', 'inspBtn', 'farmBtn', 'mapBtn', 'houseBtn', 'stampBtn'].forEach(id => {
     $(id).addEventListener('pointerdown', e => e.stopPropagation());
   });
 }
@@ -6175,7 +6457,7 @@ Object.assign(window.__game, {
   openProgram, openZukan, openLab, openTeacher, openMissions, openMenu, openInventory, closeModal, setLevel, startGame,
   showTitle, setBlock, getB, solidAt, checkMissions, currentMission, MISSIONS, FAQ, RECIPES, PLACEABLE, resetAll, saveNow,
   readSave, respawn, renderProgram, showBlockInfo, raycast, genWorld, markAllDirty, flushDirty, addCard, execNodes, astFeatures,
-  cloudSave, cloudPull, saveSig, openDaily, openHouse, houseCheck, houseRun, furnQuiz, FURN, doorToggle, openMap, switchArea, AREAS, animalsList: () => animals, animalAim, animalPet, animalInspect, openFarm, farmGrow, farmPlantAt, tyState, WX, CROP_DEFS, COURSES, courseMission, keyMode, aimRay, MOUSE, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
+  cloudSave, cloudPull, saveSig, openDaily, openStamps, sendStamp, visitStart, visitNow: () => visitor, visitHappy, worldToScreen, STAMPS, openHouse, houseCheck, houseRun, furnQuiz, FURN, doorToggle, openMap, switchArea, AREAS, animalsList: () => animals, animalAim, animalPet, animalInspect, openFarm, farmGrow, farmPlantAt, tyState, WX, CROP_DEFS, COURSES, courseMission, keyMode, aimRay, MOUSE, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
   startTutorial, endTutorial, tutGoto: i => { TUT.i = i; tutInitStep(); }, tutState: () => ({ on: TUT.on, i: TUT.i, n: TUT.steps.length, doneAt: TUT.doneAt }), tutSeen, findNode, progState: () => ({ target: progTarget }), collectDefs, setBarMode, dirtyChunks
 });
 
