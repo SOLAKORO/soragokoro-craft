@@ -286,7 +286,10 @@ body.tutOn.touch #infocard{top:calc(250px + var(--sat))}
 /* してん */
 #viewBtn{position:absolute;right:calc(8px + var(--sar));top:calc(60px + var(--sat))}
 #skinBtn{position:absolute;right:calc(8px + var(--sar));top:calc(112px + var(--sat))}
-#hwBtn{top:calc(164px + var(--sat))!important}
+#hwBtn{top:calc(216px + var(--sat))!important}
+#farmBtn{position:absolute;right:calc(8px + var(--sar));top:calc(164px + var(--sat));background:rgba(21,94,60,.82);border-color:#86efac}
+#farmBtn.pulse{animation:hwPulse 1s ease-in-out infinite alternate}
+body.touch #farmBtn{right:auto;left:calc(8px + var(--sal));top:calc(280px + var(--sat))}
 body.touch #viewBtn,body.touch #skinBtn,body.touch #hwBtn{right:auto;left:calc(8px + var(--sal))}
 body.touch #hwBtn{top:calc(124px + var(--sat))!important}
 body.touch #viewBtn{top:calc(176px + var(--sat))}
@@ -305,6 +308,7 @@ body.inspArm #inspBtn{background:rgba(234,88,12,.9);border-color:#fed7aa}
   #hwBtn{top:calc(124px + var(--sat))!important}
   #viewBtn{top:calc(176px + var(--sat))}
   #skinBtn{top:calc(228px + var(--sat))}
+  #farmBtn{right:auto;left:calc(8px + var(--sal));top:calc(280px + var(--sat))}
 }
 /* ハロウィン */
 #hwBtn{position:absolute;right:calc(8px + var(--sar));top:calc(124px + var(--sat));background:rgba(124,45,18,.82);border-color:#fdba74}
@@ -337,6 +341,7 @@ body.inspArm #inspBtn{background:rgba(234,88,12,.9);border-color:#fed7aa}
     <div id="dailyChip"></div>
     <button class="hbtn" id="viewBtn"><span class="ic">👁️</span><span data-t="してん"></span></button>
     <button class="hbtn" id="skinBtn"><span class="ic">👕</span><span data-t="きがえ"></span></button>
+    <button class="hbtn" id="farmBtn" style="display:none"><span class="ic">🌱</span><span class="lb">はたけ</span></button>
     <button class="hbtn" id="hwBtn" style="display:none"><span class="ic">🎃</span><span class="lb"></span></button>
     <div id="infocard"></div>
     <div id="toast"></div>
@@ -427,7 +432,10 @@ const B = {
   AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, LOG: 4, LEAVES: 5, WATER: 6, SAND: 7,
   IRON_ORE: 8, IRON: 9, GLASS: 10, ICE: 11, COAL_ORE: 12, GOLD: 13, BRICK: 14,
   PLANKS: 15, SNOW: 16, COPPER_ORE: 17, COPPER: 18,
-  PUMPKIN: 19, LANTERN: 20, COBWEB: 21   // ハロウィン(event)
+  PUMPKIN: 19, LANTERN: 20, COBWEB: 21,  // ハロウィン(event)
+  FARMLAND: 22, SPROUT: 23, NET: 24,      // はたけ(farm)
+  GOYA1: 25, GOYA2: 26, IMO1: 27, IMO2: 28, KIBI1: 29, KIBI2: 30, DAIZU1: 31, DAIZU2: 32,
+  SEED_GOYA: 33, SEED_IMO: 34, SEED_KIBI: 35, SEED_DAIZU: 36
 };
 
 // タイル番号(テクスチャアトラス 8x8)
@@ -435,7 +443,8 @@ const TILE = {
   GRASS_TOP: 0, GRASS_SIDE: 1, DIRT: 2, STONE: 3, LOG_SIDE: 4, LOG_TOP: 5, LEAVES: 6, WATER: 7,
   SAND: 8, IRON_ORE: 9, IRON: 10, GLASS: 11, ICE: 12, COAL_ORE: 13, GOLD: 14, BRICK: 15,
   PLANKS: 16, SNOW: 17, SNOW_SIDE: 18, COPPER_ORE: 19, COPPER: 20, WHITE: 21,
-  PUMPKIN_TOP: 22, PUMPKIN_SIDE: 23, LANTERN: 24, COBWEB: 25
+  PUMPKIN_TOP: 22, PUMPKIN_SIDE: 23, LANTERN: 24, COBWEB: 25,
+  FARMLAND: 26, SPROUT: 27, NET: 28, GROW0: 29, RIPE0: 33, SEED0: 37   // GROW0〜32 RIPE0〜36 SEED0〜40
 };
 
 // info: [ひらがな(1・2年), ふりがな(3・4年), 漢字(5・6年)]
@@ -658,8 +667,50 @@ def(B.COBWEB, {
   chem: null
 });
 
-// ブロックとして置けるもの(空気以外。ハロウィンのブロックは べつ)
-const PLACEABLE = BLOCKS.filter(b => b && b.id !== B.AIR && !b.event).map(b => b.id);
+
+// ---- はたけの ブロック(farm: 図鑑・「ぜんぶの ブロック」には いれない) ----
+// やさい: 3だんかい(め → そだちちゅう → みのり)。たねは おくと め に なる
+const CROP_DEFS = [
+  { key: 'goya', name: 'ゴーヤー', emoji: '🥒', color: 'g', grow: B.GOYA1, ripe: B.GOYA2, seed: B.SEED_GOYA,
+    info: ['ゴーヤーは にがい やさい。 からだの ちょうしを ととのえる「みどり」の たべものだよ。 おきなわの なつの やさいなんだ。',
+      'ゴーヤーは{苦|にが}みのある{夏|なつ}の{野菜|やさい}。ビタミンCがたっぷりで、{体|からだ}の{調子|ちょうし}を{整|ととの}える「{緑|みどり}」の{食|た}べもの。',
+      'ゴーヤー(ツルレイシ)はウリ科の野菜。ビタミンCが豊富で、加熱しても壊れにくい。苦み成分モモルデシンを含む。体の調子を整える食品(緑のグループ)。'] },
+  { key: 'imo', name: '{紅|べに}いも', emoji: '🍠', color: 'y', grow: B.IMO1, ripe: B.IMO2, seed: B.SEED_IMO,
+    info: ['べにいもは むらさきいろの おいも。 からだを うごかす エネルギーに なる「きいろ」の たべものだよ。',
+      '{紅|べに}いもは{紫色|むらさきいろ}のさつまいも。でんぷんが{多|おお}く、{体|からだ}を{動|うご}かすエネルギーになる「{黄|き}」の{食|た}べもの。',
+      '紅いもは紫色のサツマイモ。主成分のでんぷん(炭水化物)はエネルギー源(黄のグループ)。紫色はアントシアニンという色素。'] },
+  { key: 'kibi', name: 'さとうきび', emoji: '🎋', color: 'y', grow: B.KIBI1, ripe: B.KIBI2, seed: B.SEED_KIBI,
+    info: ['さとうきびの くきには あまい しるが はいっているよ。 にると こくとう(さとう)に なるんだ。',
+      'さとうきびの{茎|くき}のしるを{煮|に}つめると{黒糖|こくとう}になる。さとうはエネルギーになる「{黄|き}」の{食|た}べもの。',
+      'サトウキビの茎の汁にはショ糖が含まれ、煮詰めると黒糖になる。沖縄の代表的な農作物。糖はエネルギー源(黄のグループ)。'] },
+  { key: 'daizu', name: '{大豆|だいず}', emoji: '🫘', color: 'r', grow: B.DAIZU1, ripe: B.DAIZU2, seed: B.SEED_DAIZU,
+    info: ['だいずは とうふの もとに なる まめ。 からだを つくる「あか」の たべものだよ。',
+      '{大豆|だいず}は「{畑|はたけ}の{肉|にく}」とよばれるほど、たんぱく{質|しつ}が{多|おお}い。{体|からだ}をつくる「{赤|あか}」の{食|た}べもの。',
+      'ダイズはたんぱく質を約35%含み「畑の肉」と呼ばれる。豆腐・みそ・しょうゆの原料。体をつくる食品(赤のグループ)。'] }
+];
+const CROP_BY_KEY = {}; CROP_DEFS.forEach(c => { CROP_BY_KEY[c.key] = c; });
+def(B.FARMLAND, { key: 'farmland', name: '{畑|はたけ}の{土|つち}', kind: '{土|つち}', opaque: true, solid: true, farm: true, place: false,
+  tiles: { top: TILE.FARMLAND, side: TILE.DIRT, bottom: TILE.DIRT },
+  info: ['たがやした つち。 やわらかくて、ねっこが のびやすいよ。', 'たがやした{土|つち}。やわらかく{空気|くうき}をふくむので、{根|ね}がのびやすい。', '耕した土は空気と水を含みやすく、根が伸びやすい。'], chem: null });
+def(B.SPROUT, { key: 'sprout', name: 'め', kind: '{植物|しょくぶつ}', opaque: false, solid: false, farm: true, crop: 0, place: false,
+  tiles: { all: TILE.SPROUT },
+  info: ['たねから めが でたよ。 みずが ちかくに あると はやく そだつよ。', '{種|たね}から{芽|め}が{出|で}た。{水|みず}が{近|ちか}くにあると{早|はや}く{育|そだ}つよ。', '発芽には水・空気・適当な温度が必要。'], chem: null });
+def(B.NET, { key: 'net', name: 'ぼうふうネット', kind: 'たいふうたいさく', opaque: false, solid: true, farm: true,
+  tiles: { all: TILE.NET },
+  info: ['かぜを よわめる ネット。 はたけの ちかくに はると、たいふうから やさいを まもれるよ。',
+    '{風|かぜ}を{弱|よわ}めるネット。{畑|はたけ}のまわりに{張|は}ると、{台風|たいふう}から{野菜|やさい}を{守|まも}れる。',
+    '防風ネットは風速を弱め、作物の倒伏や葉の傷みを防ぐ。沖縄の畑では台風対策として広く使われる。'], chem: null });
+CROP_DEFS.forEach((c, i) => {
+  def(c.grow, { key: c.key + '_1', name: c.name + '(そだちちゅう)', kind: '{野菜|やさい}', opaque: false, solid: false, farm: true, crop: 1, cropKey: c.key, place: false,
+    tiles: { all: TILE.GROW0 + i }, info: c.info, chem: null });
+  def(c.ripe, { key: c.key + '_2', name: c.name, kind: '{野菜|やさい}', opaque: false, solid: false, farm: true, crop: 2, cropKey: c.key, place: false,
+    tiles: { all: TILE.RIPE0 + i }, info: c.info, chem: null });
+  def(c.seed, { key: c.key + '_seed', name: c.name + 'の たね', kind: 'たね', opaque: true, solid: true, farm: true, seed: c.key,
+    tiles: { all: TILE.SEED0 + i }, info: c.info, chem: null });
+});
+
+// ブロックとして置けるもの(空気以外。ハロウィン・はたけの ブロックは べつ)
+const PLACEABLE = BLOCKS.filter(b => b && b.id !== B.AIR && !b.event && !b.farm).map(b => b.id);
 
 function isSolid(id) { return !!(BLOCKS[id] && BLOCKS[id].solid); }
 function isOpaque(id) { return !!(BLOCKS[id] && BLOCKS[id].opaque); }
@@ -808,6 +859,52 @@ function makeAtlas() {
     const spoke = x === y || x === 15 - y || x === 7 || y === 7;
     const ring = Math.abs(r - 3) < 0.5 || Math.abs(r - 6) < 0.5;
     return (spoke || ring) ? [235, 235, 242, 235] : [0, 0, 0, 0];
+  });
+
+  // はたけの 土: よこの すじ
+  fill(TILE.FARMLAND, [104, 72, 46], 20, 38, (x, y, c) => (y % 4 === 0 ? [c[0] - 30, c[1] - 24, c[2] - 16, 255] : null));
+  // やさい(すきまは とうめい)。h: くきの たかさ(したから) leaf: はっぱの いろ
+  function plant(tile, seed, h, leaf, extra) {
+    const rnd = mulberry32(seed);
+    const cols = []; for (let x = 0; x < S; x++) cols.push(S - Math.round(h * (0.55 + rnd() * 0.45)));
+    fill(tile, leaf, 30, seed, (x, y, c, r) => {
+      if (extra) { const e = extra(x, y, r); if (e) return e; }
+      if (y >= cols[x] && ((x + y) % 3 !== 0 || r() < 0.35)) return [c[0], c[1], c[2], 255];
+      return [0, 0, 0, 0];
+    });
+  }
+  plant(TILE.SPROUT, 40, 4, [92, 176, 66], (x, y) => (x % 4 === 1 ? null : (y < S ? [0, 0, 0, 0] : null)));
+  plant(TILE.GROW0, 41, 8, [70, 150, 60]);
+  plant(TILE.GROW0 + 1, 42, 7, [80, 140, 70]);
+  plant(TILE.GROW0 + 2, 43, 10, [130, 175, 70]);
+  plant(TILE.GROW0 + 3, 44, 8, [78, 150, 56]);
+  // ゴーヤー: つるに ながい みどりの み(つぶつぶ)
+  plant(TILE.RIPE0, 45, 16, [64, 140, 54], (x, y, r) => {
+    const f = (x >= 3 && x <= 5 && y >= 5 && y <= 12) || (x >= 10 && x <= 12 && y >= 3 && y <= 10);
+    return f ? ((x + y) % 2 ? [120, 196, 84, 255] : [96, 172, 64, 255]) : null;
+  });
+  // 紅いも: うえは はっぱ、したに むらさきの いも
+  plant(TILE.RIPE0 + 1, 46, 13, [76, 146, 64], (x, y) => {
+    const f = y >= 11 && ((x >= 2 && x <= 6) || (x >= 9 && x <= 13)) && !(y === 15 && (x === 2 || x === 6 || x === 9 || x === 13));
+    return f ? [150 + (x % 2) * 14, 58, 138, 255] : null;
+  });
+  // さとうきび: たかい ふしの ある くき
+  plant(TILE.RIPE0 + 2, 47, 9, [110, 168, 60]);
+  (function () {
+    const t = TILE.RIPE0 + 2;
+    for (let y = 0; y < S; y++) for (const x of [2, 7, 12]) {
+      const seg = y % 5 === 0;
+      put(t, x, y, seg ? 120 : 176, seg ? 130 : 186, seg ? 60 : 86, 255);
+      put(t, x + 1, y, seg ? 110 : 160, seg ? 120 : 172, seg ? 56 : 78, 255);
+    }
+  })();
+  // 大豆: しげみに うすみどりの さや
+  plant(TILE.RIPE0 + 3, 48, 13, [70, 140, 52], (x, y) => ((((x * 3 + y * 5) % 11) === 0 && y > 4) ? [196, 210, 120, 255] : null));
+  // ぼうふうネット: みどりの あみ
+  fill(TILE.NET, [60, 140, 80], 10, 49, (x, y, c) => ((x % 3 === 0 || y % 3 === 0) ? [c[0], c[1], c[2], 255] : [0, 0, 0, 0]));
+  // たね(つちに たねの つぶ)
+  [[235, 230, 210], [150, 60, 140], [176, 186, 86], [222, 196, 110]].forEach((col, i) => {
+    fill(TILE.SEED0 + i, [134, 96, 62], 26, 50 + i, (x, y, c) => (((x * 7 + y * 3 + i) % 9 === 0) || ((x + 3) % 5 === 0 && y % 5 === 2) ? [col[0], col[1], col[2], 255] : null));
   });
 
   ctx.putImageData(img, 0, 0);
@@ -1543,7 +1640,7 @@ const G = {
   slot: 0,
   zukan: {},                // 見つけたブロック
   made: {},                 // 実験でつくったもの
-  counters: { placed: 0, broken: 0, inspected: 0, robotSteps: 0, robotPlaced: 0, runs: 0, labMade: 0, frozen: 0, asked: 0, summons: 0, ironMelted: 0 },
+  counters: { placed: 0, broken: 0, inspected: 0, robotSteps: 0, robotPlaced: 0, runs: 0, labMade: 0, frozen: 0, asked: 0, summons: 0, ironMelted: 0, planted: 0, harvested: 0, cooked: 0 },
   missionIndex: 0,
   stars: 0,
   sound: true,
@@ -1704,6 +1801,7 @@ function playerOverlapsCell(x, y, z) {
 function discover(id, how) {
   if (id === B.AIR || !BLOCKS[id]) return false;
   if (BLOCKS[id].event) return typeof hwDiscover === 'function' ? hwDiscover(id) : false;
+  if (BLOCKS[id].farm) return false;
   if (G.zukan[id]) return false;
   G.zukan[id] = true;
   toast('📖 ' + T('{図鑑|ずかん}にのったよ: ') + T(BLOCKS[id].name));
@@ -1716,6 +1814,7 @@ function actBreak() {
   const t = computeTarget();
   if (!t) return false;
   if (typeof hwOnBreak === 'function' && hwOnBreak(t)) return true;
+  if (typeof farmOnBreak === 'function' && farmOnBreak(t, false)) return true;
   const id = t.id;
   setBlock(t.x, t.y, t.z, B.AIR);
   if (discover(id) && !BLOCKS[id].event) G.counters.inspected++;   // こわして 図鑑に のったのも「しらべた」
@@ -1734,6 +1833,7 @@ function actPlace() {
   const cur = getB(x, y, z);
   if (cur !== B.AIR && cur !== B.WATER) return false;
   const id = G.hotbar[G.slot];
+  if (BLOCKS[id].seed) return farmPlayerPlant(t, BLOCKS[id].seed);
   if (isSolid(id) && playerOverlapsCell(x, y, z)) return false;
   if (typeof robotOccupies === 'function' && robotOccupies(x, y, z)) return false;
   setBlock(x, y, z, id);
@@ -1747,6 +1847,8 @@ function actInspect() {
   const t = aimHit(2, true);
   if (!t) { toast(T('ブロックに{近|ちか}づいて、ねらってね')); return false; }
   showBlockInfo(t.id);
+  const fi = G.farm[widx(t.x, t.y, t.z)];
+  if (fi && fi.p < 1) toast('⏳ ' + T('みのるまで あと ') + farmLeftMin(widx(t.x, t.y, t.z)) + T('ぷん'));
   G.counters.inspected++;
   const isNew = discover(t.id);
   playSound('select');
@@ -2170,7 +2272,7 @@ function openInventory(opts) {
   opts = (opts && opts.onPick) ? opts : (opts && opts.allowClear ? opts : {});
   const cur0 = opts.onPick ? (G.program && G.program.block) : G.hotbar[G.slot];
   let html = '<p class="note">' + (opts.onPick ? T('ロボットが つかう ブロックを えらんでね。') : T('えらんだブロックは、いまの スロット(') + (G.slot + 1) + T(')に はいるよ。')) + '</p><div class="grid">';
-  for (const id of PLACEABLE.concat(hwInvBlocks())) {
+  for (const id of PLACEABLE.concat(hwInvBlocks(), farmInvBlocks())) {
     const cur = cur0 === id ? ' cur' : '';
     html += '<button class="cell' + cur + '" data-id="' + id + '"><img alt="" src="' + blockIconURL(id, 64) + '"><span>' + T(BLOCKS[id].name) + '</span></button>';
   }
@@ -2326,6 +2428,8 @@ function startGame() {
   saveSoon();
   if (syncReady()) syncSend('start');
   if (loadPlayer().auth) { skinLoadCache(); skinFetch(); }
+  farmGrow();
+  wxFetch().then(ok => { renderFarmBtn(); if (ok && WX.ok) toast(WX.icon + ' ' + T('きょうの うらそえは ') + T(WX.label) + ' ' + WX.temp + '℃'); });
 }
 
 // 開発用フック(テストで使う)
@@ -2793,7 +2897,8 @@ function saveSig() {
   const c = G.counters;
   return [world.edits.size, G.stars, Object.keys(G.mDone).length + ':' + G.mFocus, Object.keys(c).reduce((a, k) => a + (+c[k] || 0), 0),
     Object.keys(G.zukan).length, Object.keys(G.made).length, G.level, prog, G.daily ? (G.daily.done ? 1 : 0) + ':' + (G.daily.stamps || []).length : '',
-    G.hw ? [G.hw.found, G.hw.seen, G.hw.visited, G.hw.result, G.hw.prank.length, G.hw.hat, G.hw.cleaned].join(',') : ''].join('|');
+    G.hw ? [G.hw.found, G.hw.seen, G.hw.visited, G.hw.result, G.hw.prank.length, G.hw.hat, G.hw.cleaned].join(',') : '',
+    G.farm ? Object.keys(G.farm).length + ':' + Object.values(G.farm).filter(f => f.p >= 1).length + ':' + JSON.stringify(G.food) + ':' + Object.keys(G.ty.done).length : ''].join('|');
 }
 
 function cloudPost(player, body, ms) {
@@ -3196,6 +3301,336 @@ function hwTick(dt) {
   }
 }
 
+// ===== はたけ・うらそえの てんき・たいふう =====
+// たねを まく → (みずが ちかいか 雨だと はやく)そだつ → しゅうかく → 実験室で りょうり。赤・黄・緑の たべものを まなぶ
+// うらそえの 本物の てんき(Open-Meteo)。たいふう(つよい かぜの よほう)の まえに ネットを はらないと やさいが やられる
+const FARM = { ripeMin: 30, wetMin: 15 };   // みのるまでの 分(みずが ちかい/雨だと wetMin)
+const FOOD_COLORS = {
+  r: { name: '{赤|あか}', css: '#ef4444', txt: 'からだを つくる' },
+  y: { name: '{黄|き}', css: '#f59e0b', txt: 'エネルギーに なる' },
+  g: { name: '{緑|みどり}', css: '#22c55e', txt: 'からだの ちょうしを ととのえる' }
+};
+// りょうり(実験室の「まぜる」で つくる)
+const DISHES = {
+  tofu: { name: 'とうふ', emoji: '⬜', colors: ['r'] },
+  kokuto: { name: '{黒糖|こくとう}', emoji: '🟫', colors: ['y'] },
+  champuru: { name: 'ゴーヤーチャンプルー', emoji: '🍳', colors: ['g', 'r'] },
+  tart: { name: '{紅|べに}いもタルト', emoji: '🥧', colors: ['y'] }
+};
+const FOOD_RECIPES = [
+  { key: 'tofu', mats: ['food:daizu', 'block:water'], heat: 'hot', txt: [
+    'だいずを みずに つけて すりつぶして にると、とうふが できるよ！',
+    '{大豆|だいず}を{水|みず}につけてすりつぶし、{煮|に}てしぼった{豆乳|とうにゅう}を「にがり」で{固|かた}めると、とうふになる。',
+    '大豆をすりつぶして加熱し、しぼった豆乳ににがり(塩化マグネシウム)を加えると、たんぱく質が固まって豆腐になる。'] },
+  { key: 'kokuto', mats: ['food:kibi'], heat: 'hot', txt: [
+    'さとうきびの しるを ぐつぐつ にたら、くろい さとう「こくとう」が できたよ！',
+    'さとうきびのしるを{煮|に}つめて{水|みず}をとばすと、{黒糖|こくとう}になる。おきなわの{名物|めいぶつ}だよ。',
+    'サトウキビの搾り汁を煮詰めて水分を蒸発させると、ショ糖とミネラルを含む黒糖ができる。'] },
+  { key: 'champuru', mats: ['food:goya', 'dish:tofu'], heat: 'hot', txt: [
+    'ゴーヤーと とうふを いためて、ゴーヤーチャンプルーの できあがり！ みどりと あかの たべものが いっしょに とれるね。',
+    'ゴーヤーととうふをいためるとゴーヤーチャンプルー。「{緑|みどり}」と「{赤|あか}」の{食|た}べものがいっしょにとれる。',
+    'ゴーヤーチャンプルーは沖縄の郷土料理。ゴーヤー(緑)と豆腐(赤)を組み合わせ、栄養のバランスがよい。'] },
+  { key: 'tart', mats: ['food:imo', 'dish:kokuto'], heat: 'hot', txt: [
+    'べにいもと こくとうで、あまい べにいもタルトが できたよ！',
+    '{紅|べに}いもと{黒糖|こくとう}で{紅|べに}いもタルト。どちらも エネルギーに なる「{黄|き}」の{食|た}べもの。',
+    '紅いもタルトは沖縄の菓子。いも(でんぷん)と砂糖(糖)はどちらもエネルギー源(黄)。'] }
+];
+G.farm = {};    // idx -> { c: やさいの key, p: そだち(0〜1), last: さいごに けいさんした 時こく }
+G.food = {};    // しゅうかく・りょうりした かず  goya / imo / kibi / daizu / dish:tofu …
+G.ty = { seen: {}, done: {} };   // たいふう: よほうを みた日・おわった日
+let farmAcc = 0, wxSkyK = 0;
+const SKY_RAIN = [0.56, 0.6, 0.66], SKY_STORM = [0.36, 0.4, 0.46];
+
+// テスト用の パラメータ(開発版か テストIDだけ)
+function testParam(name) {
+  try {
+    const q = new URLSearchParams(location.search).get(name);
+    const p = loadPlayer();
+    if (q && (!PROD || (p && p.auth && EVT.demoIds.indexOf(String(p.id)) >= 0))) return q;
+  } catch (e) { /* 何もしない */ }
+  return null;
+}
+function farmFromSave(d) {
+  G.farm = {}; G.food = {}; G.ty = { seen: {}, done: {} };
+  if (!d) return;
+  if (d.farm && typeof d.farm === 'object') Object.keys(d.farm).forEach(k => { const f = d.farm[k]; if (f && CROP_BY_KEY[f.c] && +k >= 0 && +k < W * D * H) G.farm[k] = { c: f.c, p: clamp(+f.p || 0, 0, 1), last: +f.last || Date.now() }; });
+  // 0 も のこす(いちど てに いれた いろを おぼえておく)
+  if (d.food && typeof d.food === 'object') Object.keys(d.food).forEach(k => { if (+d.food[k] >= 0) G.food[k] = Math.floor(+d.food[k]); });
+  if (d.ty && typeof d.ty === 'object') G.ty = { seen: Object.assign({}, d.ty.seen), done: Object.assign({}, d.ty.done) };
+}
+function farmInvBlocks() { return CROP_DEFS.map(c => c.seed).concat([B.NET]); }
+function cropStageId(c, p) { return p >= 1 ? c.ripe : p >= 0.4 ? c.grow : B.SPROUT; }
+const SOILS = [B.GRASS, B.DIRT, B.FARMLAND];
+
+// ---- うらそえの てんき ----
+const WX = { at: 0, code: null, temp: null, icon: '', label: '', rain: false, daily: [], ok: false };
+const WX_URL = 'https://api.open-meteo.com/v1/forecast?latitude=26.2458&longitude=127.7219&current=temperature_2m,weather_code&daily=weather_code,wind_gusts_10m_max&timezone=Asia%2FTokyo&wind_speed_unit=ms&forecast_days=7';
+function wxLabel(code) {
+  if (code === 0) return ['☀️', 'はれ', false];
+  if (code <= 2) return ['🌤️', 'はれ', false];
+  if (code === 3) return ['☁️', 'くもり', false];
+  if (code === 45 || code === 48) return ['🌫️', 'きり', false];
+  if (code >= 95) return ['⛈️', 'かみなり', true];
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return ['🌧️', 'あめ', true];
+  return ['☁️', 'くもり', false];
+}
+function wxApply(d) {
+  if (!d || !d.current) return;
+  WX.code = d.current.weather_code; WX.temp = Math.round(d.current.temperature_2m);
+  const l = wxLabel(WX.code); WX.icon = l[0]; WX.label = l[1]; WX.rain = l[2];
+  WX.daily = (d.daily && d.daily.time || []).map((t, i) => ({ date: t, gust: +d.daily.wind_gusts_10m_max[i] || 0, code: d.daily.weather_code[i] }));
+  WX.ok = true;
+  const f = testParam('wx');
+  if (f === 'rain') { WX.rain = true; WX.icon = '🌧️'; WX.label = 'あめ'; }
+  if (f === 'clear') { WX.rain = false; WX.icon = '☀️'; WX.label = 'はれ'; }
+}
+function wxFetch() {
+  try { const c = JSON.parse(localStorage.getItem('blocklab-wx') || 'null'); if (c && Date.now() - c.at < 30 * 60000) { WX.at = c.at; wxApply(c.d); return Promise.resolve(true); } } catch (e) { /* 何もしない */ }
+  return fetch(WX_URL).then(r => r.json()).then(d => {
+    WX.at = Date.now(); wxApply(d);
+    try { localStorage.setItem('blocklab-wx', JSON.stringify({ at: WX.at, d })); } catch (e) { /* 何もしない */ }
+    return true;
+  }).catch(() => false);
+}
+
+// ---- たいふう(つよい かぜの よほう。最大しゅんかん風速 25m/s いじょうの 日) ----
+function tyDays() {
+  const a = WX.daily.filter(x => x.gust >= 25).map(x => x.date);
+  const t = testParam('typhoon'); if (t && /^\d{4}-\d{2}-\d{2}$/.test(t) && a.indexOf(t) < 0) a.push(t);
+  return a.sort();
+}
+function dayAdd(d, n) { return new Date(Date.parse(d + 'T12:00:00+09:00') + n * 86400000 + 9 * 3600000).toISOString().slice(0, 10); }
+// { state: 'warn' | 'now' | '', date }
+function tyState() {
+  const today = hwDay(hwNow());
+  for (const d of tyDays()) {
+    if (d === today) return { state: 'now', date: d };
+    if (d > today && d <= dayAdd(today, 3)) return { state: 'warn', date: d };
+  }
+  return { state: '', date: '' };
+}
+// ネットが ちかくに あるか、やねの したなら だいじょうぶ
+function cropSafe(i) {
+  const [x, y, z] = hwXYZ(+i);
+  for (let dy = -1; dy <= 1; dy++) for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) if (getB(x + dx, y + dy, z + dz) === B.NET) return true;
+  for (let dy = 1; dy <= 4; dy++) if (isOpaque(getB(x, y + dy, z))) return true;
+  return false;
+}
+function tyResolve(date) {
+  G.ty.done[date] = true;
+  const ids = Object.keys(G.farm);
+  const sawWarn = Object.keys(G.ty.seen).some(d => G.ty.seen[d] === date);
+  if (!ids.length) { saveSoon(); return; }
+  if (!sawWarn) {
+    openModal('🌀 ' + T('たいふうが きたよ'), '<p>' + T('こんかいは まだ たいふうの じゅんびを しらなかったから、ソラが はたけを まもってくれたよ。 つぎは よほうが でたら ネットを はろう！') + '</p>', 'ty');
+    saveSoon(); return;
+  }
+  let lost = 0, kept = 0;
+  ids.forEach(i => {
+    if (cropSafe(i)) { kept++; return; }
+    const [x, y, z] = hwXYZ(+i);
+    setBlock(x, y, z, B.AIR); delete G.farm[i]; lost++;
+  });
+  openModal('🌀 ' + T('たいふうが とおりすぎた'),
+    '<p style="font-size:17px">' + (lost ? T('ネットの ない やさいが ') + lost + T('こ、かぜで やられちゃった…') : T('ぜんぶの やさいを まもれたよ！ すごい！')) + '</p>' +
+    (kept ? '<p>🛡️ ' + T('まもれた やさい: ') + kept + '</p>' : '') +
+    '<div class="ans">' + T('ほんものの たいふうの まえにも、まどを しめる・そとの ものを かたづける・{畑|はたけ}に ネットを はる・はやめに しゅうかく する などの じゅんびを するよ。') + '</div>', 'ty');
+  playSound(lost ? 'error' : 'win');
+  saveSoon();
+}
+
+// ---- たねまき・しゅうかく ----
+function farmPlantAt(x, y, z, cropKey) {
+  const c = CROP_BY_KEY[cropKey];
+  if (!c || !inb(x, y, z) || getB(x, y, z) !== B.AIR || SOILS.indexOf(getB(x, y - 1, z)) < 0) return false;
+  setBlock(x, y - 1, z, B.FARMLAND);
+  setBlock(x, y, z, B.SPROUT);
+  G.farm[widx(x, y, z)] = { c: cropKey, p: 0, last: Date.now() };
+  G.counters.planted = (G.counters.planted || 0) + 1;
+  return true;
+}
+function farmPlayerPlant(t, cropKey) {
+  const x = t.x + t.nx, y = t.y + t.ny, z = t.z + t.nz;
+  if (!farmPlantAt(x, y, z, cropKey)) { toast('🌱 ' + T('たねは {土|つち}や {草|くさ}の うえに まいてね')); playSound('error'); return false; }
+  playSound('place');
+  toast('🌱 ' + T(CROP_BY_KEY[cropKey].name) + T('の たねを まいたよ！') + (farmWet(widx(x, y, z)) ? '' : '<br>💧 ' + T('みずが ちかくに あると はやく そだつよ')));
+  renderFarmBtn(); saveSoon();
+  return true;
+}
+function farmLeftMin(i) {
+  const f = G.farm[i]; if (!f) return 0;
+  return Math.max(1, Math.ceil((1 - f.p) * (farmWet(i) ? FARM.wetMin : FARM.ripeMin)));
+}
+// こわした(ロボットが ほった)のが やさいなら: みのっていたら しゅうかく、まだなら こわさない
+function farmOnBreak(t, byRobot) {
+  const i = widx(t.x, t.y, t.z), f = G.farm[i], b = BLOCKS[getB(t.x, t.y, t.z)];
+  if (!f || !b || !b.crop && getB(t.x, t.y, t.z) !== B.SPROUT) return false;
+  const c = CROP_BY_KEY[f.c];
+  if (getB(t.x, t.y, t.z) !== c.ripe) {
+    if (!byRobot) { toast('⏳ ' + T(c.name) + T(' は まだ そだっているよ (あと ') + farmLeftMin(i) + T('ぷん)')); playSound('select'); }
+    return true;
+  }
+  setBlock(t.x, t.y, t.z, B.AIR);
+  delete G.farm[i];
+  G.food[c.key] = (G.food[c.key] || 0) + 2;
+  G.counters.harvested = (G.counters.harvested || 0) + 1;
+  spawnParticles(t.x + 0.5, t.y + 0.5, t.z + 0.5, c.ripe);
+  playSound('found');
+  toast(c.emoji + ' ' + T(c.name) + T(' を しゅうかく！ (+2)') + '<br><small>' + T(FOOD_COLORS[c.color].name) + T('の たべもの: ') + T(FOOD_COLORS[c.color].txt) + '</small>');
+  renderFarmBtn(); saveSoon();
+  return true;
+}
+function farmWet(i) {
+  if (WX.rain || tyState().state === 'now') return true;
+  const [x, y, z] = hwXYZ(+i);
+  for (let dy = -2; dy <= 0; dy++) for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) if (getB(x + dx, y + dy, z + dz) === B.WATER) return true;
+  return false;
+}
+// そだちを けいさんして、ブロックを かえる(あそんで いない あいだの ぶんも)
+function farmGrow() {
+  const now = Date.now();
+  let changed = false;
+  Object.keys(G.farm).forEach(i => {
+    const f = G.farm[i], c = CROP_BY_KEY[f.c], [x, y, z] = hwXYZ(+i), cur = getB(x, y, z);
+    if ([B.SPROUT, c.grow, c.ripe].indexOf(cur) < 0 || getB(x, y - 1, z) !== B.FARMLAND) { delete G.farm[i]; changed = true; return; }
+    const min = (now - f.last) / 60000;
+    f.last = now;
+    if (f.p < 1 && min > 0) f.p = Math.min(1, f.p + min / (farmWet(i) ? FARM.wetMin : FARM.ripeMin));
+    const want = cropStageId(c, f.p);
+    if (want !== cur) { setBlock(x, y, z, want); changed = true; if (want === c.ripe && G.started) toast(c.emoji + ' ' + T(c.name) + T(' が みのったよ！ こわして しゅうかくしよう')); }
+  });
+  if (changed) { renderFarmBtn(); saveSoon(); }
+}
+
+// ---- りょうり(実験室) ----
+function foodMatInfo(ref) {
+  const [kind, key] = ref.split(':');
+  if (kind === 'food') { const c = CROP_BY_KEY[key]; return { ref, name: c.name, sub: '×' + (G.food[key] || 0), emoji: c.emoji }; }
+  const d = DISHES[key]; return { ref, name: d.name, sub: '×' + (G.food['dish:' + key] || 0), emoji: d.emoji };
+}
+function foodMats() {
+  const a = [];
+  CROP_DEFS.forEach(c => { if (G.food[c.key] > 0) a.push('food:' + c.key); });
+  Object.keys(DISHES).forEach(k => { if (G.food['dish:' + k] > 0) a.push('dish:' + k); });
+  return a;
+}
+function foodHave(ref) { const [kind, key] = ref.split(':'); return (G.food[kind === 'food' ? key : 'dish:' + key] || 0) > 0; }
+// 「まぜる」で たべものが ふくまれて いたら りょうり。false=りょうりでは ない / 'fail' / 'ok'
+function doCook(sel, heat, el) {
+  if (!sel.some(r => r.indexOf('food:') === 0 || r.indexOf('dish:') === 0)) return false;
+  const key = sel.slice().sort().join(',');
+  const rec = FOOD_RECIPES.find(r => r.mats.slice().sort().join(',') === key && r.heat === heat);
+  if (!rec) {
+    const close = FOOD_RECIPES.find(r => r.mats.slice().sort().join(',') === key);
+    el.innerHTML = '<div class="ans" style="border-color:#f59e0b;background:#fffaf0">😶 ' + T('うまく できなかった…') + '<br>💡 ' + T(close ? 'ひを つかって あつくしてみよう' : 'べつの くみあわせを ためしてみよう') + '</div>';
+    playSound('error');
+    return 'fail';
+  }
+  rec.mats.forEach(r => { const [kind, k] = r.split(':'); if (kind === 'food') G.food[k]--; else if (kind === 'dish') G.food['dish:' + k]--; });
+  G.food['dish:' + rec.key] = (G.food['dish:' + rec.key] || 0) + 1;
+  G.counters.cooked = (G.counters.cooked || 0) + 1;
+  G.counters.labMade++;
+  const d = DISHES[rec.key];
+  playSound('win');
+  el.innerHTML = '<div class="ans">' + d.emoji + ' <b>' + T(d.name) + '</b> ' + T('が できた！') + ' ' + d.colors.map(foodChip).join(' ') + '<br>' + T(rec.txt[G.level - 1]) + '</div>';
+  renderFarmBtn(); saveSoon();
+  return 'ok';
+}
+function foodChip(k) { const f = FOOD_COLORS[k]; return '<span class="chip" style="background:' + f.css + ';color:#fff;border-color:' + f.css + '">' + T(f.name) + '</span>'; }
+function foodColorsGot() {
+  const got = {};
+  CROP_DEFS.forEach(c => { if (G.food[c.key] !== undefined) got[c.color] = true; });
+  Object.keys(DISHES).forEach(k => { if (G.food['dish:' + k] !== undefined) DISHES[k].colors.forEach(c => { got[c] = true; }); });
+  return got;
+}
+
+// ---- ボタンと パネル ----
+function farmSteps() {
+  const got = foodColorsGot();
+  return [
+    { icon: '🌱', t: 'たねを まこう', h: '🎒もちものの「たね」を えらんで、{土|つち}や {草|くさ}の うえに おこう', ok: (G.counters.planted || 0) > 0 },
+    { icon: '🧺', t: 'やさいを しゅうかくしよう', h: 'みのったら こわすと しゅうかくできるよ。みずが ちかくに あると はやく そだつよ', ok: (G.counters.harvested || 0) > 0 },
+    { icon: '🍳', t: '{実験|じっけん}で りょうりを つくろう', h: '🧪{実験|じっけん}の「まぜる」で やさいを えらんで あつくしよう(さとうきび → {黒糖|こくとう} など)', ok: (G.counters.cooked || 0) > 0 },
+    { icon: '🍱', t: '{赤|あか}・{黄|き}・{緑|みどり}の たべものを そろえよう', h: '{赤|あか}=からだを つくる ／ {黄|き}=エネルギー ／ {緑|みどり}=ちょうしを ととのえる', ok: !!(got.r && got.y && got.g) }
+  ];
+}
+function renderFarmBtn() {
+  const b = $('farmBtn'); if (!b) return;
+  b.style.display = G.started ? 'flex' : 'none';
+  if (!G.started) return;
+  const ty = tyState();
+  const ic = ty.state ? '🌀' : (WX.icon || '🌱');
+  const lb = ty.state === 'warn' ? 'たいふう！' : ty.state === 'now' ? 'たいふう' : WX.ok ? WX.temp + '℃' : 'はたけ';
+  const html = '<span class="ic">' + ic + '</span><span class="lb">' + T(lb) + '</span>';
+  if (b.innerHTML !== html) b.innerHTML = html;
+  b.classList.toggle('pulse', ty.state === 'warn' && Object.keys(G.farm).length > 0);
+}
+function openFarm() {
+  const ty = tyState();
+  let html = '<div class="ans" style="background:#f0f9ff;border-color:#7dd3fc">' + (WX.ok ? WX.icon + ' ' + T('きょうの うらそえ: ') + T(WX.label) + ' ' + WX.temp + '℃' + (WX.rain ? '<br>💧 ' + T('あめの 日は みずやり しなくても はやく そだつよ') : '') : T('てんきを よみこみちゅう…')) + '</div>';
+  if (ty.state === 'warn') html += '<div class="ans" style="background:#fff7ed;border-color:#fb923c">🌀 <b>' + T('たいふうが くるよ！') + ' (' + ty.date.slice(5).replace('-', '/') + ')</b><br>' + T('やさいの ちかく(2ブロック いない)に ぼうふうネットを はるか、やねの したで そだてよう。はやめに しゅうかく しても いいよ。') + '</div>';
+  if (ty.state === 'now') html += '<div class="ans" style="background:#fef2f2;border-color:#f87171">🌀 <b>' + T('たいふうが きている！') + '</b></div>';
+  html += '<ul class="mlist" style="margin-top:8px">';
+  let curShown = false;
+  farmSteps().forEach(s => {
+    const isCur = !s.ok && !curShown; if (isCur) curShown = true;
+    html += '<li class="' + (s.ok ? 'done' : isCur ? 'cur' : '') + '"><span class="st">' + (s.ok ? '✅' : isCur ? '👉' : '⬜') + '</span><span>' + s.icon + ' ' + T(s.t) + (isCur ? '<div class="note" style="font-weight:600">💡 ' + T(s.h) + '</div>' : '') + '</span></li>';
+  });
+  html += '</ul>';
+  const ids = Object.keys(G.farm);
+  if (ids.length) {
+    html += '<h4>🌱 ' + T('そだてている やさい') + '</h4><div class="note" style="line-height:2">' + CROP_DEFS.map(c => {
+      const mine = ids.filter(i => G.farm[i].c === c.key); if (!mine.length) return '';
+      const ripe = mine.filter(i => G.farm[i].p >= 1).length;
+      return c.emoji + ' ' + T(c.name) + ' ' + mine.length + T('こ') + (ripe ? ' (' + T('みのり ') + ripe + ')' : ' (' + T('あと ') + Math.min.apply(null, mine.map(farmLeftMin)) + T('ぷん〜') + ')');
+    }).filter(Boolean).join('<br>') + '</div>';
+  }
+  const foods = CROP_DEFS.filter(c => G.food[c.key] > 0).map(c => c.emoji + T(c.name) + '×' + G.food[c.key] + ' ' + foodChip(c.color))
+    .concat(Object.keys(DISHES).filter(k => G.food['dish:' + k] > 0).map(k => DISHES[k].emoji + T(DISHES[k].name) + '×' + G.food['dish:' + k] + ' ' + DISHES[k].colors.map(foodChip).join('')));
+  html += '<h4>🧺 ' + T('たべもの') + '</h4><div class="note" style="line-height:2.1">' + (foods.join('<br>') || T('まだ ないよ')) + '</div>';
+  html += '<p class="note">' + Object.keys(FOOD_COLORS).map(k => foodChip(k) + ' ' + T(FOOD_COLORS[k].txt)).join('<br>') + '</p>';
+  openModal('🌱 ' + T('はたけ'), html, 'farm');
+}
+
+// ---- まいフレーム ----
+function rainEntity() {
+  const ty = tyState().state === 'now';
+  if (!(WX.rain || ty) || !G.started) return null;
+  const parts = [], n = ty ? 520 : 320, c = [0.78, 0.85, 0.97], cam = cameraNow();
+  for (let k = 0; k < n; k++) {
+    const hx = hash2(k, 1, 7), hz = hash2(k, 2, 7), hy = hash2(k, 3, 7);
+    const x = P.x + (hx - 0.5) * 22 + (ty ? Math.sin(G.time) * 2 : 0), z = P.z + (hz - 0.5) * 22;
+    if (Math.abs(x - cam.x) < 1.6 && Math.abs(z - cam.z) < 1.6) continue;   // カメラの すぐ まえは ふらせない(ふとく みえる)
+    const y = P.y + 10 - ((G.time * (ty ? 20 : 14) + hy * 15) % 15);
+    parts.push({ m: M4.model(x, y, z, 0, 0.018, 0.38, 0.018), c });
+  }
+  return { parts };
+}
+function farmTick(dt) {
+  const ty = tyState().state === 'now';
+  const want = ty ? 1 : WX.rain ? 0.6 : 0;
+  wxSkyK += (want - wxSkyK) * Math.min(1, dt * 0.8);
+  if (wxSkyK > 0.01) { const g = ty ? SKY_STORM : SKY_RAIN; for (let k = 0; k < 3; k++) R.sky[k] = R.sky[k] * (1 - wxSkyK) + g[k] * wxSkyK; }
+  farmAcc += dt;
+  if (farmAcc < 5) return;
+  farmAcc = 0;
+  farmGrow();
+  if (Date.now() - WX.at > 30 * 60000) wxFetch().then(renderFarmBtn);
+  renderFarmBtn();
+  if (!G.started || G.modal || TUT.on) return;
+  const s = tyState();
+  if (s.state === 'warn' && !G.ty.seen[hwDay(hwNow())]) {
+    G.ty.seen[hwDay(hwNow())] = s.date;
+    toast('🌀 ' + T('たいふうが くるよ！ やさいを まもる じゅんびを しよう') + '<br><small>' + T('🌀ボタンを みてね') + '</small>');
+    saveSoon();
+  }
+  // たいふうの 日(から 3日 いない)に あそんだら けっか
+  tyDays().forEach(d => {
+    const today = hwDay(hwNow());
+    if (!G.ty.done[d] && d <= today && today <= dayAdd(d, 3) && !G.modal) tyResolve(d);
+  });
+}
+
 // ===== 06f-daily.js =====
 // ---------- まいにち チャレンジ ----------
 // ひづけ(にっぽん時間)で 1つ きまる。みんなで おなじ。クリアすると スタンプ + ポイント。
@@ -3394,6 +3829,14 @@ function robotAct(cmd, arg) {
       const t = cmd === 'place' ? robotFront() : [ROBOT.x, ROBOT.y - 1, ROBOT.z];
       const id = robotBlockId();
       startAnim('pulse', 0.25);
+      if (BLOCKS[id] && BLOCKS[id].seed) {   // たね: まえ(か じぶんの いる ところ)の した の つちに まく
+        const c = cmd === 'place' ? t : [ROBOT.x, ROBOT.y, ROBOT.z];
+        if (!farmPlantAt(c[0], c[1], c[2], BLOCKS[id].seed)) return softNo();
+        G.counters.robotPlaced++; if (stats) { stats.placed++; stats.placedCells.push(c); }
+        playSound('place'); saveSoon();
+        if (typeof onAction === 'function') onAction('robotPlace', id);
+        return { ok: true };
+      }
       if (!inb(t[0], t[1], t[2])) return softNo();
       const cur = getB(t[0], t[1], t[2]);
       if (cur !== B.AIR && cur !== B.WATER) return softNo();
@@ -3411,6 +3854,7 @@ function robotAct(cmd, arg) {
       if (!inb(t[0], t[1], t[2])) return softNo();
       const cur = getB(t[0], t[1], t[2]);
       if (cur === B.AIR) return softNo();
+      if (G.farm[widx(t[0], t[1], t[2])]) { if (getB(t[0], t[1], t[2]) !== BLOCKS[CROP_BY_KEY[G.farm[widx(t[0], t[1], t[2])].c].ripe].id) return softNo(); farmOnBreak({ x: t[0], y: t[1], z: t[2] }, true); return { ok: true }; }
       setBlock(t[0], t[1], t[2], B.AIR);
       discover(cur);
       if (stats) stats.dug++;
@@ -4074,7 +4518,7 @@ function collectSave() {
     edits: Array.from(world.edits.entries()),
     robot: typeof robotSave === 'function' ? robotSave() : null,
     program: typeof programSave === 'function' ? programSave() : null,
-    hw: G.hw
+    hw: G.hw, farm: G.farm, food: G.food, ty: G.ty
   };
 }
 function saveNow() {
@@ -4132,13 +4576,14 @@ function applySave(d) {
   G.daily = d.daily && d.daily.date ? d.daily : null;
   G.saveTs = +d.ts || 0;
   G.hw = hwFromSave(d.hw);
+  farmFromSave(d);
 }
 function resetAll() {
   try { localStorage.removeItem(saveKey()); } catch (e) { /* 何もしない */ }
   delete memSaves[saveKey()];
   world.edits = new Map();
   G.zukan = {}; G.tempWasFrozen = false; G.tempIronMelted = false; G.made = {}; G.missionIndex = 0; G.stars = 0; G.playSec = 0; G.introDone = true;
-  G.mDone = {}; G.mFocus = 'build';
+  G.mDone = {}; G.mFocus = 'build'; farmFromSave(null);
   G.hw = hwFromSave(null); hwVisit = null;
   Object.keys(G.counters).forEach(k => { G.counters[k] = 0; });
   G.hotbar = [B.GRASS, B.DIRT, B.STONE, B.PLANKS, B.BRICK, B.GLASS, B.LOG, B.SAND, B.LEAVES];
@@ -4164,7 +4609,7 @@ function loadUserWorld() {
   G.slot = 0;
   world.pendingRobot = null; world.pendingProgram = null;
   G.daily = null; G.saveTs = 0;
-  G.hw = hwFromSave(null); hwVisit = null;
+  G.hw = hwFromSave(null); hwVisit = null; farmFromSave(null);
   G.skin = ''; SKIN.owned = null; SKIN.equipped = '';
   respawn();
   if (typeof robotReset === 'function') robotReset();
@@ -4468,6 +4913,7 @@ let labSel = [], labHeat = null, labTab = 'mix', labAnimHandle = 0;
 
 function matInfo(ref) {
   const [kind, key] = ref.split(':');
+  if (kind === 'food' || kind === 'dish') return foodMatInfo(ref);
   if (kind === 'block') { const id = bk(key); return { ref, name: BLOCKS[id].name, icon: blockIconURL(id, 64), id }; }
   const s = SPECIAL_MATS[key];
   return { ref, name: s.name, sub: s.sub, emoji: s.emoji };
@@ -4477,7 +4923,7 @@ function availableMats() {
   Object.keys(SPECIAL_MATS).forEach(k => out.push('special:' + k));
   PLACEABLE.forEach(id => { if (G.zukan[id] && id !== B.LEAVES && id !== B.GRASS && id !== B.LOG && id !== B.PLANKS && id !== B.DIRT && id !== B.STONE) out.push('block:' + BLOCKS[id].key); });
   if (G.hw && G.hw.found) out.push('block:pumpkin');
-  return out;
+  return out.concat(foodMats());
 }
 function matCell(m, extra) {
   const inner = m.icon ? '<img alt="" src="' + m.icon + '">' : '<div style="font-size:40px;line-height:54px">' + m.emoji + '</div>';
@@ -4510,7 +4956,7 @@ function renderMix() {
     '<div style="text-align:center"><button class="btn ok" id="labGo" style="font-size:18px;padding:8px 30px">⚗️ ' + T('まぜる！') + '</button> <button class="btn sub sm" id="labClr">' + T('やりなおす') + '</button></div>' +
     '<div id="labRes" style="margin-top:10px"></div>' +
     '<h4>' + T('ざいりょう') + '</h4><div class="grid" id="labMats">' + availableMats().map(r => matCell(matInfo(r))).join('') + '</div>' +
-    '<p class="note">' + T('ブロックの ざいりょうは、{図鑑|ずかん}に のったものが つかえるよ。') + '</p>' +
+    '<p class="note">' + T('ブロックの ざいりょうは、{図鑑|ずかん}に のったものが つかえるよ。しゅうかくした やさいで りょうりも できるよ。') + '</p>' +
     '<h4>📒 ' + T('つくれた もの') + '</h4><div class="note">' + (RECIPES.filter(r => G.made[r.key]).map(r => { const id = r.out(); return T(BLOCKS[id].name); }).join(' ／ ') || '—') + '</div>';
   $('labBody').innerHTML = html;
   $('labBody').querySelectorAll('#labMats .cell').forEach(c => c.addEventListener('click', () => {
@@ -4525,6 +4971,13 @@ function renderMix() {
   $('labGo').onclick = doMix;
 }
 function doMix() {
+  // やさい・りょうりが はいっていたら りょうり
+  const tmp = document.createElement('div'), ck = labSel.length ? doCook(labSel, labHeat, tmp) : false;
+  if (ck) {
+    if (ck === 'ok') { labSel = []; labHeat = null; renderMix(); onLabEvent(); }
+    $('labRes').innerHTML = tmp.innerHTML;
+    return;
+  }
   const sel = labSel.slice().sort().join(',');
   const rec = RECIPES.find(r => r.mats.slice().sort().join(',') === sel && r.heat === labHeat);
   const el = $('labRes');
@@ -4872,6 +5325,7 @@ function update(dt) {
   if (typeof cloudTick === 'function') cloudTick(dt);
   if (typeof dailyTick === 'function') dailyTick(dt);
   if (typeof hwTick === 'function') hwTick(dt);
+  if (typeof farmTick === 'function') farmTick(dt);
   pollKeyboard();
   handleHold(dt);
   const paused = !!G.modal || !G.started;
@@ -4910,6 +5364,7 @@ function render() {
   if (typeof robotEntity === 'function') { const e = robotEntity(); if (e) ents.push(e); }
   ents.push(cloudEntity(G.time));
   if (typeof hwEntity === 'function') { const e = hwEntity(); if (e) ents.push(e); }
+  if (typeof rainEntity === 'function') { const e = rainEntity(); if (e) ents.push(e); }
   if (particles.length) ents.push(particleEntity());
   drawScene(canvasEl, cam, ents, curTarget, G.time);
 }
@@ -4973,13 +5428,14 @@ function setupUI() {
   $('hwBtn').onclick = () => openHw();
   $('viewBtn').onclick = () => cycleView();
   $('skinBtn').onclick = () => openSkin();
+  $('farmBtn').onclick = () => openFarm();
   $('inspBtn').onclick = () => {
     if (!keyMode()) { actInspect(); return; }
     G.inspArm = !G.inspArm;
     document.body.classList.toggle('inspArm', G.inspArm);
     if (G.inspArm) toast('🔍 ' + T('しらべたい ブロックを クリックしてね'));
   };
-  ['bZukan', 'bRobot', 'bLab', 'bTeacher', 'bMission', 'menuBtn', 'invBtn', 'hwBtn', 'viewBtn', 'skinBtn', 'inspBtn'].forEach(id => {
+  ['bZukan', 'bRobot', 'bLab', 'bTeacher', 'bMission', 'menuBtn', 'invBtn', 'hwBtn', 'viewBtn', 'skinBtn', 'inspBtn', 'farmBtn'].forEach(id => {
     $(id).addEventListener('pointerdown', e => e.stopPropagation());
   });
 }
@@ -4990,7 +5446,7 @@ Object.assign(window.__game, {
   openProgram, openZukan, openLab, openTeacher, openMissions, openMenu, openInventory, closeModal, setLevel, startGame,
   showTitle, setBlock, getB, solidAt, checkMissions, currentMission, MISSIONS, FAQ, RECIPES, PLACEABLE, resetAll, saveNow,
   readSave, respawn, renderProgram, showBlockInfo, raycast, genWorld, markAllDirty, flushDirty, addCard, execNodes, astFeatures,
-  cloudSave, cloudPull, saveSig, openDaily, COURSES, courseMission, keyMode, aimRay, MOUSE, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
+  cloudSave, cloudPull, saveSig, openDaily, openFarm, farmGrow, farmPlantAt, tyState, WX, CROP_DEFS, COURSES, courseMission, keyMode, aimRay, MOUSE, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
   startTutorial, endTutorial, tutGoto: i => { TUT.i = i; tutInitStep(); }, tutState: () => ({ on: TUT.on, i: TUT.i, n: TUT.steps.length, doneAt: TUT.doneAt }), tutSeen, findNode, progState: () => ({ target: progTarget }), collectDefs, setBarMode, dirtyChunks
 });
 
