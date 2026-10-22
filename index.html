@@ -292,6 +292,18 @@ body.touch #houseBtn{top:calc(60px + var(--sat))}
 #fvBar{position:absolute;left:50%;transform:translateX(-50%);top:calc(140px + var(--sat));display:none;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 130px);
   background:rgba(255,255,255,.96);border:3px solid #a78bfa;border-radius:14px;padding:6px 10px;box-shadow:var(--shadow);z-index:5;font-size:14px}
 body.fvisit #dailyChip{display:none!important}
+#stampBtn{overflow:visible}
+#stampBtn .badge{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:#1f2a4d;color:#fff;font-size:11px;line-height:20px;text-align:center;white-space:nowrap}
+#stampBtn .badge.new{background:#ef4444}
+#chatFeed{position:absolute;left:calc(8px + var(--sal));bottom:calc(96px + var(--sab));display:flex;flex-direction:column;gap:4px;pointer-events:none!important;z-index:4;max-width:min(70vw,340px)}
+body.touch #chatFeed{bottom:auto;top:calc(390px + var(--sat))}
+#chatFeed .cf{background:rgba(20,30,60,.82);color:#fff;border-radius:12px;padding:4px 10px;font-size:14px;font-weight:700;transition:opacity .6s;animation:cfIn .25s ease-out}
+#chatFeed .cf.out{opacity:0}
+@keyframes cfIn{from{transform:translateX(-20px);opacity:0}to{transform:none;opacity:1}}
+.chatbox{border:2px solid var(--line);border-radius:14px;padding:8px 10px;margin-bottom:8px;background:#f8fbff}
+.chatbox .chip{margin:2px 0}
+.chatlog{max-height:150px;overflow:auto;margin-top:6px;font-size:14px;line-height:1.8}
+.chatlog .me{color:#2563eb}
 #uwTint{position:absolute;inset:0;pointer-events:none;background:rgba(16,96,170,.3);display:none}
 body.underwater #uwTint{display:block}
 #stampBtn{position:absolute;right:calc(8px + var(--sar));top:calc(372px + var(--sat));background:rgba(13,110,140,.82);border-color:#7dd3fc}
@@ -373,6 +385,7 @@ body.inspArm #inspBtn{background:rgba(234,88,12,.9);border-color:#fed7aa}
     <button class="hbtn" id="skinBtn"><span class="ic">👕</span><span data-t="きがえ"></span></button>
     <button class="hbtn" id="stampBtn" style="display:none"><span class="ic">💬</span><span data-t="スタンプ"></span></button>
     <div id="fvBar"></div>
+    <div id="chatFeed"></div>
     <div id="meBubble" class="bubble"></div><div id="vBubble" class="bubble"></div><div id="visitCard"></div>
     <button class="hbtn" id="houseBtn" style="display:none"><span class="ic">🏠</span><span data-t="おうち"></span></button>
     <button class="hbtn" id="mapBtn" style="display:none"><span class="ic">🗺️</span><span data-t="マップ"></span></button>
@@ -4590,19 +4603,21 @@ function bubblesTick() {
 // ---- スタンプを おくる ----
 function openStamps() {
   const have = STAMPS.filter(s => G.visit.stamps[s.k]);
-  let html = '<p class="note">' + T('スタンプを えらぶと、あたまの うえに でるよ。') + (visitor ? T('おきゃくさんも へんじを してくれるよ。') : '') + '</p><div class="stamps">';
+  let html = (typeof chatBoxHtml === 'function' ? chatBoxHtml() : '') + '<p class="note">' + T('スタンプを えらぶと、あたまの うえに でるよ。') + (visitor ? T('おきゃくさんも へんじを してくれるよ。') : '') + '</p><div class="stamps">';
   STAMPS.forEach(s => {
     const got = G.visit.stamps[s.k];
     html += '<button class="stamp' + (got ? '' : ' locked') + '"' + (got ? ' data-s="' + s.k + '"' : ' disabled') + '><span class="se">' + (got ? s.e : '🔒') + '</span><span>' + (got ? T(s.t) : '？？？') + '</span></button>';
   });
   html += '</div><p class="note">🎁 ' + T('あそびに きた おきゃくさんの おねがいを かなえると、あたらしい スタンプが もらえるよ。') + ' (' + have.length + '/' + STAMPS.length + ')</p>';
   const body = openModal('💬 ' + T('スタンプ'), html, 'stamp');
+  if (typeof bindChatBox === 'function') { bindChatBox(); CHAT.unseen = 0; CHAT.acc = 99; renderStampBtn(); }
   body.querySelectorAll('[data-s]').forEach(b => b.addEventListener('click', () => { closeModal(); sendStamp(b.dataset.s); }));
 }
 function sendStamp(k) {
   const s = STAMP_BY_KEY[k]; if (!s) return;
   bubbleSay('me', s); playSound('select');
   if (typeof FV !== 'undefined' && FV) fvSendStamp(k);
+  if (typeof CHAT !== 'undefined' && CHAT.toAll && chatOn()) chatSend(k);
   if (visitor && visitor.state !== 'leave') setTimeout(() => { if (visitor) visitorReact(k); }, 900);
 }
 const STAMP_REPLY = { hi: 'hi', good: 'thanks', thanks: 'good', wow: 'thanks', q: 'q', come: 'good', food: 'food', fight: 'fight', sorry: 'good', bye: 'bye', sleep: 'sleep', ty: 'thanks', shisa: 'wow', mensore: 'nifee', nifee: 'thanks' };
@@ -4787,6 +4802,13 @@ function visitOnHouse(level) {
 function renderStampBtn() {
   const b = $('stampBtn'); if (!b) return;
   b.style.display = G.started ? 'flex' : 'none';
+  // バッジ: まだ みていない スタンプの かず(なければ いま いる 人の かず)
+  let bd = b.querySelector('.badge');
+  const ch = typeof CHAT !== 'undefined' && chatOn() ? CHAT : null;
+  const txt = !ch ? '' : ch.unseen ? String(Math.min(ch.unseen, 9)) : ch.online.length ? '👥' + ch.online.length : '';
+  if (!txt) { if (bd) bd.remove(); return; }
+  if (!bd) { bd = document.createElement('span'); bd.className = 'badge'; b.appendChild(bd); }
+  bd.textContent = txt; bd.classList.toggle('new', !!(ch && ch.unseen));
 }
 
 // ===== 06k-volcano.js =====
@@ -5359,6 +5381,80 @@ function friendsTick(dt) {
   if (!G.started) return;
   inboxAcc += dt;
   if (inboxAcc > 180) { inboxAcc = 0; inboxCheck(); }
+}
+
+// ===== 06n-chat.js =====
+// ---------- いま あそんでいる人と スタンプチャット ----------
+// ログインして あそんでいる子どうしで、スタンプを おくりあえる(じゆうな もじは なし)。
+// サーバーに ときどき「いるよ」を おくって、いる人と あたらしい スタンプを もらう(スタンプがめんを ひらいている ときは はやめ)
+const CHAT = { since: -1, online: [], log: [], unseen: 0, acc: 20, busy: false, toAll: true };
+const AREA_ICON = { home: '🏝️', snow: '❄️', volcano: '🌋', sea: '🌊', visit: '👫' };
+function chatOn() { return typeof cloudOn === 'function' && cloudOn(); }
+function chatTake(r) {
+  if (!r || !r.ok) return;
+  CHAT.online = Array.isArray(r.online) ? r.online : [];
+  const me = loadPlayer().id, first = CHAT.since < 0;
+  (r.msgs || []).forEach(m => {
+    if (CHAT.log.some(x => x.seq === m.seq) || !STAMP_BY_KEY[m.k]) return;
+    CHAT.log.push(m);
+    if (!first && m.from !== me) {
+      chatFeed(m);
+      if (G.modal !== 'stamp') CHAT.unseen++;
+    }
+  });
+  CHAT.log = CHAT.log.slice(-30);
+  CHAT.since = +r.seq || 0;
+  renderStampBtn();
+  if (G.modal === 'stamp') renderChatBox();
+}
+async function chatPoll() {
+  if (CHAT.busy || !chatOn()) return;
+  CHAT.busy = true;
+  try { chatTake(await cloudPost(loadPlayer(), { action: 'chatpoll', since: Math.max(0, CHAT.since), area: FV ? 'visit' : world.area }, 12000)); }
+  finally { CHAT.busy = false; }
+}
+async function chatSend(k) {
+  if (!chatOn()) return;
+  const r = await cloudPost(loadPlayer(), { action: 'chat', k, since: Math.max(0, CHAT.since), area: FV ? 'visit' : world.area }, 12000);
+  if (r && r.error === 'fast') toast(T('すこし まってから おくってね'));
+  chatTake(r);
+}
+function chatTick(dt) {
+  if (!G.started || !chatOn()) return;
+  if (typeof document !== 'undefined' && document.hidden) return;
+  CHAT.acc += dt;
+  if (CHAT.acc >= (G.modal === 'stamp' ? 6 : 25)) { CHAT.acc = 0; chatPoll(); }
+}
+// ひだりしたに ながれる スタンプ
+function chatFeed(m) {
+  const el = $('chatFeed'); if (!el) return;
+  const s = STAMP_BY_KEY[m.k], row = document.createElement('div');
+  row.className = 'cf';
+  row.innerHTML = '<b>' + esc(m.name || '？') + '</b> ' + s.e + ' ' + T(s.t);
+  el.appendChild(row);
+  while (el.children.length > 3) el.removeChild(el.firstChild);
+  setTimeout(() => { row.classList.add('out'); setTimeout(() => row.remove(), 600); }, 7000);
+  playSound('select');
+}
+function chatBoxHtml() {
+  if (!chatOn()) return '';
+  const on = CHAT.online;
+  let h = '<div class="chatbox"><div class="note"><b>👥 ' + T('いま あそんでいる 人') + ' (' + on.length + ')</b> ' +
+    (on.length ? on.map(o => '<span class="chip">' + (AREA_ICON[o.area] || '🏝️') + ' ' + esc(o.name) + '</span>').join(' ') : T('ほかに だれも いないみたい')) + '</div>';
+  const me = loadPlayer().id, log = CHAT.log.slice(-8);
+  h += '<div class="chatlog">' + (log.length ? log.map(m => '<div' + (m.from === me ? ' class="me"' : '') + '><b>' + esc(m.from === me ? T('じぶん') : m.name) + '</b> ' + STAMP_BY_KEY[m.k].e + ' ' + T(STAMP_BY_KEY[m.k].t) + '</div>').join('') : '<div class="note">' + T('まだ スタンプは ないよ') + '</div>') + '</div>';
+  h += '<label class="note" style="display:flex;gap:6px;align-items:center;margin-top:4px"><input type="checkbox" id="chatAll"' + (CHAT.toAll ? ' checked' : '') + '> ' + T('みんなにも おくる') + '</label></div>';
+  return h;
+}
+function renderChatBox() {
+  const box = document.querySelector('#mBody .chatbox'); if (!box) return;
+  const tmp = document.createElement('div'); tmp.innerHTML = chatBoxHtml();
+  box.replaceWith(tmp.firstChild);
+  bindChatBox();
+}
+function bindChatBox() {
+  const cb = $('chatAll'); if (cb) cb.onchange = () => { CHAT.toAll = cb.checked; };
+  const lg = document.querySelector('#mBody .chatlog'); if (lg) lg.scrollTop = lg.scrollHeight;
 }
 
 // ===== 06f-daily.js =====
@@ -7072,6 +7168,7 @@ function update(dt) {
   if (typeof volcanoTick === 'function') volcanoTick(dt);
   if (typeof seaTick === 'function') seaTick(dt);
   if (typeof friendsTick === 'function') friendsTick(dt);
+  if (typeof chatTick === 'function') chatTick(dt);
   pollKeyboard();
   handleHold(dt);
   const paused = !!G.modal || !G.started;
@@ -7203,7 +7300,7 @@ Object.assign(window.__game, {
   openProgram, openZukan, openLab, openTeacher, openMissions, openMenu, openInventory, closeModal, setLevel, startGame,
   showTitle, setBlock, getB, solidAt, checkMissions, currentMission, MISSIONS, FAQ, RECIPES, PLACEABLE, resetAll, saveNow,
   readSave, respawn, renderProgram, showBlockInfo, raycast, genWorld, markAllDirty, flushDirty, addCard, execNodes, astFeatures,
-  cloudSave, cloudPull, saveSig, openDaily, openFriends, visitFriend, leaveFriend, inboxCheck, fvNow: () => FV, seaSteps, fishList: () => fishes, fishAim, fishInspect, geoSteps, VOLC, openStamps, sendStamp, visitStart, visitNow: () => visitor, visitHappy, worldToScreen, STAMPS, openHouse, houseCheck, houseRun, furnQuiz, FURN, doorToggle, openMap, switchArea, AREAS, animalsList: () => animals, animalAim, animalPet, animalInspect, openFarm, farmGrow, farmPlantAt, tyState, WX, CROP_DEFS, COURSES, courseMission, keyMode, aimRay, MOUSE, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
+  cloudSave, cloudPull, saveSig, openDaily, chatPoll, chatSend, CHAT, openFriends, visitFriend, leaveFriend, inboxCheck, fvNow: () => FV, seaSteps, fishList: () => fishes, fishAim, fishInspect, geoSteps, VOLC, openStamps, sendStamp, visitStart, visitNow: () => visitor, visitHappy, worldToScreen, STAMPS, openHouse, houseCheck, houseRun, furnQuiz, FURN, doorToggle, openMap, switchArea, AREAS, animalsList: () => animals, animalAim, animalPet, animalInspect, openFarm, farmGrow, farmPlantAt, tyState, WX, CROP_DEFS, COURSES, courseMission, keyMode, aimRay, MOUSE, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
   startTutorial, endTutorial, tutGoto: i => { TUT.i = i; tutInitStep(); }, tutState: () => ({ on: TUT.on, i: TUT.i, n: TUT.steps.length, doneAt: TUT.doneAt }), tutSeen, findNode, progState: () => ({ target: progTarget }), collectDefs, setBarMode, dirtyChunks
 });
 

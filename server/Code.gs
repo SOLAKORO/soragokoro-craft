@@ -25,7 +25,7 @@ var SAVE_MAX = 600000;   // 1人あたり保存できる文字数の上限
 var SAVE_CHUNK = 40000;  // 1セルに入れる文字数(セルの上限は5万字)
 
 function doGet() {
-  return out_('soragokoro-craft ok v5 (login+token, 番号, ともだち)');
+  return out_('soragokoro-craft ok v6 (login+token, 番号, ともだち, チャット)');
 }
 
 function doPost(e) {
@@ -38,7 +38,7 @@ function doPost(e) {
       catch (le) { return json_({ ok: false, error: 'server', detail: String(le).slice(0, 100) }); }
     }
     // 進捗の記録・セーブ・ポイントは、ログインで発行した「通行証」がある人だけ
-    var isApi = ['save', 'load', 'earn', 'share', 'friends', 'visit', 'gift', 'inbox'].indexOf(d.action) >= 0;
+    var isApi = ['save', 'load', 'earn', 'share', 'friends', 'visit', 'gift', 'inbox', 'chatpoll', 'chat'].indexOf(d.action) >= 0;
     if (!checkToken_(d.token, d.id)) return isApi ? json_({ ok: false, error: 'auth' }) : out_('denied');
     // ★ 10/9 より前の通行証はログインID（「かなた」など）で出していたので、番号に直す
     d.id = toNo_(d.id);
@@ -52,6 +52,8 @@ function doPost(e) {
     if (d.action === 'visit') return json_(visit_(d));
     if (d.action === 'gift') return json_(gift_(d));
     if (d.action === 'inbox') return json_(inbox_(d));
+    if (d.action === 'chatpoll') return json_(chatPoll_(d));
+    if (d.action === 'chat') return json_(chatSend_(d));
     record_(d);
     return out_('ok');
   } catch (err) {
@@ -480,4 +482,59 @@ function inbox_(d) {
     sh.getRange(i + 2, 6).setValue(now);
   }
   return { ok: true, items: out };
+}
+
+// ---- いま あそんでいる人と スタンプチャット ----
+// シートを まいかい よむと おそいので、キャッシュ(さいだい 6じかん)に もつ。チャットは スタンプだけ(じゆうな もじは なし)。
+// おくられた スタンプは「チャット履歴」シートにも のこす(せんせいが みられる)。
+var SH_CHAT = 'チャット履歴';
+var ONLINE_SEC = 75;     // この びょうすう へんじが ないと「いない」
+var CHAT_KEEP = 40;      // おぼえておく メッセージの かず
+var CHAT_GAP_MS = 2500;  // おなじ 人が つづけて おくれる かんかく
+var AREA_OK = ['home', 'snow', 'volcano', 'sea', 'visit'];
+function cacheName_(no) {
+  var c = CacheService.getScriptCache(), k = 'name:' + no, v = c.get(k);
+  if (v != null) return v;
+  v = rosterName_(no);
+  c.put(k, v, 21600);
+  return v;
+}
+function chatLoad_() {
+  var c = CacheService.getScriptCache();
+  var on = {}, ch = { seq: 0, msgs: [] };
+  try { on = JSON.parse(c.get('online:v1') || '{}'); } catch (e) { on = {}; }
+  try { ch = JSON.parse(c.get('chat:v1') || '{"seq":0,"msgs":[]}'); } catch (e) { ch = { seq: 0, msgs: [] }; }
+  return { c: c, on: on, ch: ch };
+}
+function chatSeen_(S, id, area) {
+  var now = Date.now();
+  S.on[id] = { t: now, name: cacheName_(id), area: AREA_OK.indexOf(area) >= 0 ? area : 'home' };
+  Object.keys(S.on).forEach(function (k) { if (now - S.on[k].t > ONLINE_SEC * 1000) delete S.on[k]; });
+  S.c.put('online:v1', JSON.stringify(S.on), 21600);
+}
+function chatOut_(S, id, since) {
+  var list = Object.keys(S.on).filter(function (k) { return k !== id; }).map(function (k) { return { id: k, name: S.on[k].name, area: S.on[k].area }; });
+  var msgs = S.ch.msgs.filter(function (m) { return m.seq > (Number(since) || 0); });
+  return { ok: true, online: list, msgs: msgs, seq: S.ch.seq };
+}
+function chatPoll_(d) {
+  var id = norm_(d.id), S = chatLoad_();
+  chatSeen_(S, id, String(d.area || ''));
+  return chatOut_(S, id, d.since);
+}
+function chatSend_(d) {
+  var id = norm_(d.id), k = String(d.k || '');
+  if (!/^[a-z]{1,12}$/.test(k)) return { ok: false, error: 'bad' };
+  var S = chatLoad_(), now = Date.now(), last = Number(S.c.get('chatlast:' + id) || 0);
+  if (now - last < CHAT_GAP_MS) return { ok: false, error: 'fast' };
+  S.c.put('chatlast:' + id, String(now), 600);
+  var name = cacheName_(id);
+  S.ch.seq++;
+  S.ch.msgs.push({ seq: S.ch.seq, from: id, name: name, k: k, t: now });
+  if (S.ch.msgs.length > CHAT_KEEP) S.ch.msgs = S.ch.msgs.slice(-CHAT_KEEP);
+  S.c.put('chat:v1', JSON.stringify(S.ch), 21600);
+  chatSeen_(S, id, String(d.area || ''));
+  var log = getSheet_(SH_CHAT, ['日時', '番号', '名前', 'スタンプ'], false);
+  log.getRange(log.getLastRow() + 1, 1, 1, 4).setValues([[new Date(), "'" + id, safe_(name), "'" + k]]);
+  return chatOut_(S, id, d.since);
 }
