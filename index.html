@@ -286,7 +286,13 @@ body.tutOn.touch #infocard{top:calc(250px + var(--sat))}
 /* してん */
 #viewBtn{position:absolute;right:calc(8px + var(--sar));top:calc(60px + var(--sat))}
 #skinBtn{position:absolute;right:calc(8px + var(--sar));top:calc(112px + var(--sat))}
-#hwBtn{top:calc(216px + var(--sat))!important}
+#hwBtn{top:calc(268px + var(--sat))!important}
+#mapBtn{position:absolute;right:calc(8px + var(--sar));top:calc(216px + var(--sat))}
+#mapBtn.pulse{animation:hwPulse 1s ease-in-out infinite alternate}
+body.touch #mapBtn{right:auto;left:calc(8px + var(--sal));top:calc(332px + var(--sat))}
+.area{display:flex;gap:10px;align-items:center;border:2px solid var(--line);border-radius:14px;padding:8px 10px;margin:6px 0}
+.area.here{border-color:var(--brand);background:#f5f9ff}.area.locked{opacity:.6}
+.area-ic{font-size:34px}.area-b{flex:1}.area .btn{white-space:nowrap}
 #farmBtn{position:absolute;right:calc(8px + var(--sar));top:calc(164px + var(--sat));background:rgba(21,94,60,.82);border-color:#86efac}
 #farmBtn.pulse{animation:hwPulse 1s ease-in-out infinite alternate}
 body.touch #farmBtn{right:auto;left:calc(8px + var(--sal));top:calc(280px + var(--sat))}
@@ -309,6 +315,7 @@ body.inspArm #inspBtn{background:rgba(234,88,12,.9);border-color:#fed7aa}
   #viewBtn{top:calc(176px + var(--sat))}
   #skinBtn{top:calc(228px + var(--sat))}
   #farmBtn{right:auto;left:calc(8px + var(--sal));top:calc(280px + var(--sat))}
+  #mapBtn{right:auto;left:calc(8px + var(--sal));top:calc(332px + var(--sat))}
 }
 /* ハロウィン */
 #hwBtn{position:absolute;right:calc(8px + var(--sar));top:calc(124px + var(--sat));background:rgba(124,45,18,.82);border-color:#fdba74}
@@ -341,6 +348,7 @@ body.inspArm #inspBtn{background:rgba(234,88,12,.9);border-color:#fed7aa}
     <div id="dailyChip"></div>
     <button class="hbtn" id="viewBtn"><span class="ic">👁️</span><span data-t="してん"></span></button>
     <button class="hbtn" id="skinBtn"><span class="ic">👕</span><span data-t="きがえ"></span></button>
+    <button class="hbtn" id="mapBtn" style="display:none"><span class="ic">🗺️</span><span data-t="マップ"></span></button>
     <button class="hbtn" id="farmBtn" style="display:none"><span class="ic">🌱</span><span class="lb">はたけ</span></button>
     <button class="hbtn" id="hwBtn" style="display:none"><span class="ic">🎃</span><span class="lb"></span></button>
     <div id="infocard"></div>
@@ -939,6 +947,7 @@ function solidAt(x, y, z) {
 
 function genWorld(seed) {
   world.seed = seed;
+  if (world.area === 'snow') return genSnow(seed);
   const blocks = world.blocks;
   blocks.fill(0);
   const cx = W / 2, cz = D / 2;
@@ -1811,7 +1820,8 @@ function discover(id, how) {
   return true;
 }
 function actBreak() {
-  const t = computeTarget();
+  const t = computeTarget(), an = animalAim(0);   // どうぶつは なでる
+  if (an) { if (an.heart < 0.6) animalPet(an); return true; }
   if (!t) return false;
   if (typeof hwOnBreak === 'function' && hwOnBreak(t)) return true;
   if (typeof farmOnBreak === 'function' && farmOnBreak(t, false)) return true;
@@ -1844,6 +1854,8 @@ function actPlace() {
   return true;
 }
 function actInspect() {
+  const an = typeof animalAim === 'function' ? animalAim(2) : null;
+  if (an) { animalInspect(an); return true; }
   const t = aimHit(2, true);
   if (!t) { toast(T('ブロックに{近|ちか}づいて、ねらってね')); return false; }
   showBlockInfo(t.id);
@@ -3295,7 +3307,7 @@ function hwTick(dt) {
     toast('🎃 ' + T('ハロウィン イベント！ 10/31の よるに ランタンたちが くるよ。🎃ボタンを みてね'));
     renderHwBtn(ph);
     saveSoon();
-  } else if (ph === 'night' && !G.hw.visited) {
+  } else if (ph === 'night' && !G.hw.visited && world.area === 'home') {
     if (G.hw.seen) hwStartVisit();
     else { G.hw.visited = true; G.hw.result = 'none'; saveSoon(); }   // じゅんびの きかんに あそんで いない子には こない
   }
@@ -3315,9 +3327,14 @@ const DISHES = {
   tofu: { name: 'とうふ', emoji: '⬜', colors: ['r'] },
   kokuto: { name: '{黒糖|こくとう}', emoji: '🟫', colors: ['y'] },
   champuru: { name: 'ゴーヤーチャンプルー', emoji: '🍳', colors: ['g', 'r'] },
-  tart: { name: '{紅|べに}いもタルト', emoji: '🥧', colors: ['y'] }
+  tart: { name: '{紅|べに}いもタルト', emoji: '🥧', colors: ['y'] },
+  purin: { name: 'プリン', emoji: '🍮', colors: ['r'] }
 };
 const FOOD_RECIPES = [
+  { key: 'purin', mats: ['food:tamago', 'food:milk'], heat: 'hot', txt: [
+    'たまごと ミルクを まぜて むしたら、プリンが できたよ！ どっちも からだを つくる「あか」の たべもの。',
+    '{卵|たまご}とミルクをまぜて{蒸|む}すと、{卵|たまご}が{固|かた}まってプリンになる。どちらも「{赤|あか}」の{食|た}べもの。',
+    '卵のたんぱく質は加熱すると固まる(熱変性)。卵と牛乳はどちらも体をつくる食品(赤のグループ)。'] },
   { key: 'tofu', mats: ['food:daizu', 'block:water'], heat: 'hot', txt: [
     'だいずを みずに つけて すりつぶして にると、とうふが できるよ！',
     '{大豆|だいず}を{水|みず}につけてすりつぶし、{煮|に}てしぼった{豆乳|とうにゅう}を「にがり」で{固|かた}めると、とうふになる。',
@@ -3442,6 +3459,7 @@ function tyResolve(date) {
 // ---- たねまき・しゅうかく ----
 function farmPlantAt(x, y, z, cropKey) {
   const c = CROP_BY_KEY[cropKey];
+  if (world.area !== 'home') return false;
   if (!c || !inb(x, y, z) || getB(x, y, z) !== B.AIR || SOILS.indexOf(getB(x, y - 1, z)) < 0) return false;
   setBlock(x, y - 1, z, B.FARMLAND);
   setBlock(x, y, z, B.SPROUT);
@@ -3450,6 +3468,7 @@ function farmPlantAt(x, y, z, cropKey) {
   return true;
 }
 function farmPlayerPlant(t, cropKey) {
+  if (world.area !== 'home') { toast('🥶 ' + T('ここは さむすぎて やさいが そだたないよ。はじまりの{島|しま}で そだてよう')); playSound('error'); return false; }
   const x = t.x + t.nx, y = t.y + t.ny, z = t.z + t.nz;
   if (!farmPlantAt(x, y, z, cropKey)) { toast('🌱 ' + T('たねは {土|つち}や {草|くさ}の うえに まいてね')); playSound('error'); return false; }
   playSound('place');
@@ -3488,6 +3507,7 @@ function farmWet(i) {
 }
 // そだちを けいさんして、ブロックを かえる(あそんで いない あいだの ぶんも)
 function farmGrow() {
+  if (world.area !== 'home') return;   // はたけは はじまりの島だけ(ほかの エリアに いる あいだの ぶんは もどったときに けいさん)
   const now = Date.now();
   let changed = false;
   Object.keys(G.farm).forEach(i => {
@@ -3505,12 +3525,13 @@ function farmGrow() {
 // ---- りょうり(実験室) ----
 function foodMatInfo(ref) {
   const [kind, key] = ref.split(':');
-  if (kind === 'food') { const c = CROP_BY_KEY[key]; return { ref, name: c.name, sub: '×' + (G.food[key] || 0), emoji: c.emoji }; }
+  if (kind === 'food') { const c = CROP_BY_KEY[key] || GIFTS[key]; return { ref, name: c.name, sub: '×' + (G.food[key] || 0), emoji: c.emoji }; }
   const d = DISHES[key]; return { ref, name: d.name, sub: '×' + (G.food['dish:' + key] || 0), emoji: d.emoji };
 }
 function foodMats() {
   const a = [];
   CROP_DEFS.forEach(c => { if (G.food[c.key] > 0) a.push('food:' + c.key); });
+  Object.keys(GIFTS).forEach(k => { if (G.food[k] > 0) a.push('food:' + k); });
   Object.keys(DISHES).forEach(k => { if (G.food['dish:' + k] > 0) a.push('dish:' + k); });
   return a;
 }
@@ -3540,6 +3561,7 @@ function foodChip(k) { const f = FOOD_COLORS[k]; return '<span class="chip" styl
 function foodColorsGot() {
   const got = {};
   CROP_DEFS.forEach(c => { if (G.food[c.key] !== undefined) got[c.color] = true; });
+  Object.keys(GIFTS).forEach(k => { if (G.food[k] !== undefined) got[GIFTS[k].color] = true; });
   Object.keys(DISHES).forEach(k => { if (G.food['dish:' + k] !== undefined) DISHES[k].colors.forEach(c => { got[c] = true; }); });
   return got;
 }
@@ -3559,15 +3581,18 @@ function renderFarmBtn() {
   b.style.display = G.started ? 'flex' : 'none';
   if (!G.started) return;
   const ty = tyState();
-  const ic = ty.state ? '🌀' : (WX.icon || '🌱');
-  const lb = ty.state === 'warn' ? 'たいふう！' : ty.state === 'now' ? 'たいふう' : WX.ok ? WX.temp + '℃' : 'はたけ';
+  const snow = world.area === 'snow';   // ゆきのエリアは うらそえの てんきと かんけい ない
+  const ic = snow ? '❄️' : ty.state ? '🌀' : (WX.icon || '🌱');
+  const lb = snow ? 'はたけ' : ty.state === 'warn' ? 'たいふう！' : ty.state === 'now' ? 'たいふう' : WX.ok ? WX.temp + '℃' : 'はたけ';
   const html = '<span class="ic">' + ic + '</span><span class="lb">' + T(lb) + '</span>';
   if (b.innerHTML !== html) b.innerHTML = html;
   b.classList.toggle('pulse', ty.state === 'warn' && Object.keys(G.farm).length > 0);
+  if (typeof renderMapBtn === 'function') renderMapBtn();
 }
 function openFarm() {
   const ty = tyState();
-  let html = '<div class="ans" style="background:#f0f9ff;border-color:#7dd3fc">' + (WX.ok ? WX.icon + ' ' + T('きょうの うらそえ: ') + T(WX.label) + ' ' + WX.temp + '℃' + (WX.rain ? '<br>💧 ' + T('あめの 日は みずやり しなくても はやく そだつよ') : '') : T('てんきを よみこみちゅう…')) + '</div>';
+  let html = world.area === 'snow' ? '<div class="ans" style="background:#f0f9ff;border-color:#7dd3fc">❄️ ' + T('ゆきのエリアは さむすぎて やさいが そだたないよ。はたけは はじまりの{島|しま}で そだてよう。') + '</div>' : '';
+  html += '<div class="ans" style="background:#f0f9ff;border-color:#7dd3fc">' + (WX.ok ? WX.icon + ' ' + T('きょうの うらそえ: ') + T(WX.label) + ' ' + WX.temp + '℃' + (WX.rain ? '<br>💧 ' + T('あめの 日は みずやり しなくても はやく そだつよ') : '') : T('てんきを よみこみちゅう…')) + '</div>';
   if (ty.state === 'warn') html += '<div class="ans" style="background:#fff7ed;border-color:#fb923c">🌀 <b>' + T('たいふうが くるよ！') + ' (' + ty.date.slice(5).replace('-', '/') + ')</b><br>' + T('やさいの ちかく(2ブロック いない)に ぼうふうネットを はるか、やねの したで そだてよう。はやめに しゅうかく しても いいよ。') + '</div>';
   if (ty.state === 'now') html += '<div class="ans" style="background:#fef2f2;border-color:#f87171">🌀 <b>' + T('たいふうが きている！') + '</b></div>';
   html += '<ul class="mlist" style="margin-top:8px">';
@@ -3586,6 +3611,7 @@ function openFarm() {
     }).filter(Boolean).join('<br>') + '</div>';
   }
   const foods = CROP_DEFS.filter(c => G.food[c.key] > 0).map(c => c.emoji + T(c.name) + '×' + G.food[c.key] + ' ' + foodChip(c.color))
+    .concat(Object.keys(GIFTS).filter(k => G.food[k] > 0).map(k => GIFTS[k].emoji + T(GIFTS[k].name) + '×' + G.food[k] + ' ' + foodChip(GIFTS[k].color)))
     .concat(Object.keys(DISHES).filter(k => G.food['dish:' + k] > 0).map(k => DISHES[k].emoji + T(DISHES[k].name) + '×' + G.food['dish:' + k] + ' ' + DISHES[k].colors.map(foodChip).join('')));
   html += '<h4>🧺 ' + T('たべもの') + '</h4><div class="note" style="line-height:2.1">' + (foods.join('<br>') || T('まだ ないよ')) + '</div>';
   html += '<p class="note">' + Object.keys(FOOD_COLORS).map(k => foodChip(k) + ' ' + T(FOOD_COLORS[k].txt)).join('<br>') + '</p>';
@@ -3595,7 +3621,7 @@ function openFarm() {
 // ---- まいフレーム ----
 function rainEntity() {
   const ty = tyState().state === 'now';
-  if (!(WX.rain || ty) || !G.started) return null;
+  if (!(WX.rain || ty) || !G.started || world.area !== 'home') return null;
   const parts = [], n = ty ? 520 : 320, c = [0.78, 0.85, 0.97], cam = cameraNow();
   for (let k = 0; k < n; k++) {
     const hx = hash2(k, 1, 7), hz = hash2(k, 2, 7), hy = hash2(k, 3, 7);
@@ -3608,7 +3634,7 @@ function rainEntity() {
 }
 function farmTick(dt) {
   const ty = tyState().state === 'now';
-  const want = ty ? 1 : WX.rain ? 0.6 : 0;
+  const want = world.area !== 'home' ? 0 : ty ? 1 : WX.rain ? 0.6 : 0;
   wxSkyK += (want - wxSkyK) * Math.min(1, dt * 0.8);
   if (wxSkyK > 0.01) { const g = ty ? SKY_STORM : SKY_RAIN; for (let k = 0; k < 3; k++) R.sky[k] = R.sky[k] * (1 - wxSkyK) + g[k] * wxSkyK; }
   farmAcc += dt;
@@ -3627,8 +3653,311 @@ function farmTick(dt) {
   // たいふうの 日(から 3日 いない)に あそんだら けっか
   tyDays().forEach(d => {
     const today = hwDay(hwNow());
-    if (!G.ty.done[d] && d <= today && today <= dayAdd(d, 3) && !G.modal) tyResolve(d);
+    if (!G.ty.done[d] && d <= today && today <= dayAdd(d, 3) && !G.modal && world.area === 'home') tyResolve(d);
   });
+}
+
+// ===== エリア(はじまりの島・ゆきのエリア)と どうぶつ =====
+// ミッションを 5こ クリアすると ゆきのエリアへ いける。エリアごとに せかいを つくりなおす(エリア切り替え)
+const AREAS = [
+  { id: 'home', icon: '🏝️', name: 'はじまりの{島|しま}', need: 0, txt: 'あたたかい おきなわの {島|しま}。はたけで やさいを そだてられるよ。' },
+  { id: 'snow', icon: '❄️', name: 'ゆきのエリア', need: 5, txt: 'いちねんじゅう さむい ゆきの せかい。{海|うみ}も こおっているよ。さむすぎて やさいは そだたない。' },
+  { id: 'volcano', icon: '🌋', name: 'かざん', need: 99, soon: true, txt: 'じゅんびちゅう' },
+  { id: 'sea', icon: '🌊', name: '{海|うみ}の なか', need: 99, soon: true, txt: 'じゅんびちゅう' }
+];
+world.area = 'home';
+G.areaEdits = { home: world.edits, snow: new Map() };
+G.areaPos = {};
+function areaOpen(a) { return !a.soon && (a.need <= 0 || doneCount() >= a.need); }
+function areaReset() { world.area = 'home'; G.areaEdits = { home: new Map(), snow: new Map() }; world.edits = G.areaEdits.home; G.areaPos = {}; }
+function areaFromSave(d) {
+  G.areaEdits = { home: world.edits, snow: new Map((d.snowEdits || []).filter(e => Array.isArray(e) && e[0] >= 0 && e[0] < W * D * H && BLOCKS[e[1]])) };
+  G.areaPos = d.areaPos && typeof d.areaPos === 'object' ? d.areaPos : {};
+  world.area = d.area === 'snow' ? 'snow' : 'home';
+  world.edits = G.areaEdits[world.area];
+}
+
+// ---- ゆきのエリアの せかい ----
+function genSnow(seed) {
+  const blocks = world.blocks;
+  blocks.fill(0);
+  const cx = W / 2, cz = D / 2, s2 = seed + 999;
+  const heights = new Int16Array(W * D);
+  for (let z = 0; z < D; z++) for (let x = 0; x < W; x++) {
+    const dx = (x + 0.5 - cx) / (W * 0.5), dz = (z + 0.5 - cz) / (D * 0.5);
+    const mask = clamp(1 - Math.pow(Math.sqrt(dx * dx + dz * dz), 2.2) * 1.05, 0, 1);
+    const n = fbm(x * 0.05, z * 0.05, s2, 4);
+    let h = 6 + mask * (5 + n * 14) + Math.pow(Math.max(0, n - 0.45), 1.2) * 90 * mask;
+    const t = clamp((1.5 - Math.max(Math.abs(x + 0.5 - cx) / 14, Math.abs(z + 0.5 - (cz + 1)) / 12)) / 0.6, 0, 1);
+    h = h * (1 - t) + PLAZA_Y * t;
+    heights[x + z * W] = clamp(Math.round(h), 2, H - 12);
+  }
+  const inPlaza = (x, z) => Math.abs(x + 0.5 - cx) / 14 < 1.5 && Math.abs(z + 0.5 - (cz + 1)) / 12 < 1.5;
+  for (let z = 0; z < D; z++) for (let x = 0; x < W; x++) {
+    const h = heights[x + z * W];
+    for (let y = 0; y <= h; y++) blocks[widx(x, y, z)] = y === h ? (h <= SEA ? B.SAND : B.SNOW) : (y >= h - 2 ? B.DIRT : B.STONE);
+    for (let y = h + 1; y <= SEA; y++) blocks[widx(x, y, z)] = y === SEA ? B.ICE : B.WATER;   // こおった 海
+  }
+  const rnd = mulberry32(s2 ^ 0x5bd1e995);
+  function vein(id, count, size, ymax) {
+    for (let k = 0; k < count; k++) {
+      let x = Math.floor(rnd() * W), z = Math.floor(rnd() * D);
+      let y = 1 + Math.floor(rnd() * Math.max(1, Math.min(ymax, heights[x + z * W] - 1)));
+      for (let i = 0; i < size; i++) {
+        if (inb(x, y, z) && blocks[widx(x, y, z)] === B.STONE) blocks[widx(x, y, z)] = id;
+        const r = rnd();
+        if (r < 0.17) x++; else if (r < 0.34) x--; else if (r < 0.5) z++; else if (r < 0.66) z--; else if (r < 0.83) y++; else y--;
+      }
+    }
+  }
+  vein(B.COAL_ORE, 200, 7, 40); vein(B.IRON_ORE, 140, 6, 26); vein(B.COPPER_ORE, 60, 5, 22); vein(B.GOLD, 20, 3, 12);
+  // とがった 木(はりようじゅ)
+  for (let z = 4; z < D - 4; z++) for (let x = 4; x < W - 4; x++) {
+    if (inPlaza(x, z)) continue;
+    const h = heights[x + z * W];
+    if (blocks[widx(x, h, z)] !== B.SNOW || h > 26 || hash2(x, z, s2 + 77) > 0.016) continue;
+    const th = 5 + Math.floor(hash2(x, z, s2 + 5) * 2);
+    for (let y = 1; y <= th; y++) blocks[widx(x, h + y, z)] = B.LOG;
+    for (let ly = 2; ly <= th + 1; ly++) {
+      const rad = ly >= th ? 0 : (ly <= 3 ? 2 : 1);
+      for (let dz = -rad; dz <= rad; dz++) for (let dx = -rad; dx <= rad; dx++) {
+        if (Math.abs(dx) + Math.abs(dz) > rad + 1) continue;
+        const yy = h + ly;
+        if (inb(x + dx, yy, z + dz) && blocks[widx(x + dx, yy, z + dz)] === 0) blocks[widx(x + dx, yy, z + dz)] = B.LEAVES;
+      }
+    }
+  }
+  // かまくら(ゆきの ドーム。なかは くうき、まえに いりぐち)
+  const kx = cx - 7, kz = cz - 3, fy = PLAZA_Y + 1;
+  for (let y = 0; y <= 3; y++) for (let dz = -3; dz <= 3; dz++) for (let dx = -3; dx <= 3; dx++) {
+    const r = Math.sqrt(dx * dx + dz * dz + (y * 1.1) * (y * 1.1));
+    if (r <= 3.3) blocks[widx(kx + dx, fy + y, kz + dz)] = r > 2.3 ? B.SNOW : B.AIR;
+  }
+  for (let y = 0; y <= 1; y++) blocks[widx(kx, fy + y, kz + 3)] = B.AIR;
+  // こおりの いけ
+  for (let dz = 0; dz < 4; dz++) for (let dx = 0; dx < 4; dx++) blocks[widx(cx + 6 + dx, PLAZA_Y, cz - 2 + dz)] = B.ICE;
+  world.heights = heights;
+  world.edits.forEach((id, i) => { blocks[i] = id; });
+}
+
+function switchArea(id) {
+  const a = AREAS.find(x => x.id === id);
+  if (!a || !areaOpen(a) || world.area === id) return;
+  G.areaPos[world.area] = { x: P.x, y: P.y, z: P.z, yaw: P.yaw };
+  world.area = id;
+  world.edits = G.areaEdits[id] || (G.areaEdits[id] = new Map());
+  if (typeof robotReset === 'function') robotReset();
+  hwVisit = null;
+  genWorld(world.seed);
+  markAllDirty(); flushDirty();
+  const pos = G.areaPos[id];
+  if (pos && isFinite(pos.x)) { P.x = pos.x; P.y = pos.y; P.z = pos.z; P.yaw = pos.yaw || 0; P.vx = P.vy = P.vz = 0; } else respawn();
+  animalsSpawn();
+  closeModal();
+  toast(a.icon + ' ' + T(a.name) + T(' に きたよ！'));
+  playSound('found');
+  saveSoon();
+}
+function openMap() {
+  const n = doneCount();
+  let html = '<p class="note">' + T('ミッションを クリアすると、あたらしい エリアに いけるよ。') + ' (⭐ ' + T('クリア') + ' ' + n + ')</p><div class="areas">';
+  AREAS.forEach(a => {
+    const open = areaOpen(a), here = world.area === a.id;
+    html += '<div class="area' + (here ? ' here' : '') + (open ? '' : ' locked') + '"><div class="area-ic">' + (open || a.soon ? a.icon : '🔒') + '</div><div class="area-b"><b>' + T(a.name) + '</b><div class="note">' +
+      (a.soon ? T('じゅんびちゅう') : open ? T(a.txt) : T('ミッションを ') + a.need + T('こ クリアすると ひらくよ (いま ') + n + ')') + '</div></div>' +
+      (here ? '<span class="chip">' + T('いま ここ') + '</span>' : open ? '<button class="btn ok sm" data-go="' + a.id + '">' + T('いく') + '</button>' : '') + '</div>';
+  });
+  html += '</div>';
+  html += '<h4>🐾 ' + T('どうぶつ') + ' (' + Object.keys(G.animals).length + '/' + Object.keys(ANIMALS).length + ')</h4><div class="note" style="line-height:2">' +
+    Object.keys(ANIMALS).map(k => G.animals[k] ? ANIMALS[k].emoji + ' ' + T(ANIMALS[k].name) : '❔ ？？？').join(' ／ ') + '</div><p class="note">' + T('どうぶつを 🔍しらべると ずかんに のるよ。こわす ボタンで なでると、おくりものを くれる どうぶつも いるよ。') + '</p>';
+  const body = openModal('🗺️ ' + T('マップ'), html, 'map');
+  body.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => switchArea(b.dataset.go)));
+}
+let mapBtnHtml = '';
+function renderMapBtn() {
+  const b = $('mapBtn'); if (!b) return;
+  b.style.display = G.started ? 'flex' : 'none';
+  const ready = AREAS.some(a => a.id !== world.area && areaOpen(a) && !G.areaPos[a.id]);   // まだ いっていない エリアが ひらいた
+  b.classList.toggle('pulse', ready);
+}
+
+// ---- どうぶつ ----
+// g: おくりもの(なでると 5ふんに 1かい)  parts: [まんなかx, したy, まんなかz, はば, たかさ, おくゆき, いろ, あし?]  まえは -z
+const ANIMALS = {
+  chicken: { name: 'ニワトリ', emoji: '🐔', area: 'home', n: 3, w: 0.45, h: 0.6, speed: 1.2, g: 'tamago',
+    parts: [[0, 0.18, 0, 0.36, 0.3, 0.46, '#f8f8f4'], [0, 0.4, -0.2, 0.2, 0.22, 0.2, '#f8f8f4'], [0, 0.62, -0.2, 0.06, 0.08, 0.12, '#e53935'], [0, 0.46, -0.33, 0.08, 0.06, 0.08, '#f5b335'], [0, 0.4, -0.31, 0.05, 0.07, 0.03, '#e53935'],
+      [-0.08, 0, 0, 0.05, 0.18, 0.05, '#f5b335', 1], [0.08, 0, 0, 0.05, 0.18, 0.05, '#f5b335', 2]],
+    info: ['ニワトリは まいにちのように たまごを うむよ。 たまごは からだを つくる「あか」の たべもの。',
+      'ニワトリは{卵|たまご}をうむ{鳥|とり}。{卵|たまご}はたんぱく{質|しつ}が{多|おお}く、{体|からだ}をつくる「{赤|あか}」の{食|た}べもの。',
+      'ニワトリは家畜化された鳥。卵は良質なたんぱく質を含み、体をつくる食品(赤のグループ)。'] },
+  goat: { name: 'ヤギ', emoji: '🐐', area: 'home', n: 3, w: 0.6, h: 0.95, speed: 1.0, g: 'milk',
+    parts: [[0, 0.4, 0, 0.42, 0.38, 0.78, '#ecebe6'], [0, 0.66, -0.44, 0.28, 0.3, 0.3, '#ecebe6'], [-0.08, 0.96, -0.42, 0.05, 0.14, 0.05, '#8d8d8d'], [0.08, 0.96, -0.42, 0.05, 0.14, 0.05, '#8d8d8d'], [0, 0.58, -0.58, 0.08, 0.12, 0.04, '#d8d4c8'],
+      [-0.14, 0, -0.28, 0.08, 0.4, 0.08, '#6d6a62', 1], [0.14, 0, -0.28, 0.08, 0.4, 0.08, '#6d6a62', 2], [-0.14, 0, 0.28, 0.08, 0.4, 0.08, '#6d6a62', 2], [0.14, 0, 0.28, 0.08, 0.4, 0.08, '#6d6a62', 1]],
+    info: ['ヤギは くさを たべて、ミルクを だしてくれるよ。 おきなわでは むかしから かわれているんだ。',
+      'ヤギは{草|くさ}を{食|た}べる{動物|どうぶつ}。ミルク(ヤギ{乳|にゅう})は{体|からだ}をつくる「{赤|あか}」の{食|た}べもの。おきなわでは「ヒージャー」とよぶよ。',
+      'ヤギは反すう動物で、胃が4つある。乳はたんぱく質・カルシウムを含む(赤のグループ)。沖縄方言でヒージャー。'] },
+  penguin: { name: 'ペンギン', emoji: '🐧', area: 'snow', n: 4, w: 0.4, h: 0.8, speed: 0.8,
+    parts: [[0, 0.06, 0, 0.36, 0.62, 0.32, '#22252e'], [0, 0.1, -0.165, 0.26, 0.5, 0.02, '#f6f6f6'], [0, 0.62, 0, 0.28, 0.22, 0.26, '#22252e'], [0, 0.68, -0.18, 0.08, 0.05, 0.1, '#f59e0b'],
+      [-0.1, 0, -0.04, 0.1, 0.06, 0.16, '#f59e0b', 1], [0.1, 0, -0.04, 0.1, 0.06, 0.16, '#f59e0b', 2]],
+    info: ['ペンギンは とべない とり。 そのかわり およぐのが とても じょうず！ ほんとうは みなみの さむい うみに すんでいるよ。',
+      'ペンギンは{飛|と}べないけれど、つばさで{海|うみ}の{中|なか}を{飛|と}ぶように{泳|およ}ぐ。ほとんどが{南半球|みなみはんきゅう}にすんでいる。',
+      'ペンギンは飛べない鳥で、翼をひれのように使って泳ぐ。ほとんどが南半球に分布し、南極周辺の種が多い。'] },
+  rabbit: { name: 'ユキウサギ', emoji: '🐇', area: 'snow', n: 3, w: 0.35, h: 0.55, speed: 1.8,
+    parts: [[0, 0.06, 0, 0.3, 0.26, 0.42, '#fbfbfd'], [0, 0.2, -0.22, 0.2, 0.2, 0.2, '#fbfbfd'], [-0.05, 0.4, -0.2, 0.05, 0.18, 0.04, '#fbfbfd'], [0.05, 0.4, -0.2, 0.05, 0.18, 0.04, '#fbfbfd'], [-0.05, 0.3, -0.325, 0.03, 0.03, 0.01, '#d14b5f'], [0.05, 0.3, -0.325, 0.03, 0.03, 0.01, '#d14b5f'],
+      [-0.08, 0, -0.1, 0.06, 0.08, 0.08, '#eeeef2', 1], [0.08, 0, 0.1, 0.06, 0.08, 0.1, '#eeeef2', 2]],
+    info: ['ユキウサギは ふゆに なると からだが まっしろに なるよ。 ゆきの なかで みつかりにくいんだ。',
+      'ユキウサギは{冬|ふゆ}になると{白|しろ}い{毛|け}にはえかわる。{雪|ゆき}にまぎれて{敵|てき}から{身|み}を{守|まも}るよ(ほごしょく)。',
+      'ユキウサギは季節によって毛の色が変わる。冬の白い毛は雪の中で目立たない保護色の役割をもつ。'] },
+  bear: { name: 'シロクマ', emoji: '🐻‍❄️', area: 'snow', n: 1, w: 0.9, h: 1.3, speed: 0.7,
+    parts: [[0, 0.5, 0, 0.8, 0.72, 1.3, '#f2f0e6'], [0, 0.68, -0.78, 0.5, 0.46, 0.44, '#f2f0e6'], [0, 0.74, -1.01, 0.18, 0.14, 0.04, '#2a2a2a'], [-0.18, 1.12, -0.7, 0.12, 0.1, 0.08, '#f2f0e6'], [0.18, 1.12, -0.7, 0.12, 0.1, 0.08, '#f2f0e6'],
+      [-0.26, 0, -0.42, 0.2, 0.52, 0.22, '#e6e3d6', 1], [0.26, 0, -0.42, 0.2, 0.52, 0.22, '#e6e3d6', 2], [-0.26, 0, 0.42, 0.2, 0.52, 0.22, '#e6e3d6', 2], [0.26, 0, 0.42, 0.2, 0.52, 0.22, '#e6e3d6', 1]],
+    info: ['シロクマ(ホッキョクグマ)は きたの こおった うみに すんでいるよ。 けの したの ひふは くろいんだ。',
+      'ホッキョクグマは{北極|ほっきょく}の{氷|こおり}の{上|うえ}でくらす。{毛|け}はすきとおっていて、{皮膚|ひふ}は{黒|くろ}く{太陽|たいよう}の{熱|ねつ}をすいこむ。',
+      'ホッキョクグマは北極圏に生息する。体毛は中空で透明、皮膚は黒く、断熱と保温に優れる。南極のペンギンとは野生では出会わない。'] }
+};
+const GIFTS = {
+  tamago: { name: 'たまご', emoji: '🥚', color: 'r' },
+  milk: { name: 'ミルク', emoji: '🥛', color: 'r' }
+};
+G.animals = {};    // しらべた どうぶつ
+let animals = [];
+function animalsSpawn() {
+  animals = [];
+  const rnd = mulberry32((world.area === 'snow' ? 77 : 33) + Math.floor(Date.now() / 1000) % 1000);
+  Object.keys(ANIMALS).forEach(k => {
+    const a = ANIMALS[k];
+    if (a.area !== world.area) return;
+    for (let i = 0; i < a.n; i++) {
+      for (let tries = 0; tries < 40; tries++) {
+        const x = SPAWN.x + (rnd() - 0.5) * 40, z = SPAWN.z + (rnd() - 0.5) * 40;
+        const y = animalGround(x, z, PLAZA_Y + 8);
+        const top = getB(Math.floor(x), y - 1, Math.floor(z));
+        if (y < 1 || top === B.WATER || top === 0) continue;
+        animals.push({ k, x, y, z, yaw: rnd() * 6.28, vx: 0, vz: 0, t: rnd() * 3, walk: 0, gift: 0, heart: 0 });
+        break;
+      }
+    }
+  });
+}
+function animalGround(x, z, from) {
+  const xi = Math.floor(x), zi = Math.floor(z);
+  for (let y = Math.min(H - 1, Math.floor(from)); y >= 0; y--) if (isSolid(getB(xi, y, zi))) return y + 1;
+  return -1;
+}
+function animalsTick(dt) {
+  for (const a of animals) {
+    const d = ANIMALS[a.k];
+    a.t -= dt;
+    if (a.t <= 0) {   // あるくか とまるかを きめなおす
+      a.t = 1.5 + Math.random() * 3;
+      if (Math.random() < 0.45) { a.vx = 0; a.vz = 0; }
+      else {
+        let ang = Math.random() * 6.28;
+        const hx = a.x - SPAWN.x, hz = a.z - SPAWN.z;
+        if (hx * hx + hz * hz > 26 * 26) ang = Math.atan2(-hz, -hx) + (Math.random() - 0.5);   // とおくに いったら もどる
+        a.vx = Math.cos(ang) * d.speed; a.vz = Math.sin(ang) * d.speed;
+        a.yaw = Math.atan2(-a.vx, -a.vz);
+      }
+    }
+    if (a.vx || a.vz) {
+      const nx = a.x + a.vx * dt, nz = a.z + a.vz * dt;
+      const ny = animalGround(nx, nz, a.y + 1.2);
+      const below = getB(Math.floor(nx), ny - 1, Math.floor(nz));
+      if (ny > 0 && ny - a.y <= 1 && a.y - ny <= 2 && below !== B.WATER && !isSolid(getB(Math.floor(nx), ny, Math.floor(nz)))) {
+        a.x = nx; a.z = nz; a.y += (ny - a.y) * Math.min(1, dt * 10); a.walk += dt * 9;
+      } else { a.vx = -a.vx; a.vz = -a.vz; a.yaw = Math.atan2(-a.vx, -a.vz); }
+    }
+    if (a.heart > 0) a.heart -= dt;
+  }
+}
+function animalEntity() {
+  if (!animals.length) return null;
+  const parts = [];
+  for (const a of animals) {
+    const d = ANIMALS[a.k];
+    if (!d.cols) d.cols = d.parts.map(p => hexC(p[6]));
+    const moving = a.vx || a.vz, sw = moving ? Math.sin(a.walk) * 0.5 : 0, hop = (a.k === 'rabbit' && moving) ? Math.abs(Math.sin(a.walk * 0.6)) * 0.25 : 0;
+    const base = M4.model(a.x, a.y + hop, a.z, a.yaw, 1, 1, 1);
+    d.parts.forEach((p, i) => {
+      let m = tsMat(p[0] - p[3] / 2, p[1], p[2] - p[5] / 2, p[3], p[4], p[5]);
+      if (p[7]) { const ang = p[7] === 1 ? sw : -sw, pv = p[1] + p[4]; m = M4.mul(transMat(0, pv, p[2]), M4.mul(rotXMat(ang), M4.mul(transMat(0, -pv, -p[2]), m))); }
+      parts.push({ m: M4.mul(base, m), c: d.cols[i] });
+    });
+    if (a.heart > 0) parts.push({ m: M4.model(a.x - 0.08, a.y + d.h + 0.2 + (1.2 - a.heart) * 0.4, a.z - 0.08, 0, 0.16, 0.16, 0.16), c: [1, 0.35, 0.5] });
+  }
+  return { parts };
+}
+// ねらった せんに どうぶつが いたら いちばん ちかい ものを かえす(ブロックより てまえだけ)
+function animalAim(extra) {
+  if (!animals.length) return null;
+  const a = aimRay(), max = a.max + (extra || 0);
+  const blk = raycast(a.o[0], a.o[1], a.o[2], a.d[0], a.d[1], a.d[2], max, false);
+  const lim = blk ? blk.t + 0.3 : max;
+  let best = null, bt = lim;
+  for (const an of animals) {
+    const d = ANIMALS[an.k], hw = d.w / 2 + 0.15;
+    const mn = [an.x - hw, an.y, an.z - hw], mx = [an.x + hw, an.y + d.h, an.z + hw];
+    let t0 = 0, t1 = bt;
+    for (let k = 0; k < 3; k++) {
+      if (Math.abs(a.d[k]) < 1e-6) { if (a.o[k] < mn[k] || a.o[k] > mx[k]) { t0 = 1; t1 = 0; } continue; }
+      let ta = (mn[k] - a.o[k]) / a.d[k], tb = (mx[k] - a.o[k]) / a.d[k];
+      if (ta > tb) { const s = ta; ta = tb; tb = s; }
+      t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
+    }
+    if (t0 <= t1 && t0 < bt) { bt = t0; best = an; }
+  }
+  return best;
+}
+function showAnimalInfo(an) {
+  const d = ANIMALS[an.k];
+  clearTimeout(infoTimer); infoTimer = setTimeout(closeInfo, 25000);
+  const el = $('infocard');
+  el.style.display = 'block'; el.dataset.id = '';
+  const txt = d.info[G.level - 1];
+  el.innerHTML = '<div class="row"><div style="font-size:46px;line-height:56px;width:56px;text-align:center">' + d.emoji + '</div><div><h3>' + T(d.name) + '</h3><div class="kind">' + T('どうぶつ') + '</div></div><button class="x" id="infoX">✕</button></div>' +
+    '<p>' + T(txt) + '</p>' + (d.g ? '<div class="facts"><span class="chip">' + GIFTS[d.g].emoji + ' ' + T('なでると ') + T(GIFTS[d.g].name) + T(' を くれるよ') + '</span></div>' : '') +
+    '<div style="margin-top:6px"><button class="speak" id="infoSpeak">🔊 ' + T('きく') + '</button></div>';
+  $('infoX').onclick = closeInfo;
+  $('infoSpeak').onclick = () => speak(d.name + '。' + txt);
+}
+function animalInspect(an) {
+  showAnimalInfo(an);
+  G.counters.inspected++;
+  if (!G.animals[an.k]) { G.animals[an.k] = true; toast('🐾 ' + T('どうぶつずかんに のったよ: ') + T(ANIMALS[an.k].name)); playSound('found'); }
+  else playSound('select');
+  if (typeof onAction === 'function') onAction('inspect', 0);
+  renderMapBtn(); saveSoon();
+}
+// なでる(こわす ボタン)
+function animalPet(an) {
+  const d = ANIMALS[an.k];
+  an.heart = 1.2; an.vx = an.vz = 0; an.t = 2;
+  if (d.g && G.time - (an.gift || -999) > 300) {
+    an.gift = G.time;
+    const g = GIFTS[d.g];
+    G.food[d.g] = (G.food[d.g] || 0) + 1;
+    toast(g.emoji + ' ' + T(d.name) + T(' が ') + T(g.name) + T(' を くれたよ！') + '<br><small>' + T(FOOD_COLORS[g.color].name) + T('の たべもの: ') + T(FOOD_COLORS[g.color].txt) + '</small>');
+    playSound('found'); renderFarmBtn(); saveSoon();
+  } else { toast('💗 ' + T(d.name) + T(' を なでたよ')); playSound('select'); }
+}
+
+// ---- ゆきの エリア: ゆきが ふる ----
+function snowEntity() {
+  if (world.area !== 'snow' || !G.started) return null;
+  const parts = [], c = [1.3, 1.3, 1.35], cam = cameraNow();
+  for (let k = 0; k < 220; k++) {
+    const hx = hash2(k, 4, 9), hz = hash2(k, 5, 9), hy = hash2(k, 6, 9);
+    const x = P.x + (hx - 0.5) * 22 + Math.sin(G.time * 0.8 + k) * 0.4, z = P.z + (hz - 0.5) * 22 + Math.cos(G.time * 0.6 + k) * 0.4;
+    if (Math.abs(x - cam.x) < 1.4 && Math.abs(z - cam.z) < 1.4) continue;
+    const y = P.y + 10 - ((G.time * 1.6 + hy * 14) % 14);
+    parts.push({ m: M4.model(x, y, z, 0, 0.07, 0.07, 0.07), c });
+  }
+  return { parts };
+}
+const SKY_SNOW = [0.8, 0.86, 0.93];
+function areaTick(dt) {
+  if (world.area === 'snow') for (let k = 0; k < 3; k++) R.sky[k] = R.sky[k] * 0.4 + SKY_SNOW[k] * 0.6;
+  animalsTick(dt);
 }
 
 // ===== 06f-daily.js =====
@@ -4515,7 +4844,7 @@ function collectSave() {
     hotbar: G.hotbar, slot: G.slot, zukan: G.zukan, made: G.made, counters: G.counters,
     missionIndex: G.missionIndex, stars: G.stars, playSec: Math.round(G.playSec || 0), mDone: G.mDone, mBases: G.mBases, mFocus: G.mFocus, introDone: !!G.introDone,
     player: { x: P.x, y: P.y, z: P.z, yaw: P.yaw, pitch: P.pitch },
-    edits: Array.from(world.edits.entries()),
+    edits: Array.from(G.areaEdits.home.entries()), snowEdits: Array.from(G.areaEdits.snow.entries()), area: world.area, areaPos: G.areaPos, animals: G.animals,
     robot: typeof robotSave === 'function' ? robotSave() : null,
     program: typeof programSave === 'function' ? programSave() : null,
     hw: G.hw, farm: G.farm, food: G.food, ty: G.ty
@@ -4577,11 +4906,13 @@ function applySave(d) {
   G.saveTs = +d.ts || 0;
   G.hw = hwFromSave(d.hw);
   farmFromSave(d);
+  areaFromSave(d);
+  G.animals = d.animals && typeof d.animals === 'object' ? d.animals : {};
 }
 function resetAll() {
   try { localStorage.removeItem(saveKey()); } catch (e) { /* 何もしない */ }
   delete memSaves[saveKey()];
-  world.edits = new Map();
+  areaReset(); G.animals = {};
   G.zukan = {}; G.tempWasFrozen = false; G.tempIronMelted = false; G.made = {}; G.missionIndex = 0; G.stars = 0; G.playSec = 0; G.introDone = true;
   G.mDone = {}; G.mFocus = 'build'; farmFromSave(null);
   G.hw = hwFromSave(null); hwVisit = null;
@@ -4592,6 +4923,7 @@ function resetAll() {
   genWorld(world.seed);
   markAllDirty(); flushDirty();
   respawn();
+  animalsSpawn();
   if (typeof robotReset === 'function') robotReset();
   if (typeof programReset === 'function') programReset();
   snapshotBase();
@@ -4601,7 +4933,7 @@ function resetAll() {
 
 // ログイン/ログアウトで ユーザーが かわったとき: そのユーザーの世界を よみこむ
 function loadUserWorld() {
-  world.edits = new Map();
+  areaReset(); G.animals = {};
   G.zukan = {}; G.tempWasFrozen = false; G.tempIronMelted = false; G.made = {};
   G.missionIndex = 0; G.stars = 0; G.playSec = 0; G.introDone = false; G.mDone = {}; G.mBases = null; G.mFocus = 'build';
   Object.keys(G.counters).forEach(k => { G.counters[k] = 0; });
@@ -4618,6 +4950,7 @@ function loadUserWorld() {
   if (d) applySave(d);
   genWorld(world.seed);
   markAllDirty(); flushDirty();
+  animalsSpawn();
   if (!G.mBases) snapshotBase();
   robotInit();
   if (world.pendingProgram) restoreProgram(world.pendingProgram);
@@ -5326,6 +5659,7 @@ function update(dt) {
   if (typeof dailyTick === 'function') dailyTick(dt);
   if (typeof hwTick === 'function') hwTick(dt);
   if (typeof farmTick === 'function') farmTick(dt);
+  if (typeof areaTick === 'function') areaTick(dt);
   pollKeyboard();
   handleHold(dt);
   const paused = !!G.modal || !G.started;
@@ -5365,6 +5699,8 @@ function render() {
   ents.push(cloudEntity(G.time));
   if (typeof hwEntity === 'function') { const e = hwEntity(); if (e) ents.push(e); }
   if (typeof rainEntity === 'function') { const e = rainEntity(); if (e) ents.push(e); }
+  if (typeof animalEntity === 'function') { const e = animalEntity(); if (e) ents.push(e); }
+  if (typeof snowEntity === 'function') { const e = snowEntity(); if (e) ents.push(e); }
   if (particles.length) ents.push(particleEntity());
   drawScene(canvasEl, cam, ents, curTarget, G.time);
 }
@@ -5398,6 +5734,7 @@ function boot() {
   }
   genWorld(world.seed);
   markAllDirty(); flushDirty();
+  animalsSpawn();
   if (!G.mBases) snapshotBase();
   robotInit();
   if (world.pendingProgram) restoreProgram(world.pendingProgram);
@@ -5429,13 +5766,14 @@ function setupUI() {
   $('viewBtn').onclick = () => cycleView();
   $('skinBtn').onclick = () => openSkin();
   $('farmBtn').onclick = () => openFarm();
+  $('mapBtn').onclick = () => openMap();
   $('inspBtn').onclick = () => {
     if (!keyMode()) { actInspect(); return; }
     G.inspArm = !G.inspArm;
     document.body.classList.toggle('inspArm', G.inspArm);
     if (G.inspArm) toast('🔍 ' + T('しらべたい ブロックを クリックしてね'));
   };
-  ['bZukan', 'bRobot', 'bLab', 'bTeacher', 'bMission', 'menuBtn', 'invBtn', 'hwBtn', 'viewBtn', 'skinBtn', 'inspBtn', 'farmBtn'].forEach(id => {
+  ['bZukan', 'bRobot', 'bLab', 'bTeacher', 'bMission', 'menuBtn', 'invBtn', 'hwBtn', 'viewBtn', 'skinBtn', 'inspBtn', 'farmBtn', 'mapBtn'].forEach(id => {
     $(id).addEventListener('pointerdown', e => e.stopPropagation());
   });
 }
@@ -5446,7 +5784,7 @@ Object.assign(window.__game, {
   openProgram, openZukan, openLab, openTeacher, openMissions, openMenu, openInventory, closeModal, setLevel, startGame,
   showTitle, setBlock, getB, solidAt, checkMissions, currentMission, MISSIONS, FAQ, RECIPES, PLACEABLE, resetAll, saveNow,
   readSave, respawn, renderProgram, showBlockInfo, raycast, genWorld, markAllDirty, flushDirty, addCard, execNodes, astFeatures,
-  cloudSave, cloudPull, saveSig, openDaily, openFarm, farmGrow, farmPlantAt, tyState, WX, CROP_DEFS, COURSES, courseMission, keyMode, aimRay, MOUSE, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
+  cloudSave, cloudPull, saveSig, openDaily, openMap, switchArea, AREAS, animalsList: () => animals, animalAim, animalPet, animalInspect, openFarm, farmGrow, farmPlantAt, tyState, WX, CROP_DEFS, COURSES, courseMission, keyMode, aimRay, MOUSE, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
   startTutorial, endTutorial, tutGoto: i => { TUT.i = i; tutInitStep(); }, tutState: () => ({ on: TUT.on, i: TUT.i, n: TUT.steps.length, doneAt: TUT.doneAt }), tutSeen, findNode, progState: () => ({ target: progTarget }), collectDefs, setBarMode, dirtyChunks
 });
 
