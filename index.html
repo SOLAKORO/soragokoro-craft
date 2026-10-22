@@ -289,6 +289,9 @@ body.tutOn.touch #infocard{top:calc(250px + var(--sat))}
 #hwBtn{top:calc(320px + var(--sat))!important}
 #houseBtn{position:absolute;right:calc(8px + var(--sar));top:calc(268px + var(--sat));background:rgba(146,64,14,.82);border-color:#fcd34d}
 body.touch #houseBtn{top:calc(60px + var(--sat))}
+#fvBar{position:absolute;left:50%;transform:translateX(-50%);top:calc(140px + var(--sat));display:none;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 130px);
+  background:rgba(255,255,255,.96);border:3px solid #a78bfa;border-radius:14px;padding:6px 10px;box-shadow:var(--shadow);z-index:5;font-size:14px}
+body.fvisit #dailyChip{display:none!important}
 #uwTint{position:absolute;inset:0;pointer-events:none;background:rgba(16,96,170,.3);display:none}
 body.underwater #uwTint{display:block}
 #stampBtn{position:absolute;right:calc(8px + var(--sar));top:calc(372px + var(--sat));background:rgba(13,110,140,.82);border-color:#7dd3fc}
@@ -369,6 +372,7 @@ body.inspArm #inspBtn{background:rgba(234,88,12,.9);border-color:#fed7aa}
     <button class="hbtn" id="viewBtn"><span class="ic">👁️</span><span data-t="してん"></span></button>
     <button class="hbtn" id="skinBtn"><span class="ic">👕</span><span data-t="きがえ"></span></button>
     <button class="hbtn" id="stampBtn" style="display:none"><span class="ic">💬</span><span data-t="スタンプ"></span></button>
+    <div id="fvBar"></div>
     <div id="meBubble" class="bubble"></div><div id="vBubble" class="bubble"></div><div id="visitCard"></div>
     <button class="hbtn" id="houseBtn" style="display:none"><span class="ic">🏠</span><span data-t="おうち"></span></button>
     <button class="hbtn" id="mapBtn" style="display:none"><span class="ic">🗺️</span><span data-t="マップ"></span></button>
@@ -2115,6 +2119,7 @@ function actBreak() {
   const fi = fishAim(0); if (fi) { fishPet(fi); return true; }
   if (an) { if (an.heart < 0.6) animalPet(an); return true; }
   if (!t) return false;
+  if (FV) return fvBlocked();
   if (typeof hwOnBreak === 'function' && hwOnBreak(t)) return true;
   if (typeof farmOnBreak === 'function' && farmOnBreak(t, false)) return true;
   if (geoOnBreak(t)) return true;
@@ -2134,6 +2139,7 @@ function actPlace() {
   const t = computeTarget();
   if (!t) return false;
   if (isDoor(t.id)) return doorToggle(t);
+  if (FV) return fvBlocked();
   const x = t.x + t.nx, y = t.y + t.ny, z = t.z + t.nz;
   if (!inb(x, y, z)) return false;
   const cur = getB(x, y, z);
@@ -3253,7 +3259,7 @@ async function unpackStr(s) {
 
 // あずける。force=true は ログアウトなど(かわって いなくても おくる)
 async function cloudSave(force) {
-  if (!cloudOn() || cloudBusy) return false;
+  if (!cloudOn() || cloudBusy || (typeof FV !== 'undefined' && FV)) return false;
   const sig = saveSig();
   if (!force && sig === cloudSig) return false;
   const p = loadPlayer(); // いまの ユーザー(あとで ログアウトされても この人の分として おくる)
@@ -3772,6 +3778,7 @@ function farmPlantAt(x, y, z, cropKey) {
   return true;
 }
 function farmNoGrowMsg() {
+  if (world.area === 'visit') return '👫 ここは ともだちの せかい。じぶんの はたけは はじまりの{島|しま}で そだてよう。';
   if (world.area === 'sea') return '🌊 ここは うみの なか。しおみずでは やさいが そだたないよ。はたけは はじまりの{島|しま}で そだてよう。';
   return world.area === 'volcano' ? '🌋 ここは {火山灰|かざんばい}と いわばかりで、やさいが そだたないよ。はたけは はじまりの{島|しま}で そだてよう。'
     : '🥶 ここは さむすぎて やさいが そだたないよ。はたけは はじまりの{島|しま}で そだてよう。';
@@ -3891,7 +3898,7 @@ function renderFarmBtn() {
   if (!G.started) return;
   const ty = tyState();
   const snow = world.area !== 'home';   // ほかの エリアは うらそえの てんきと かんけい ない
-  const ic = snow ? AREAS.find(a => a.id === world.area).icon : ty.state ? '🌀' : (WX.icon || '🌱');
+  const ic = snow ? (AREAS.find(a => a.id === world.area) || { icon: '👫' }).icon : ty.state ? '🌀' : (WX.icon || '🌱');
   const lb = snow ? 'はたけ' : ty.state === 'warn' ? 'たいふう！' : ty.state === 'now' ? 'たいふう' : WX.ok ? WX.temp + '℃' : 'はたけ';
   const html = '<span class="ic">' + ic + '</span><span class="lb">' + T(lb) + '</span>';
   if (b.innerHTML !== html) b.innerHTML = html;
@@ -4053,6 +4060,7 @@ function genSnow(seed) {
 }
 
 function switchArea(id) {
+  if (typeof FV !== 'undefined' && FV) { toast(T('さきに 🏠かえる を おしてね')); return; }
   const a = AREAS.find(x => x.id === id);
   if (!a || !areaOpen(a) || world.area === id) return;
   G.areaPos[world.area] = { x: P.x, y: P.y, z: P.z, yaw: P.yaw };
@@ -4096,7 +4104,9 @@ function openMap() {
     geoSteps().forEach(st => { html += '<li class="' + (st.ok ? 'done' : '') + '"><span class="st">' + (st.ok ? '✅' : '⬜') + '</span><span>' + st.icon + ' ' + T(st.t) + (st.ok ? '' : '<div class="note">💡 ' + T(st.h) + '</div>') + '</span></li>'; });
     html += '</ul>';
   }
+  html = '<p><button class="btn ok" id="mapFriends">' + (FV ? '🏠 ' + T('じぶんの せかいに かえる') : '👫 ' + T('ともだちの せかい')) + '</button></p>' + html;
   const body = openModal('🗺️ ' + T('マップ'), html, 'map');
+  $('mapFriends').onclick = () => { if (FV) { closeModal(); leaveFriend(); } else openFriends(); };
   body.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => switchArea(b.dataset.go)));
 }
 let mapBtnHtml = '';
@@ -4152,7 +4162,7 @@ function animalsSpawn() {
   const rnd = mulberry32((world.area === 'snow' ? 77 : 33) + Math.floor(Date.now() / 1000) % 1000);
   Object.keys(ANIMALS).forEach(k => {
     const a = ANIMALS[k];
-    if (a.area !== world.area) return;
+    if (a.area !== (world.area === 'visit' ? 'home' : world.area)) return;
     for (let i = 0; i < a.n; i++) {
       for (let tries = 0; tries < 40; tries++) {
         const x = SPAWN.x + (rnd() - 0.5) * 40, z = SPAWN.z + (rnd() - 0.5) * 40;
@@ -4429,6 +4439,7 @@ const HOUSE_ITEMS = [
   ['shelf', '📚', 'ほんだな', '', 0], ['kitchen', '🍳', 'だいどころ', '', 0], ['tatami', '🟩', 'たたみ', '', 0]
 ];
 function houseRun() {
+  if (FV) { toast('👫 ' + T('ともだちの おうちは しらべられないよ')); return; }
   const r = houseCheck();
   let html;
   if (!r.ok) {
@@ -4564,7 +4575,7 @@ function bubblesTick() {
     let pos = null;
     if (b && G.time < b.until) {
       if (who === 'me') pos = G.view ? worldToScreen(P.x, P.y + 2.25, P.z) : [el.parentElement.clientWidth / 2, el.parentElement.clientHeight * 0.62];
-      else if (visitor) pos = worldToScreen(visitor.x, visitor.y + 2.3, visitor.z);
+      else { const n = visitor || (FV && FV.npc); if (n) pos = worldToScreen(n.x, n.y + 2.3, n.z); }
     } else bubbles[who] = null;
     if (!pos) { el.style.display = 'none'; return; }
     if (who === 'me') mePos = pos;
@@ -4591,6 +4602,7 @@ function openStamps() {
 function sendStamp(k) {
   const s = STAMP_BY_KEY[k]; if (!s) return;
   bubbleSay('me', s); playSound('select');
+  if (typeof FV !== 'undefined' && FV) fvSendStamp(k);
   if (visitor && visitor.state !== 'leave') setTimeout(() => { if (visitor) visitorReact(k); }, 900);
 }
 const STAMP_REPLY = { hi: 'hi', good: 'thanks', thanks: 'good', wow: 'thanks', q: 'q', come: 'good', food: 'food', fight: 'fight', sorry: 'good', bye: 'bye', sleep: 'sleep', ty: 'thanks', shisa: 'wow', mensore: 'nifee', nifee: 'thanks' };
@@ -5186,6 +5198,169 @@ function seaTick(dt) {
   fishTick(dt);
 }
 
+// ===== 06m-friends.js =====
+// ---------- ともだちの せかい(おでかけ) ----------
+// 「みせる」にした子の はじまりの島に あそびに いける。こわす・おくは できない(ドアの あけしめだけ)。
+// スタンプと プレゼント(たべもの)を おくれる。きてもらった子には ポイント(サーバーで たす)と おしらせが とどく。
+let FV = null;   // あそびに いっている あいだ: { id, name, seed, npc, own: { seed, area, pos } }
+G.share = false;
+function friendsOn() { return typeof cloudOn === 'function' && cloudOn(); }
+async function openFriends() {
+  if (!friendsOn()) { openModal('👫 ' + T('ともだちの せかい'), '<p class="note">' + T('ログインして あそんでいる ときに つかえるよ。') + '</p>', 'friends'); return; }
+  const body = openModal('👫 ' + T('ともだちの せかい'), '<p class="note">' + T('よみこみちゅう…') + '</p>', 'friends');
+  const r = await cloudPost(loadPlayer(), { action: 'friends' }, 15000);
+  if (G.modal !== 'friends') return;
+  if (!r || !r.ok) { body.innerHTML = '<p class="note">' + T('つながらなかったよ。すこし まってから もういちど ためしてね。') + '</p>'; return; }
+  G.share = !!r.me;
+  let html = '<div class="area' + (G.share ? ' here' : '') + '"><div class="area-ic">' + (G.share ? '🔓' : '🔒') + '</div><div class="area-b"><b>' + T('じぶんの せかいを みせる') + '</b><div class="note">' +
+    T(G.share ? 'ともだちが あそびに これるよ。こわされる ことは ないよ。きてくれると ポイントが もらえるよ。' : 'いまは だれも これないよ。') + '</div></div>' +
+    '<button class="btn sm ' + (G.share ? 'sub' : 'ok') + '" id="fsToggle">' + T(G.share ? 'やめる' : 'みせる') + '</button></div>';
+  html += '<h4>🏝️ ' + T('あそびに いける ともだち') + '</h4>';
+  if (!r.friends.length) html += '<p class="note">' + T('まだ だれも「みせる」に していないみたい。') + '</p>';
+  else html += '<div class="areas">' + r.friends.map(f => '<div class="area"><div class="area-ic">🏝️</div><div class="area-b"><b>' + esc(f.name) + '</b></div><button class="btn ok sm" data-fv="' + esc(f.id) + '" data-fn="' + esc(f.name) + '">' + T('あそびに いく') + '</button></div>').join('') + '</div>';
+  html += '<p class="note">' + T('ともだちの せかいでは ブロックを こわしたり おいたり できないよ。スタンプや プレゼントを おくって あげよう。') + '</p>';
+  body.innerHTML = html;
+  $('fsToggle').onclick = async () => {
+    const b = $('fsToggle'); b.disabled = true;
+    const s = await cloudPost(loadPlayer(), { action: 'share', on: !G.share }, 15000);
+    if (s && s.ok) { G.share = s.on; if (G.share) cloudSave(true); toast(G.share ? '🔓 ' + T('ともだちに せかいを みせるよ') : '🔒 ' + T('みせるのを やめたよ')); }
+    openFriends();
+  };
+  body.querySelectorAll('[data-fv]').forEach(b => b.addEventListener('click', () => visitFriend(b.dataset.fv, b.dataset.fn)));
+}
+async function visitFriend(id, name) {
+  const body = $('mBody'); if (body) body.innerHTML = '<p class="note">🚶 ' + T('おでかけ ちゅう…') + '</p>';
+  const r = await cloudPost(loadPlayer(), { action: 'visit', to: id }, 30000);
+  let d = null;
+  try { if (r && r.ok) d = JSON.parse(await unpackStr(r.data)); } catch (e) { d = null; }
+  if (!d || d.v !== 1) {
+    toast(T(r && r.error === 'closed' ? 'いまは みせて いないみたい' : 'あそびに いけなかったよ'));
+    closeModal(); return;
+  }
+  closeModal();
+  saveNow(); cloudSave(false);
+  const own = { seed: world.seed, area: world.area, pos: { x: P.x, y: P.y, z: P.z, yaw: P.yaw } };
+  if (world.area !== 'home') G.areaPos[world.area] = own.pos;
+  const edits = new Map((Array.isArray(d.edits) ? d.edits : []).filter(e => Array.isArray(e) && e[0] >= 0 && e[0] < W * D * H && BLOCKS[e[1]]));
+  const sp = d.house && Array.isArray(d.house.spawn) && d.house.spawn.length === 4 ? d.house.spawn.map(Number) : null;
+  FV = { id, name: r.name || name, seed: +d.seed || world.seed, own, sent: 0, gave: false,
+    npc: { k: (typeof d.skin === 'string' && SKINS[d.skin]) ? d.skin : 'default', x: SPAWN.x + 1.5, y: SPAWN.y, z: SPAWN.z - 2, yaw: 0, walk: 0, state: 'talk' } };
+  if (typeof robotReset === 'function') robotReset();
+  hwVisit = null; if (visitor) { visitor = null; visitCardHide(); }
+  world.area = 'visit'; world.seed = FV.seed; world.edits = edits;
+  genWorld(world.seed);
+  markAllDirty(); flushDirty();
+  P.x = SPAWN.x; P.y = SPAWN.y; P.z = SPAWN.z; P.vx = P.vy = P.vz = 0; P.yaw = 0;
+  if (sp && !collides(sp[0], sp[1], sp[2])) { P.x = sp[0]; P.y = sp[1]; P.z = sp[2]; P.yaw = sp[3]; FV.npc.x = sp[0] + Math.sin(sp[3]) * -1.6; FV.npc.z = sp[2] + Math.cos(sp[3]) * -1.6; FV.npc.y = sp[1]; }
+  FV.npc.yaw = Math.atan2(-(P.x - FV.npc.x), -(P.z - FV.npc.z));
+  animalsSpawn();
+  renderFvBar(); renderFarmBtn();
+  bubbleSay('v', { e: '🌺', t: 'めんそーれ！' }, 4);
+  toast('👫 ' + esc(FV.name) + T(' の せかいに きたよ！'));
+  playSound('found');
+}
+function leaveFriend() {
+  if (!FV) return;
+  const own = FV.own;
+  FV = null;
+  world.seed = own.seed; world.area = own.area;
+  world.edits = G.areaEdits[world.area] || (G.areaEdits[world.area] = new Map());
+  genWorld(world.seed);
+  markAllDirty(); flushDirty();
+  P.x = own.pos.x; P.y = own.pos.y; P.z = own.pos.z; P.yaw = own.pos.yaw; P.vx = P.vy = P.vz = 0;
+  animalsSpawn();
+  renderFvBar(); renderFarmBtn();
+  toast('🏠 ' + T('じぶんの せかいに かえったよ'));
+  saveSoon();
+}
+function fvBlocked() { toast('👫 ' + T('ともだちの せかいでは こわしたり おいたり できないよ')); playSound('error'); return false; }
+function renderFvBar() {
+  const el = $('fvBar'); if (!el) return;
+  document.body.classList.toggle('fvisit', !!FV);
+  if (!FV) { el.style.display = 'none'; return; }
+  el.innerHTML = '<b>👫 ' + esc(FV.name) + T(' の せかい') + '</b><button class="btn sm" id="fvStamp">💬 ' + T('スタンプ') + '</button><button class="btn sm" id="fvGift">🎁 ' + T('プレゼント') + '</button><button class="btn sm sub" id="fvBack">🏠 ' + T('かえる') + '</button>';
+  el.style.display = 'flex';
+  $('fvStamp').onclick = () => openStamps();
+  $('fvGift').onclick = () => openPresent();
+  $('fvBack').onclick = () => leaveFriend();
+  el.querySelectorAll('button').forEach(b => b.addEventListener('pointerdown', e => e.stopPropagation()));
+}
+// スタンプを おくると、ともだちにも とどく
+function fvSendStamp(k) {
+  if (!FV) return;
+  const id = FV.id;
+  cloudPost(loadPlayer(), { action: 'gift', to: id, kind: 'stamp', key: k }, 15000).then(r => {
+    if (r && r.ok) { if (FV && !FV.sent++) toast('📮 ' + T('スタンプが ともだちに とどくよ')); }
+    else if (r && r.error === 'limit') toast(T('きょうは もう たくさん おくったよ'));
+  });
+  setTimeout(() => { if (FV) bubbleSay('v', STAMP_BY_KEY[STAMP_REPLY[k] || 'good']); }, 900);
+}
+function openPresent() {
+  const list = foodOfColor(null);
+  let html = '<p class="note">' + T('もっている たべものを 1つ プレゼント できるよ(1にち 1かい)。') + '</p>';
+  html += list.length ? '<div class="vc-btns" style="display:flex;flex-wrap:wrap;gap:6px">' + list.map(f => '<button class="btn sm" data-pf="' + f.k + '">' + f.emoji + ' ' + T(f.name) + ' ×' + f.n + '</button>').join('') + '</div>'
+    : '<p class="note">' + T('たべものを もっていないよ。🌱はたけで そだてたり、どうぶつを なでたり してみよう。') + '</p>';
+  const body = openModal('🎁 ' + T('プレゼント'), html, 'present');
+  body.querySelectorAll('[data-pf]').forEach(b => b.addEventListener('click', async () => {
+    if (!FV) return closeModal();
+    const k = b.dataset.pf; if (!(G.food[k] > 0)) return;
+    body.querySelectorAll('button').forEach(x => { x.disabled = true; });
+    const r = await cloudPost(loadPlayer(), { action: 'gift', to: FV.id, kind: 'present', key: k }, 15000);
+    closeModal();
+    if (r && r.ok) {
+      G.food[k]--; renderFarmBtn(); saveNow();
+      bubbleSay('v', STAMP_BY_KEY.thanks, 4);
+      toast('🎁 ' + T('プレゼントを おくったよ！ ともだちが つぎに ひらいたときに とどくよ'));
+      playSound('found');
+    } else toast(T(r && r.error === 'limit' ? 'きょうの プレゼントは もう おくったよ' : 'おくれなかったよ。もういちど ためしてね'));
+  }));
+}
+function fvNpcEntity() {
+  if (!FV) return null;
+  const v = FV.npc, base = M4.model(v.x, v.y, v.z, v.yaw, 1, 1, 1), parts = [];
+  const wave = Math.sin(G.time * 3) * 0.5 + 0.5;
+  for (const p of skinBoxes(v.k)) {
+    const [cx, cy, cz, w, h, d] = p.b;
+    let m = tsMat(cx - w / 2, cy, cz - d / 2, w, h, d);
+    if (p.g === 'armR') m = M4.mul(transMat(0, 1.3, 0), M4.mul(rotXMat(-2.4 - wave * 0.5), M4.mul(transMat(0, -1.3, 0), m)));   // てを ふる
+    parts.push({ m: M4.mul(base, m), c: p.c });
+  }
+  return { parts };
+}
+
+// ---- とどいた おしらせ ----
+let inboxAcc = 170;
+async function inboxCheck() {
+  if (!friendsOn() || FV) return;
+  const r = await cloudPost(loadPlayer(), { action: 'inbox' }, 15000);
+  if (!r || !r.ok || !r.items || !r.items.length) return;
+  const lines = [];
+  r.items.forEach(it => {
+    const who = esc(it.name || '？');
+    if (it.kind === 'visit') lines.push('🚶 ' + who + T(' が あそびに きてくれたよ！') + (it.key === '1' ? ' <b>⭐ +1' + T('ポイント') + '</b>' : ''));
+    else if (it.kind === 'stamp' && STAMP_BY_KEY[it.key]) lines.push('💬 ' + who + ': ' + STAMP_BY_KEY[it.key].e + ' ' + T(STAMP_BY_KEY[it.key].t));
+    else if (it.kind === 'present') {
+      const f = foodName(it.key); if (!f) return;
+      G.food[it.key] = (G.food[it.key] || 0) + 1;
+      lines.push('🎁 ' + who + T(' から ') + f.emoji + ' ' + T(f.name) + T(' を もらったよ！'));
+    }
+  });
+  if (!lines.length) return;
+  renderFarmBtn(); saveSoon();
+  playSound('found');
+  const show = () => openModal('📬 ' + T('おしらせ'), '<ul class="mlist">' + lines.map(l => '<li class="done"><span>' + l + '</span></li>').join('') + '</ul><p class="note">' + T('おかえしに あそびに いって みよう！(🗺️マップ → 👫ともだちの せかい)') + '</p>', 'inbox');
+  if (G.modal) setTimeout(() => { if (!G.modal) show(); else toast('📬 ' + T('おしらせが とどいたよ')); }, 3000); else show();
+}
+function foodName(k) {
+  if (k.indexOf('dish:') === 0) return DISHES[k.slice(5)] || null;
+  return CROP_BY_KEY[k] || GIFTS[k] || null;
+}
+function friendsTick(dt) {
+  if (!G.started) return;
+  inboxAcc += dt;
+  if (inboxAcc > 180) { inboxAcc = 0; inboxCheck(); }
+}
+
 // ===== 06f-daily.js =====
 // ---------- まいにち チャレンジ ----------
 // ひづけ(にっぽん時間)で 1つ きまる。みんなで おなじ。クリアすると スタンプ + ポイント。
@@ -5308,6 +5483,7 @@ function robotPlace(x, y, z, dir) {
 
 // プレイヤーの前にロボットをよぶ
 function robotSummon() {
+  if (typeof FV !== 'undefined' && FV) return fvBlocked();
   if (ROBOT.run) robotStop(true);
   const dir = mod4(Math.round(-P.yaw / (Math.PI / 2)));
   let x = Math.floor(P.x) + DX[dir] * 2, z = Math.floor(P.z) + DZ[dir] * 2;
@@ -5424,6 +5600,7 @@ function robotAct(cmd, arg) {
 
 // ---------- プログラムの実行 ----------
 function robotRunProgram(ast, info) {
+  if (typeof FV !== 'undefined' && FV) return fvBlocked();
   if (!ROBOT.on) robotSummon();
   robotStop(true);
   ROBOT.useBlock = null;
@@ -6077,6 +6254,7 @@ function collectSave() {
   };
 }
 function saveNow() {
+  if (typeof FV !== 'undefined' && FV) return false;   // ともだちの せかいに いる あいだは ほぞんしない
   let s;
   // ほんとうに かわった ときだけ「あたらしい ほぞん」の じかんに する
   try { const sg = saveSig(); if (sg !== G.saveSigNow) { G.saveSigNow = sg; G.saveTs = Date.now(); } } catch (e) { /* 何もしない */ }
@@ -6893,6 +7071,7 @@ function update(dt) {
   if (typeof visitTick === 'function') { visitTick(dt); bubblesTick(); }
   if (typeof volcanoTick === 'function') volcanoTick(dt);
   if (typeof seaTick === 'function') seaTick(dt);
+  if (typeof friendsTick === 'function') friendsTick(dt);
   pollKeyboard();
   handleHold(dt);
   const paused = !!G.modal || !G.started;
@@ -6936,6 +7115,7 @@ function render() {
   if (typeof snowEntity === 'function') { const e = snowEntity(); if (e) ents.push(e); }
   if (typeof visitorEntity === 'function') { const e = visitorEntity(); if (e) ents.push(e); }
   if (typeof volcanoEntity === 'function') { const e = volcanoEntity(); if (e) ents.push(e); }
+  if (typeof fvNpcEntity === 'function') { const e = fvNpcEntity(); if (e) ents.push(e); }
   if (typeof fishEntity === 'function' && world.area === 'sea') { const e = fishEntity(); if (e) ents.push(e); }
   if (particles.length) ents.push(particleEntity());
   drawScene(canvasEl, cam, ents, curTarget, G.time);
@@ -7023,7 +7203,7 @@ Object.assign(window.__game, {
   openProgram, openZukan, openLab, openTeacher, openMissions, openMenu, openInventory, closeModal, setLevel, startGame,
   showTitle, setBlock, getB, solidAt, checkMissions, currentMission, MISSIONS, FAQ, RECIPES, PLACEABLE, resetAll, saveNow,
   readSave, respawn, renderProgram, showBlockInfo, raycast, genWorld, markAllDirty, flushDirty, addCard, execNodes, astFeatures,
-  cloudSave, cloudPull, saveSig, openDaily, seaSteps, fishList: () => fishes, fishAim, fishInspect, geoSteps, VOLC, openStamps, sendStamp, visitStart, visitNow: () => visitor, visitHappy, worldToScreen, STAMPS, openHouse, houseCheck, houseRun, furnQuiz, FURN, doorToggle, openMap, switchArea, AREAS, animalsList: () => animals, animalAim, animalPet, animalInspect, openFarm, farmGrow, farmPlantAt, tyState, WX, CROP_DEFS, COURSES, courseMission, keyMode, aimRay, MOUSE, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
+  cloudSave, cloudPull, saveSig, openDaily, openFriends, visitFriend, leaveFriend, inboxCheck, fvNow: () => FV, seaSteps, fishList: () => fishes, fishAim, fishInspect, geoSteps, VOLC, openStamps, sendStamp, visitStart, visitNow: () => visitor, visitHappy, worldToScreen, STAMPS, openHouse, houseCheck, houseRun, furnQuiz, FURN, doorToggle, openMap, switchArea, AREAS, animalsList: () => animals, animalAim, animalPet, animalInspect, openFarm, farmGrow, farmPlantAt, tyState, WX, CROP_DEFS, COURSES, courseMission, keyMode, aimRay, MOUSE, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
   startTutorial, endTutorial, tutGoto: i => { TUT.i = i; tutInitStep(); }, tutState: () => ({ on: TUT.on, i: TUT.i, n: TUT.steps.length, doneAt: TUT.doneAt }), tutSeen, findNode, progState: () => ({ target: progTarget }), collectDefs, setBarMode, dirtyChunks
 });
 

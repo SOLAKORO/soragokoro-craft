@@ -25,7 +25,7 @@ var SAVE_MAX = 600000;   // 1人あたり保存できる文字数の上限
 var SAVE_CHUNK = 40000;  // 1セルに入れる文字数(セルの上限は5万字)
 
 function doGet() {
-  return out_('soragokoro-craft ok v4 (login+token, 番号)');
+  return out_('soragokoro-craft ok v5 (login+token, 番号, ともだち)');
 }
 
 function doPost(e) {
@@ -38,7 +38,7 @@ function doPost(e) {
       catch (le) { return json_({ ok: false, error: 'server', detail: String(le).slice(0, 100) }); }
     }
     // 進捗の記録・セーブ・ポイントは、ログインで発行した「通行証」がある人だけ
-    var isApi = d.action === 'save' || d.action === 'load' || d.action === 'earn';
+    var isApi = ['save', 'load', 'earn', 'share', 'friends', 'visit', 'gift', 'inbox'].indexOf(d.action) >= 0;
     if (!checkToken_(d.token, d.id)) return isApi ? json_({ ok: false, error: 'auth' }) : out_('denied');
     // ★ 10/9 より前の通行証はログインID（「かなた」など）で出していたので、番号に直す
     d.id = toNo_(d.id);
@@ -47,6 +47,11 @@ function doPost(e) {
     if (d.action === 'save') return json_(save_(d));
     if (d.action === 'load') return json_(load_(d));
     if (d.action === 'earn') return json_(earn_(d));
+    if (d.action === 'share') return json_(share_(d));
+    if (d.action === 'friends') return json_(friends_(d));
+    if (d.action === 'visit') return json_(visit_(d));
+    if (d.action === 'gift') return json_(gift_(d));
+    if (d.action === 'inbox') return json_(inbox_(d));
     record_(d);
     return out_('ok');
   } catch (err) {
@@ -331,7 +336,10 @@ function earn_(d) {
     if (key !== jstDate_(now) && key !== jstDate_(now - 86400000)) return { ok: false, error: 'date' };
     pts = DAILY_PT;
   } else return { ok: false, error: 'bad' };
-
+  return addPoints_(id, kind, key, pts);
+}
+// ポイントを たす(おなじ 人・種類・キーは 1かいだけ)
+function addPoints_(id, kind, key, pts) {
   var led = getSheet_(SH_PT, ['日時', 'ID', '種類', 'キー', 'ポイント', '加算後の合計'], false);
   var last = led.getLastRow();
   if (last >= 2) {
@@ -358,4 +366,118 @@ function earn_(d) {
     return { ok: true, added: pts, total: total };
   }
   return { ok: false, error: 'noid' };
+}
+
+// ---- ともだちの せかい(おでかけ) ----
+// 「みせる」にした子の せかいに あそびに いける。ブロックは こわせない(アプリがわで とめる)。
+// あそびに いくと、きてもらった子に ポイント(1日に きてくれた ちがう子 1人につき VISIT_PT、さいだい VISIT_PT_MAX 人)。
+// スタンプ・プレゼント(たべもの)を おくれる。とどいた ものは「おくりもの」シートに のこり、あいてが ひらいたときに うけとる。
+var SH_SHARE = 'おでかけ設定';
+var SH_GIFT = 'おくりもの';
+var VISIT_PT = 1;        // きてもらった子に たす ポイント(ちがう子 1人ごと)
+var VISIT_PT_MAX = 5;    // 1日に ポイントに なる 人数
+var STAMP_MAX = 10;      // おなじ あいてに 1日に おくれる スタンプの かず
+var PRESENT_MAX = 1;     // おなじ あいてに 1日に おくれる プレゼントの かず
+
+function rosterName_(no) {
+  var R = roster_();
+  if (R.cNo < 0 || R.cName < 0) return '';
+  for (var i = 1; i < R.rows.length; i++) if (norm_(R.rows[i][R.cNo]) === no) return String(R.rows[i][R.cName]).trim();
+  return '';
+}
+function shareSheet_() { return getSheet_(SH_SHARE, ['番号', 'みせる', '更新'], true); }
+function giftSheet_() { return getSheet_(SH_GIFT, ['日時', 'おくった人', 'うけとる人', '種類', 'キー', 'うけとった日時'], false); }
+function isShared_(no) {
+  var sh = shareSheet_(), last = sh.getLastRow();
+  if (last < 2) return false;
+  var rows = sh.getRange(2, 1, last - 1, 2).getDisplayValues();
+  for (var i = 0; i < rows.length; i++) if (norm_(rows[i][0]) === no) return rows[i][1] === '1';
+  return false;
+}
+function share_(d) {
+  var id = norm_(d.id), on = d.on ? '1' : '0';
+  var sh = shareSheet_(), last = sh.getLastRow();
+  var rows = last >= 2 ? sh.getRange(2, 1, last - 1, 1).getDisplayValues() : [];
+  for (var i = 0; i < rows.length; i++) {
+    if (norm_(rows[i][0]) === id) { sh.getRange(i + 2, 2, 1, 2).setValues([[on, new Date()]]); return { ok: true, on: on === '1' }; }
+  }
+  sh.getRange(last + 1, 1, 1, 3).setNumberFormat('@');
+  sh.getRange(last + 1, 1, 1, 3).setValues([[id, on, new Date()]]);
+  return { ok: true, on: on === '1' };
+}
+// みせている子の いちらん(じぶんは のぞく)。セーブが ある子だけ
+function friends_(d) {
+  var id = norm_(d.id), sh = shareSheet_(), last = sh.getLastRow(), out = [], me = false;
+  if (last >= 2) {
+    var saves = {}, sv = getSheet_(SH_SAVE, ['ID', '更新(ミリ秒)', '番号', 'データ'], true), sl = sv.getLastRow();
+    if (sl >= 2) sv.getRange(2, 1, sl - 1, 2).getDisplayValues().forEach(function (r) { saves[norm_(r[0])] = Number(r[1]) || 1; });
+    var rows = sh.getRange(2, 1, last - 1, 2).getDisplayValues();
+    for (var i = 0; i < rows.length; i++) {
+      var no = norm_(rows[i][0]);
+      if (no === id) { me = rows[i][1] === '1'; continue; }
+      if (rows[i][1] !== '1' || !saves[no]) continue;
+      var name = rosterName_(no);
+      if (name) out.push({ id: no, name: name, ts: saves[no] });
+    }
+  }
+  out.sort(function (a, b) { return b.ts - a.ts; });
+  return { ok: true, me: me, friends: out.slice(0, 60) };
+}
+// きょうの おくりもの(from → to, kind)の かず
+function giftCount_(rows, from, to, kind, today) {
+  var n = 0;
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    if (norm_(r[1]) === from && norm_(r[2]) === to && r[3] === kind && jstDate_(new Date(r[0]).getTime()) === today) n++;
+  }
+  return n;
+}
+function giftRows_(sh) {
+  var last = sh.getLastRow();
+  return last >= 2 ? sh.getRange(2, 1, last - 1, 6).getValues() : [];
+}
+function visit_(d) {
+  var id = norm_(d.id), to = norm_(d.to);
+  if (!to || to === id) return { ok: false, error: 'bad' };
+  if (!isShared_(to)) return { ok: false, error: 'closed' };
+  var save = load_({ id: to });
+  if (!save.data) return { ok: false, error: 'nodata' };
+  var sh = giftSheet_(), rows = giftRows_(sh), today = jstDate_(Date.now());
+  if (!giftCount_(rows, id, to, 'visit', today)) {
+    // きょう はじめて きた子なら、きてもらった子に ポイント
+    var visitors = {};
+    rows.forEach(function (r) { if (norm_(r[2]) === to && r[3] === 'visit' && r[4] === '1' && jstDate_(new Date(r[0]).getTime()) === today) visitors[norm_(r[1])] = 1; });
+    var pt = 0;
+    if (Object.keys(visitors).length < VISIT_PT_MAX) {
+      var res = addPoints_(to, 'visit', today.slice(5) + ':' + id, VISIT_PT);
+      if (res.ok && res.added) pt = 1;
+    }
+    sh.getRange(sh.getLastRow() + 1, 1, 1, 6).setValues([[new Date(), "'" + id, "'" + to, 'visit', "'" + pt, '']]);
+  }
+  return { ok: true, name: rosterName_(to), data: save.data, ts: save.ts };
+}
+function gift_(d) {
+  var id = norm_(d.id), to = norm_(d.to), kind = String(d.kind || ''), key = String(d.key || '');
+  if (!to || to === id) return { ok: false, error: 'bad' };
+  if (kind === 'stamp' && !/^[a-z]{1,12}$/.test(key)) return { ok: false, error: 'bad' };
+  if (kind === 'present' && !/^(dish:)?[a-z]{1,12}$/.test(key)) return { ok: false, error: 'bad' };
+  if (kind !== 'stamp' && kind !== 'present') return { ok: false, error: 'bad' };
+  var sh = giftSheet_(), rows = giftRows_(sh), today = jstDate_(Date.now());
+  if (!giftCount_(rows, id, to, 'visit', today)) return { ok: false, error: 'novisit' };   // あそびに いった 日だけ
+  if (giftCount_(rows, id, to, kind, today) >= (kind === 'stamp' ? STAMP_MAX : PRESENT_MAX)) return { ok: false, error: 'limit' };
+  sh.getRange(sh.getLastRow() + 1, 1, 1, 6).setValues([[new Date(), "'" + id, "'" + to, kind, "'" + key, '']]);
+  return { ok: true };
+}
+// とどいた もの(まだ うけとっていない もの)を わたして「うけとった」にする
+function inbox_(d) {
+  var id = norm_(d.id), sh = giftSheet_(), rows = giftRows_(sh), out = [], now = new Date(), names = {};
+  for (var i = 0; i < rows.length && out.length < 40; i++) {
+    var r = rows[i];
+    if (norm_(r[2]) !== id || r[5] !== '') continue;
+    var from = norm_(r[1]);
+    if (!(from in names)) names[from] = rosterName_(from);
+    out.push({ from: from, name: names[from], kind: r[3], key: String(r[4]), t: new Date(r[0]).getTime() });
+    sh.getRange(i + 2, 6).setValue(now);
+  }
+  return { ok: true, items: out };
 }
