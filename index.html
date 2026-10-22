@@ -465,7 +465,8 @@ const B = {
   GOYA1: 25, GOYA2: 26, IMO1: 27, IMO2: 28, KIBI1: 29, KIBI2: 30, DAIZU1: 31, DAIZU2: 32,
   SEED_GOYA: 33, SEED_IMO: 34, SEED_KIBI: 35, SEED_DAIZU: 36,
   TABLE: 37, CHAIR: 38, BED: 39, SHELF: 40, LAMP: 41, DOOR: 42, DOOR_OPEN: 43, KITCHEN: 44,   // いえと かぐ(furn)
-  KAWARA: 45, SHISA: 46, TATAMI: 47
+  KAWARA: 45, SHISA: 46, TATAMI: 47,
+  LAVA: 48, BASALT: 49, PUMICE: 50, OBSIDIAN: 51, SULFUR: 52, ASH: 53   // かざん(geo)
 };
 
 // タイル番号(テクスチャアトラス 8x8)
@@ -476,7 +477,8 @@ const TILE = {
   PUMPKIN_TOP: 22, PUMPKIN_SIDE: 23, LANTERN: 24, COBWEB: 25,
   FARMLAND: 26, SPROUT: 27, NET: 28, GROW0: 29, RIPE0: 33, SEED0: 37,  // GROW0〜32 RIPE0〜36 SEED0〜40
   TABLE_TOP: 41, TABLE_SIDE: 42, CHAIR_TOP: 43, CHAIR_SIDE: 44, BED_TOP: 45, BED_SIDE: 46, SHELF: 47, LAMP: 48, LAMP_TOP: 49,
-  DOOR: 50, DOOR_OPEN: 51, KITCHEN_TOP: 52, KITCHEN_SIDE: 53, KAWARA: 54, SHISA: 55, SHISA_TOP: 56, TATAMI: 57
+  DOOR: 50, DOOR_OPEN: 51, KITCHEN_TOP: 52, KITCHEN_SIDE: 53, KAWARA: 54, SHISA: 55, SHISA_TOP: 56, TATAMI: 57,
+  LAVA: 58, BASALT: 59, PUMICE: 60, OBSIDIAN: 61, SULFUR: 62, ASH: 63
 };
 
 // info: [ひらがな(1・2年), ふりがな(3・4年), 漢字(5・6年)]
@@ -796,8 +798,46 @@ def(B.TATAMI, { key: 'tatami', name: 'たたみ', kind: '{家具|かぐ}', opaqu
     '「い{草|ぐさ}」という{草|くさ}を{編|あ}んでつくった{床|ゆか}。{空気|くうき}をふくむので、あたたかく{湿気|しっけ}もすいとる。',
     '畳表はイグサを編んだもの。イグサの茎は内部がスポンジ状で空気を含み、断熱性と吸湿性がある。'], chem: null });
 
-// ブロックとして置けるもの(空気以外。ハロウィン・はたけ・かぐの ブロックは べつ)
-const PLACEABLE = BLOCKS.filter(b => b && b.id !== B.AIR && !b.event && !b.farm && !b.furn).map(b => b.id);
+// ---- かざんの ブロック(geo: 図鑑・「ぜんぶの ブロック」には いれない。マップの「いわと ちそう」に のる) ----
+def(B.LAVA, { key: 'lava', name: 'ようがん', kind: 'かざん', opaque: true, solid: false, geo: true, glow: true, place: false,
+  tiles: { all: TILE.LAVA },
+  info: ['ようがんは どろどろに とけた いわ。 とても あつくて あぶないから ちかづかないでね！ みずを かけると ひえて かたまるよ。',
+    '{溶岩|ようがん}は{地下|ちか}のマグマが{地上|ちじょう}に{出|で}てきたもの。1000℃{以上|いじょう}もあって とても{危険|きけん}。{水|みず}で{冷|ひ}やすと{固|かた}まって{岩|いわ}になる。',
+    '溶岩は地下のマグマが地表に噴出したもの。温度は約1000〜1200℃。冷えて固まると火山岩(玄武岩・黒曜石など)になる。液体→固体の状態変化。'],
+  chem: { formula: '(SiO₂ など が とけたもの)', mp: 1000, state: 'liquid' } });
+def(B.BASALT, { key: 'basalt', name: '{玄武岩|げんぶがん}', kind: 'かざんの いわ', opaque: true, solid: true, geo: true,
+  tiles: { all: TILE.BASALT },
+  info: ['げんぶがんは ようがんが ひえて できた くろっぽい いわ。 かざんの まわりに たくさん あるよ。',
+    '{玄武岩|げんぶがん}は{溶岩|ようがん}が{冷|ひ}えて{固|かた}まった{黒|くろ}っぽい{岩|いわ}。{冷|ひ}えるときに{縮|ちぢ}んで、{六角形|ろっかっけい}の{柱|はしら}の{形|かたち}になることもある。',
+    '玄武岩は粘り気の少ないマグマが冷えてできた火山岩。冷却時の収縮で柱状節理(六角柱)ができることがある。'],
+  chem: { formula: 'SiO₂・FeO・MgO など', state: 'solid' } });
+def(B.PUMICE, { key: 'pumice', name: '{軽石|かるいし}', kind: 'かざんの いわ', opaque: true, solid: true, geo: true,
+  tiles: { all: TILE.PUMICE },
+  info: ['かるいしは あなが いっぱいで、みずに うく ふしぎな いし。 2021ねんには おきなわの うみべにも たくさん ながれついたよ。',
+    '{軽石|かるいし}はマグマの{中|なか}のガスがぬけた{穴|あな}だらけの{石|いし}。{水|みず}にうく。2021{年|ねん}には{小笠原|おがさわら}の{海底火山|かいていかざん}の{軽石|かるいし}が{沖縄|おきなわ}の{海岸|かいがん}にたくさん{流|なが}れついた。',
+    '軽石はマグマ中の火山ガスが抜けて多孔質になった岩石で、密度が水より小さく浮く。2021年、福徳岡ノ場の噴火による軽石が沖縄・奄美の海岸に大量に漂着した。'],
+  chem: { formula: 'SiO₂ など', state: 'solid' } });
+def(B.OBSIDIAN, { key: 'obsidian', name: '{黒曜石|こくようせき}', kind: 'かざんの いわ', opaque: true, solid: true, geo: true,
+  tiles: { all: TILE.OBSIDIAN },
+  info: ['こくようせきは ようがんが きゅうに ひえて できた、ガラスみたいに つるつるの いし。 むかしの ひとは ナイフに つかったよ。',
+    '{黒曜石|こくようせき}は{溶岩|ようがん}が{急|きゅう}に{冷|ひ}えてできた、ガラスのような{石|いし}。われると するどいので、{大昔|おおむかし}は{矢|や}じりやナイフにした。',
+    '黒曜石は溶岩が急冷され、結晶ができる前に固まった天然ガラス(火山ガラス)。割れ口が鋭く、旧石器時代から石器に使われた。'],
+  chem: { formula: 'SiO₂ (ガラス)', state: 'solid' } });
+def(B.SULFUR, { key: 'sulfur', name: '{硫黄|いおう}', kind: 'かざんの いわ', opaque: true, solid: true, geo: true,
+  tiles: { all: TILE.SULFUR },
+  info: ['いおうは かざんの ちかくで みつかる きいろい いし。 おきなわけんにも「いおうとりしま」という かざんの しまが あるよ。',
+    '{硫黄|いおう}は{火山|かざん}のガスからできる{黄色|きいろ}い{物質|ぶっしつ}。{沖縄県|おきなわけん}{唯一|ゆいいつ}の{活火山|かっかざん}「{硫黄鳥島|いおうとりしま}」では、むかし{硫黄|いおう}をほっていた。',
+    '硫黄(S)は原子番号16の元素。火山ガスの硫化水素などから析出する。硫黄鳥島(久米島町)は沖縄県で唯一の活火山で、かつて硫黄が採掘された。'],
+  chem: { formula: 'S', z: 16, mp: 115, bp: 445, state: 'solid' } });
+def(B.ASH, { key: 'ash', name: '{火山灰|かざんばい}', kind: 'かざんの いわ', opaque: true, solid: true, geo: true,
+  tiles: { all: TILE.ASH },
+  info: ['かざんばいは ふんかで ふきだした こまかい つぶ。 つもって しましまの ちそうに なるよ。',
+    '{火山灰|かざんばい}は{噴火|ふんか}でふき{出|だ}された{細|こま}かいつぶ。{積|つ}もると{地層|ちそう}になり、「{昔|むかし}ここで{噴火|ふんか}があった」しるしになる。',
+    '火山灰は噴火で放出された直径2mm以下の粒子。堆積して地層をつくり、火山灰層は離れた地層の時代を比べる目印(鍵層)になる。'],
+  chem: { formula: 'SiO₂ など', state: 'solid' } });
+
+// ブロックとして置けるもの(空気以外。ハロウィン・はたけ・かぐ・かざんの ブロックは べつ)
+const PLACEABLE = BLOCKS.filter(b => b && b.id !== B.AIR && !b.event && !b.farm && !b.furn && !b.geo).map(b => b.id);
 
 function isSolid(id) { return !!(BLOCKS[id] && BLOCKS[id].solid); }
 function isOpaque(id) { return !!(BLOCKS[id] && BLOCKS[id].opaque); }
@@ -1083,6 +1123,17 @@ function makeAtlas() {
     return y % 2 === 0 ? [c[0] - 14, c[1] - 12, c[2] - 10, 255] : null;
   });
 
+  // ---- かざんの いわ ----
+  fill(TILE.LAVA, [236, 92, 24], 30, 80, (x, y, c) => {
+    const w = Math.sin(x * 0.7 + y * 0.35) + Math.sin(y * 0.9 - x * 0.2);
+    return w > 1.1 ? [255, 214, 80, 255] : w > 0.4 ? [252, 150, 40, 255] : null;
+  });
+  fill(TILE.BASALT, [64, 64, 70], 14, 81, (x, y, c) => (x % 5 === 0 ? [c[0] - 22, c[1] - 22, c[2] - 20, 255] : (y === 7 && x % 10 < 5) || (y === 15 && x % 10 >= 5) ? [c[0] - 18, c[1] - 18, c[2] - 16, 255] : null));
+  fill(TILE.PUMICE, [208, 202, 186], 18, 82, (x, y, c, r) => (r() < 0.16 ? [c[0] - 60, c[1] - 58, c[2] - 50, 255] : null));
+  fill(TILE.OBSIDIAN, [32, 24, 44], 10, 83, (x, y, c) => ((x + y * 2) % 11 === 0 ? [110, 92, 140, 255] : (x - y + 16) % 13 === 0 ? [70, 58, 96, 255] : null));
+  fill(TILE.SULFUR, [232, 212, 60], 22, 84, (x, y, c, r) => (r() < 0.14 ? [255, 244, 140, 255] : r() < 0.1 ? [190, 168, 30, 255] : null));
+  fill(TILE.ASH, [150, 148, 144], 12, 85, (x, y, c) => (y % 3 === 0 ? [c[0] - 14, c[1] - 14, c[2] - 12, 255] : null));
+
   ctx.putImageData(img, 0, 0);
   cv.N = N; cv.S = S;
   return cv;
@@ -1116,6 +1167,7 @@ function solidAt(x, y, z) {
 function genWorld(seed) {
   world.seed = seed;
   if (world.area === 'snow') return genSnow(seed);
+  if (world.area === 'volcano') return genVolcano(seed);
   const blocks = world.blocks;
   blocks.fill(0);
   const cx = W / 2, cz = D / 2;
@@ -1979,6 +2031,7 @@ function playerOverlapsCell(x, y, z) {
 function discover(id, how) {
   if (id === B.AIR || !BLOCKS[id]) return false;
   if (BLOCKS[id].event) return typeof hwDiscover === 'function' ? hwDiscover(id) : false;
+  if (BLOCKS[id].geo) return geoDiscover(id);
   if (BLOCKS[id].farm || BLOCKS[id].furn) return false;
   if (G.zukan[id]) return false;
   G.zukan[id] = true;
@@ -1994,6 +2047,7 @@ function actBreak() {
   if (!t) return false;
   if (typeof hwOnBreak === 'function' && hwOnBreak(t)) return true;
   if (typeof farmOnBreak === 'function' && farmOnBreak(t, false)) return true;
+  if (geoOnBreak(t)) return true;
   furnOnBreak(t);
   const id = t.id;
   setBlock(t.x, t.y, t.z, B.AIR);
@@ -2019,6 +2073,7 @@ function actPlace() {
   if (typeof robotOccupies === 'function' && robotOccupies(x, y, z)) return false;
   setBlock(x, y, z, id);
   if (id === B.DOOR) doorPlaced(x, y, z);
+  geoOnPlace(x, y, z, id);
   G.counters.placed++;
   playSound('place');
   if (typeof onAction === 'function') onAction('place', id);
@@ -2456,7 +2511,7 @@ function openInventory(opts) {
   opts = (opts && opts.onPick) ? opts : (opts && opts.allowClear ? opts : {});
   const cur0 = opts.onPick ? (G.program && G.program.block) : G.hotbar[G.slot];
   let html = '<p class="note">' + (opts.onPick ? T('ロボットが つかう ブロックを えらんでね。') : T('えらんだブロックは、いまの スロット(') + (G.slot + 1) + T(')に はいるよ。')) + '</p><div class="grid">';
-  for (const id of PLACEABLE.concat(hwInvBlocks(), farmInvBlocks(), furnInvBlocks())) {
+  for (const id of PLACEABLE.concat(hwInvBlocks(), farmInvBlocks(), furnInvBlocks(), geoInvBlocks())) {
     const cur = cur0 === id ? ' cur' : '';
     html += '<button class="cell' + cur + '" data-id="' + id + '"><img alt="" src="' + blockIconURL(id, 64) + '"><span>' + T(BLOCKS[id].name) + '</span></button>';
   }
@@ -3084,7 +3139,8 @@ function saveSig() {
     G.hw ? [G.hw.found, G.hw.seen, G.hw.visited, G.hw.result, G.hw.prank.length, G.hw.hat, G.hw.cleaned].join(',') : '',
     G.farm ? Object.keys(G.farm).length + ':' + Object.values(G.farm).filter(f => f.p >= 1).length + ':' + JSON.stringify(G.food) + ':' + Object.keys(G.ty.done).length : '',
     G.house ? Object.keys(G.house.furn).length + ':' + G.house.best + ':' + (G.house.spawn || []).join(',') : '',
-    G.visit ? G.visit.count + ':' + Object.keys(G.visit.stamps).length + ':' + G.visit.last : ''].join('|');
+    G.visit ? G.visit.count + ':' + Object.keys(G.visit.stamps).length + ':' + G.visit.last : '',
+    G.geo ? Object.keys(G.geo.found).length + ':' + G.geo.cooled + ':' + G.areaEdits.volcano.size : ''].join('|');
 }
 
 function cloudPost(player, body, ms) {
@@ -3641,8 +3697,12 @@ function farmPlantAt(x, y, z, cropKey) {
   G.counters.planted = (G.counters.planted || 0) + 1;
   return true;
 }
+function farmNoGrowMsg() {
+  return world.area === 'volcano' ? '🌋 ここは {火山灰|かざんばい}と いわばかりで、やさいが そだたないよ。はたけは はじまりの{島|しま}で そだてよう。'
+    : '🥶 ここは さむすぎて やさいが そだたないよ。はたけは はじまりの{島|しま}で そだてよう。';
+}
 function farmPlayerPlant(t, cropKey) {
-  if (world.area !== 'home') { toast('🥶 ' + T('ここは さむすぎて やさいが そだたないよ。はじまりの{島|しま}で そだてよう')); playSound('error'); return false; }
+  if (world.area !== 'home') { toast(T(farmNoGrowMsg())); playSound('error'); return false; }
   const x = t.x + t.nx, y = t.y + t.ny, z = t.z + t.nz;
   if (!farmPlantAt(x, y, z, cropKey)) { toast('🌱 ' + T('たねは {土|つち}や {草|くさ}の うえに まいてね')); playSound('error'); return false; }
   playSound('place');
@@ -3755,8 +3815,8 @@ function renderFarmBtn() {
   b.style.display = G.started ? 'flex' : 'none';
   if (!G.started) return;
   const ty = tyState();
-  const snow = world.area === 'snow';   // ゆきのエリアは うらそえの てんきと かんけい ない
-  const ic = snow ? '❄️' : ty.state ? '🌀' : (WX.icon || '🌱');
+  const snow = world.area !== 'home';   // ほかの エリアは うらそえの てんきと かんけい ない
+  const ic = snow ? AREAS.find(a => a.id === world.area).icon : ty.state ? '🌀' : (WX.icon || '🌱');
   const lb = snow ? 'はたけ' : ty.state === 'warn' ? 'たいふう！' : ty.state === 'now' ? 'たいふう' : WX.ok ? WX.temp + '℃' : 'はたけ';
   const html = '<span class="ic">' + ic + '</span><span class="lb">' + T(lb) + '</span>';
   if (b.innerHTML !== html) b.innerHTML = html;
@@ -3767,7 +3827,7 @@ function renderFarmBtn() {
 }
 function openFarm() {
   const ty = tyState();
-  let html = world.area === 'snow' ? '<div class="ans" style="background:#f0f9ff;border-color:#7dd3fc">❄️ ' + T('ゆきのエリアは さむすぎて やさいが そだたないよ。はたけは はじまりの{島|しま}で そだてよう。') + '</div>' : '';
+  let html = world.area !== 'home' ? '<div class="ans" style="background:#f0f9ff;border-color:#7dd3fc">' + T(farmNoGrowMsg()) + '</div>' : '';
   html += '<div class="ans" style="background:#f0f9ff;border-color:#7dd3fc">' + (WX.ok ? WX.icon + ' ' + T('きょうの うらそえ: ') + T(WX.label) + ' ' + WX.temp + '℃' + (WX.rain ? '<br>💧 ' + T('あめの 日は みずやり しなくても はやく そだつよ') : '') : T('てんきを よみこみちゅう…')) + '</div>';
   if (ty.state === 'warn') html += '<div class="ans" style="background:#fff7ed;border-color:#fb923c">🌀 <b>' + T('たいふうが くるよ！') + ' (' + ty.date.slice(5).replace('-', '/') + ')</b><br>' + T('やさいの ちかく(2ブロック いない)に ぼうふうネットを はるか、やねの したで そだてよう。はやめに しゅうかく しても いいよ。') + '</div>';
   if (ty.state === 'now') html += '<div class="ans" style="background:#fef2f2;border-color:#f87171">🌀 <b>' + T('たいふうが きている！') + '</b></div>';
@@ -3838,18 +3898,19 @@ function farmTick(dt) {
 const AREAS = [
   { id: 'home', icon: '🏝️', name: 'はじまりの{島|しま}', need: 0, txt: 'あたたかい おきなわの {島|しま}。はたけで やさいを そだてられるよ。' },
   { id: 'snow', icon: '❄️', name: 'ゆきのエリア', need: 5, txt: 'いちねんじゅう さむい ゆきの せかい。{海|うみ}も こおっているよ。さむすぎて やさいは そだたない。' },
-  { id: 'volcano', icon: '🌋', name: 'かざん', need: 99, soon: true, txt: 'じゅんびちゅう' },
+  { id: 'volcano', icon: '🌋', name: 'かざん', need: 8, txt: 'ようがんが ぐつぐつ。いろいろな いわや ちそうが しらべられるよ。ようがんには さわらないでね。' },
   { id: 'sea', icon: '🌊', name: '{海|うみ}の なか', need: 99, soon: true, txt: 'じゅんびちゅう' }
 ];
 world.area = 'home';
-G.areaEdits = { home: world.edits, snow: new Map() };
+G.areaEdits = { home: world.edits, snow: new Map(), volcano: new Map() };
 G.areaPos = {};
 function areaOpen(a) { return !a.soon && (a.need <= 0 || doneCount() >= a.need); }
-function areaReset() { world.area = 'home'; G.areaEdits = { home: new Map(), snow: new Map() }; world.edits = G.areaEdits.home; G.areaPos = {}; }
+function areaReset() { world.area = 'home'; G.areaEdits = { home: new Map(), snow: new Map(), volcano: new Map() }; world.edits = G.areaEdits.home; G.areaPos = {}; }
 function areaFromSave(d) {
-  G.areaEdits = { home: world.edits, snow: new Map((d.snowEdits || []).filter(e => Array.isArray(e) && e[0] >= 0 && e[0] < W * D * H && BLOCKS[e[1]])) };
+  const ed = a => new Map((a || []).filter(e => Array.isArray(e) && e[0] >= 0 && e[0] < W * D * H && BLOCKS[e[1]]));
+  G.areaEdits = { home: world.edits, snow: ed(d.snowEdits), volcano: ed(d.volcanoEdits) };
   G.areaPos = d.areaPos && typeof d.areaPos === 'object' ? d.areaPos : {};
-  world.area = d.area === 'snow' ? 'snow' : 'home';
+  world.area = d.area === 'snow' || d.area === 'volcano' ? d.area : 'home';
   world.edits = G.areaEdits[world.area];
 }
 
@@ -3930,6 +3991,7 @@ function switchArea(id) {
   if (pos && isFinite(pos.x)) { P.x = pos.x; P.y = pos.y; P.z = pos.z; P.yaw = pos.yaw || 0; P.vx = P.vy = P.vz = 0; } else respawn();
   animalsSpawn();
   closeModal();
+  renderFarmBtn();
   toast(a.icon + ' ' + T(a.name) + T(' に きたよ！'));
   playSound('found');
   saveSoon();
@@ -3946,6 +4008,12 @@ function openMap() {
   html += '</div>';
   html += '<h4>🐾 ' + T('どうぶつ') + ' (' + Object.keys(G.animals).length + '/' + Object.keys(ANIMALS).length + ')</h4><div class="note" style="line-height:2">' +
     Object.keys(ANIMALS).map(k => G.animals[k] ? ANIMALS[k].emoji + ' ' + T(ANIMALS[k].name) : '❔ ？？？').join(' ／ ') + '</div><p class="note">' + T('どうぶつを 🔍しらべると ずかんに のるよ。こわす ボタンで なでると、おくりものを くれる どうぶつも いるよ。') + '</p>';
+  if (areaOpen(AREAS.find(a => a.id === 'volcano'))) {
+    html += '<h4>🌋 ' + T('いわと ちそう') + ' (' + Object.keys(G.geo.found).length + '/' + GEO_IDS.length + ')</h4><div class="note" style="line-height:2">' +
+      GEO_IDS.map(id => G.geo.found[BLOCKS[id].key] ? '<img alt="" src="' + blockIconURL(id, 32) + '" style="width:20px;height:20px;vertical-align:-4px"> ' + T(BLOCKS[id].name) : '❔ ？？？').join(' ／ ') + '</div><ul class="mlist">';
+    geoSteps().forEach(st => { html += '<li class="' + (st.ok ? 'done' : '') + '"><span class="st">' + (st.ok ? '✅' : '⬜') + '</span><span>' + st.icon + ' ' + T(st.t) + (st.ok ? '' : '<div class="note">💡 ' + T(st.h) + '</div>') + '</span></li>'; });
+    html += '</ul>';
+  }
   const body = openModal('🗺️ ' + T('マップ'), html, 'map');
   body.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => switchArea(b.dataset.go)));
 }
@@ -4624,6 +4692,175 @@ function visitOnHouse(level) {
 function renderStampBtn() {
   const b = $('stampBtn'); if (!b) return;
   b.style.display = G.started ? 'flex' : 'none';
+}
+
+// ===== 06k-volcano.js =====
+// ---------- かざんの エリア ----------
+// ミッション 8こで ひらく。かこうに ようがん、ひろばの ちかくに「ちそうの かべ」。
+// いわを しらべて「いわと ちそう」を あつめる。ようがんに みずを おくと ひえて こくようせきに なる(じょうたい へんか)
+const GEO_IDS = [B.LAVA, B.BASALT, B.PUMICE, B.OBSIDIAN, B.SULFUR, B.ASH];
+G.geo = { found: {}, cooled: 0 };
+function geoFromSave(d) {
+  G.geo = { found: {}, cooled: 0 };
+  const g = d && d.geo; if (!g || typeof g !== 'object') return;
+  if (g.found && typeof g.found === 'object') Object.keys(g.found).forEach(k => { if (GEO_IDS.some(id => BLOCKS[id].key === k)) G.geo.found[k] = 1; });
+  G.geo.cooled = Math.max(0, Math.floor(+g.cooled || 0));
+}
+function geoDiscover(id) {
+  const k = BLOCKS[id].key;
+  if (G.geo.found[k]) return false;
+  G.geo.found[k] = 1;
+  toast('🌋 ' + T('「いわと ちそう」に のったよ: ') + T(BLOCKS[id].name));
+  playSound('found');
+  if (typeof renderMapBtn === 'function') renderMapBtn();
+  saveSoon();
+  return true;
+}
+function geoInvBlocks() { return GEO_IDS.filter(id => id !== B.LAVA && G.geo.found[BLOCKS[id].key]); }
+function geoSteps() {
+  const rocks = [B.BASALT, B.PUMICE, B.OBSIDIAN, B.SULFUR, B.ASH].filter(id => G.geo.found[BLOCKS[id].key]).length;
+  return [
+    { icon: '🪨', t: 'かざんの いわを 4しゅるい しらべよう (' + Math.min(rocks, 4) + '/4)', h: 'かざんの まわりの いわを 🔍しらべよう。かこうの ふちには きいろい いわも あるよ', ok: rocks >= 4 },
+    { icon: '💧', t: 'ようがんに みずを おいて ひやそう', h: '🎒もちものから {水|みず}を えらんで、ようがんの となりに おこう(ようがんには さわらないでね)', ok: G.geo.cooled > 0 },
+    { icon: '📚', t: 'ちそうの かべで {火山灰|かざんばい}を みつけよう', h: 'ひろばの しましまの かべを 🔍しらべよう', ok: !!G.geo.found.ash }
+  ];
+}
+
+// ---- せかい ----
+const VOLC = { x: W / 2 + 24, z: D / 2 - 22 };   // かざんの まんなか
+function genVolcano(seed) {
+  const blocks = world.blocks;
+  blocks.fill(0);
+  const cx = W / 2, cz = D / 2, s2 = seed + 4242;
+  const heights = new Int16Array(W * D), top = new Uint8Array(W * D);
+  const vd = (x, z) => Math.hypot(x + 0.5 - VOLC.x, z + 0.5 - VOLC.z);
+  for (let z = 0; z < D; z++) for (let x = 0; x < W; x++) {
+    const dx = (x + 0.5 - cx) / (W * 0.5), dz = (z + 0.5 - cz) / (D * 0.5);
+    const mask = clamp(1 - Math.pow(Math.sqrt(dx * dx + dz * dz), 2.2) * 1.05, 0, 1);
+    const n = fbm(x * 0.05, z * 0.05, s2, 4);
+    let h = 6 + mask * (5 + n * 12);
+    const t = clamp((1.5 - Math.max(Math.abs(x + 0.5 - cx) / 14, Math.abs(z + 0.5 - (cz + 1)) / 12)) / 0.6, 0, 1);
+    h = h * (1 - t) + PLAZA_Y * t;
+    const d = vd(x, z), cone = 43 - d * 1.55 + (n - 0.5) * 3;
+    if (cone > h) h = cone;
+    if (d < 4.6) h = 30;   // かこうの そこ
+    heights[x + z * W] = clamp(Math.round(h), 2, H - 4);
+  }
+  const inPlaza = (x, z) => Math.abs(x + 0.5 - cx) / 14 < 1.5 && Math.abs(z + 0.5 - (cz + 1)) / 12 < 1.5;
+  for (let z = 0; z < D; z++) for (let x = 0; x < W; x++) {
+    const h = heights[x + z * W], d = vd(x, z), hs = hash2(x, z, s2 + 3);
+    let surf;
+    if (h <= SEA) surf = B.SAND;
+    else if (d < 6.5) surf = hs < 0.35 ? B.SULFUR : B.BASALT;
+    else if (d < 14) surf = hs < 0.05 ? B.PUMICE : hs < 0.6 ? B.BASALT : B.ASH;
+    else if (d < 24) surf = hs < 0.04 ? B.PUMICE : hs < 0.5 ? B.ASH : B.GRASS;
+    else surf = (!inPlaza(x, z) && hs < 0.12) ? B.ASH : B.GRASS;
+    top[x + z * W] = surf;
+    for (let y = 0; y <= h; y++) blocks[widx(x, y, z)] = y === h ? surf : (y >= h - 2 ? (d < 20 ? B.BASALT : B.DIRT) : B.STONE);
+    for (let y = h + 1; y <= SEA; y++) blocks[widx(x, y, z)] = B.WATER;
+    if (d < 4.6) for (let y = h + 1; y <= h + 2; y++) blocks[widx(x, y, z)] = B.LAVA;   // かこうの ようがん
+  }
+  // ようがんの ながれ(かこうから ふもとへ。ひろばの てまえで とまる)
+  const ang = Math.atan2(cz - VOLC.z, cx - VOLC.x) + 0.55;
+  for (let r = 4; r <= 15; r += 0.5) {
+    const fx = Math.floor(VOLC.x + Math.cos(ang) * r), fz = Math.floor(VOLC.z + Math.sin(ang) * r);
+    for (const [ox, oz] of [[0, 0], [1, 0], [0, 1]]) {
+      const x = fx + ox, z = fz + oz; if (!inb(x, 0, z)) continue;
+      const h = heights[x + z * W];
+      blocks[widx(x, h, z)] = B.LAVA;
+      for (const [ex, ez] of [[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [0, 2], [-1, 1]]) {   // ふちは きゅうに ひえて こくようせき
+        const nx = x + ex, nz = z + ez; if (!inb(nx, 0, nz)) continue;
+        const nh = heights[nx + nz * W];
+        if (blocks[widx(nx, nh, nz)] !== B.LAVA && hash2(nx, nz, s2 + 9) < 0.55) blocks[widx(nx, nh, nz)] = B.OBSIDIAN;
+      }
+    }
+  }
+  const rnd = mulberry32(s2 ^ 0x2c1b3c6d);
+  function vein(id, count, size, ymax) {
+    for (let k = 0; k < count; k++) {
+      let x = Math.floor(rnd() * W), z = Math.floor(rnd() * D);
+      let y = 1 + Math.floor(rnd() * Math.max(1, Math.min(ymax, heights[x + z * W] - 1)));
+      for (let i = 0; i < size; i++) {
+        if (inb(x, y, z) && blocks[widx(x, y, z)] === B.STONE) blocks[widx(x, y, z)] = id;
+        const r = rnd();
+        if (r < 0.17) x++; else if (r < 0.34) x--; else if (r < 0.5) z++; else if (r < 0.66) z--; else if (r < 0.83) y++; else y--;
+      }
+    }
+  }
+  vein(B.COAL_ORE, 160, 7, 40); vein(B.IRON_ORE, 140, 6, 26); vein(B.COPPER_ORE, 80, 5, 22); vein(B.GOLD, 30, 3, 12); vein(B.OBSIDIAN, 40, 4, 14);
+  // すこしだけ 木(はいを かぶった しま)
+  for (let z = 4; z < D - 4; z++) for (let x = 4; x < W - 4; x++) {
+    if (inPlaza(x, z) || vd(x, z) < 22) continue;
+    const h = heights[x + z * W];
+    if (top[x + z * W] !== B.GRASS || hash2(x, z, s2 + 77) > 0.008) continue;
+    const th = 4 + Math.floor(hash2(x, z, s2 + 5) * 2);
+    for (let y = 1; y <= th; y++) blocks[widx(x, h + y, z)] = B.LOG;
+    for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) for (let dy = th - 1; dy <= th + 1; dy++) {
+      if (Math.abs(dx) + Math.abs(dz) + Math.max(0, dy - th) * 2 > 3) continue;
+      const yy = h + dy; if (inb(x + dx, yy, z + dz) && blocks[widx(x + dx, yy, z + dz)] === 0) blocks[widx(x + dx, yy, z + dz)] = B.LEAVES;
+    }
+  }
+  // ちそうの かべ(しましまの がけ。したから いし・げんぶがん・かざんばい・すな・かざんばい・つち)
+  const LAYERS = [B.STONE, B.BASALT, B.ASH, B.SAND, B.ASH, B.DIRT, B.GRASS];
+  for (let x = cx - 15; x <= cx - 6; x++) for (let z = cz - 7; z <= cz - 5; z++) LAYERS.forEach((id, i) => { blocks[widx(x, PLAZA_Y + 1 + i, z)] = id; });
+  world.heights = heights;
+  world.edits.forEach((id, i) => { blocks[i] = id; });
+}
+
+// ---- ようがん: さわると あつい / みずで ひえる ----
+function geoOnBreak(t) {
+  if (t.id !== B.LAVA) return false;
+  toast('🔥 ' + T('ようがんは あつくて さわれないよ！ {水|みず}を おいて ひやそう'));
+  playSound('error');
+  return true;
+}
+function geoOnPlace(x, y, z, id) {
+  if (id !== B.WATER) return;
+  let n = 0;
+  for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
+    if (getB(x + dx, y + dy, z + dz) !== B.LAVA) continue;
+    setBlock(x + dx, y + dy, z + dz, B.OBSIDIAN); n++;
+    spawnParticles(x + dx + 0.5, y + dy + 1, z + dz + 0.5, B.ASH);
+  }
+  if (!n) return;
+  const first = !G.geo.cooled;
+  G.geo.cooled += n;
+  setBlock(x, y, z, B.AIR);   // みずは じょうはつ
+  toast('💨 ' + T('ジュワッ！ ようがんが {水|みず}で きゅうに ひえて、{黒曜石|こくようせき}に なった！') + (first ? '<br><small>' + T('えきたいが ひえて こたいに なる「じょうたい へんか」だよ') + '</small>' : ''));
+  playSound('found');
+  geoDiscover(B.OBSIDIAN);
+  saveSoon();
+}
+let lavaCool = 0;
+function volcanoTick(dt) {
+  if (world.area !== 'volcano') return;
+  for (let k = 0; k < 3; k++) R.sky[k] = R.sky[k] * 0.45 + SKY_VOLC[k] * 0.55;
+  lavaCool -= dt;
+  const fx = Math.floor(P.x), fz = Math.floor(P.z);
+  if (lavaCool <= 0 && (getB(fx, Math.floor(P.y + 0.1), fz) === B.LAVA || getB(fx, Math.floor(P.y + 0.9), fz) === B.LAVA)) {
+    lavaCool = 2;
+    toast('🔥 ' + T('あつい！ ようがんは 1000℃ いじょう。ひろばに もどったよ'));
+    playSound('error');
+    P.x = SPAWN.x; P.y = SPAWN.y; P.z = SPAWN.z; P.vx = P.vy = P.vz = 0;
+  }
+}
+const SKY_VOLC = [0.86, 0.72, 0.62];
+// はい(そらから ふる)と、かこうの けむり
+function volcanoEntity() {
+  if (world.area !== 'volcano' || !G.started) return null;
+  const parts = [], cam = cameraNow(), ash = [0.5, 0.48, 0.47];
+  for (let k = 0; k < 90; k++) {
+    const hx = hash2(k, 7, 3), hz = hash2(k, 8, 3), hy = hash2(k, 9, 3);
+    const x = P.x + (hx - 0.5) * 22, z = P.z + (hz - 0.5) * 22;
+    if (Math.abs(x - cam.x) < 1.4 && Math.abs(z - cam.z) < 1.4) continue;
+    parts.push({ m: M4.model(x, P.y + 10 - ((G.time * 0.9 + hy * 14) % 14), z, 0, 0.05, 0.05, 0.05), c: ash });
+  }
+  for (let k = 0; k < 14; k++) {
+    const ph = (G.time * 0.12 + k / 14) % 1, s = 1.5 + ph * 4;
+    const g = 0.42 + ph * 0.3;
+    parts.push({ m: M4.model(VOLC.x - s / 2 + Math.sin(k * 2.1) * 1.5, 33 + ph * 16, VOLC.z - s / 2 + Math.cos(k * 1.7) * 1.5, k, s, s, s), c: [g, g, g * 1.02] });
+  }
+  return { parts };
 }
 
 // ===== 06f-daily.js =====
@@ -5510,7 +5747,7 @@ function collectSave() {
     hotbar: G.hotbar, slot: G.slot, zukan: G.zukan, made: G.made, counters: G.counters,
     missionIndex: G.missionIndex, stars: G.stars, playSec: Math.round(G.playSec || 0), mDone: G.mDone, mBases: G.mBases, mFocus: G.mFocus, introDone: !!G.introDone,
     player: { x: P.x, y: P.y, z: P.z, yaw: P.yaw, pitch: P.pitch },
-    edits: Array.from(G.areaEdits.home.entries()), snowEdits: Array.from(G.areaEdits.snow.entries()), area: world.area, areaPos: G.areaPos, animals: G.animals,
+    edits: Array.from(G.areaEdits.home.entries()), snowEdits: Array.from(G.areaEdits.snow.entries()), volcanoEdits: Array.from(G.areaEdits.volcano.entries()), geo: G.geo, area: world.area, areaPos: G.areaPos, animals: G.animals,
     robot: typeof robotSave === 'function' ? robotSave() : null,
     program: typeof programSave === 'function' ? programSave() : null,
     hw: G.hw, farm: G.farm, food: G.food, ty: G.ty, house: G.house, visit: G.visit
@@ -5574,6 +5811,7 @@ function applySave(d) {
   farmFromSave(d);
   houseFromSave(d);
   visitFromSave(d);
+  geoFromSave(d);
   areaFromSave(d);
   G.animals = d.animals && typeof d.animals === 'object' ? d.animals : {};
 }
@@ -5582,7 +5820,7 @@ function resetAll() {
   delete memSaves[saveKey()];
   areaReset(); G.animals = {};
   G.zukan = {}; G.tempWasFrozen = false; G.tempIronMelted = false; G.made = {}; G.missionIndex = 0; G.stars = 0; G.playSec = 0; G.introDone = true;
-  G.mDone = {}; G.mFocus = 'build'; farmFromSave(null); houseFromSave(null); visitFromSave(null); visitor = null; visitCardHide();
+  G.mDone = {}; G.mFocus = 'build'; farmFromSave(null); houseFromSave(null); visitFromSave(null); visitor = null; visitCardHide(); geoFromSave(null);
   G.hw = hwFromSave(null); hwVisit = null;
   Object.keys(G.counters).forEach(k => { G.counters[k] = 0; });
   G.hotbar = [B.GRASS, B.DIRT, B.STONE, B.PLANKS, B.BRICK, B.GLASS, B.LOG, B.SAND, B.LEAVES];
@@ -5609,7 +5847,7 @@ function loadUserWorld() {
   G.slot = 0;
   world.pendingRobot = null; world.pendingProgram = null;
   G.daily = null; G.saveTs = 0;
-  G.hw = hwFromSave(null); hwVisit = null; farmFromSave(null); houseFromSave(null); visitFromSave(null); visitor = null; visitCardHide();
+  G.hw = hwFromSave(null); hwVisit = null; farmFromSave(null); houseFromSave(null); visitFromSave(null); visitor = null; visitCardHide(); geoFromSave(null);
   G.skin = ''; SKIN.owned = null; SKIN.equipped = '';
   respawn();
   if (typeof robotReset === 'function') robotReset();
@@ -6329,6 +6567,7 @@ function update(dt) {
   if (typeof farmTick === 'function') farmTick(dt);
   if (typeof areaTick === 'function') areaTick(dt);
   if (typeof visitTick === 'function') { visitTick(dt); bubblesTick(); }
+  if (typeof volcanoTick === 'function') volcanoTick(dt);
   pollKeyboard();
   handleHold(dt);
   const paused = !!G.modal || !G.started;
@@ -6371,6 +6610,7 @@ function render() {
   if (typeof animalEntity === 'function') { const e = animalEntity(); if (e) ents.push(e); }
   if (typeof snowEntity === 'function') { const e = snowEntity(); if (e) ents.push(e); }
   if (typeof visitorEntity === 'function') { const e = visitorEntity(); if (e) ents.push(e); }
+  if (typeof volcanoEntity === 'function') { const e = volcanoEntity(); if (e) ents.push(e); }
   if (particles.length) ents.push(particleEntity());
   drawScene(canvasEl, cam, ents, curTarget, G.time);
 }
@@ -6457,7 +6697,7 @@ Object.assign(window.__game, {
   openProgram, openZukan, openLab, openTeacher, openMissions, openMenu, openInventory, closeModal, setLevel, startGame,
   showTitle, setBlock, getB, solidAt, checkMissions, currentMission, MISSIONS, FAQ, RECIPES, PLACEABLE, resetAll, saveNow,
   readSave, respawn, renderProgram, showBlockInfo, raycast, genWorld, markAllDirty, flushDirty, addCard, execNodes, astFeatures,
-  cloudSave, cloudPull, saveSig, openDaily, openStamps, sendStamp, visitStart, visitNow: () => visitor, visitHappy, worldToScreen, STAMPS, openHouse, houseCheck, houseRun, furnQuiz, FURN, doorToggle, openMap, switchArea, AREAS, animalsList: () => animals, animalAim, animalPet, animalInspect, openFarm, farmGrow, farmPlantAt, tyState, WX, CROP_DEFS, COURSES, courseMission, keyMode, aimRay, MOUSE, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
+  cloudSave, cloudPull, saveSig, openDaily, geoSteps, VOLC, openStamps, sendStamp, visitStart, visitNow: () => visitor, visitHappy, worldToScreen, STAMPS, openHouse, houseCheck, houseRun, furnQuiz, FURN, doorToggle, openMap, switchArea, AREAS, animalsList: () => animals, animalAim, animalPet, animalInspect, openFarm, farmGrow, farmPlantAt, tyState, WX, CROP_DEFS, COURSES, courseMission, keyMode, aimRay, MOUSE, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
   startTutorial, endTutorial, tutGoto: i => { TUT.i = i; tutInitStep(); }, tutState: () => ({ on: TUT.on, i: TUT.i, n: TUT.steps.length, doneAt: TUT.doneAt }), tutSeen, findNode, progState: () => ({ target: progTarget }), collectDefs, setBarMode, dirtyChunks
 });
 
