@@ -286,7 +286,9 @@ body.tutOn.touch #infocard{top:calc(250px + var(--sat))}
 /* してん */
 #viewBtn{position:absolute;right:calc(8px + var(--sar));top:calc(60px + var(--sat))}
 #skinBtn{position:absolute;right:calc(8px + var(--sar));top:calc(112px + var(--sat))}
-#hwBtn{top:calc(268px + var(--sat))!important}
+#hwBtn{top:calc(320px + var(--sat))!important}
+#houseBtn{position:absolute;right:calc(8px + var(--sar));top:calc(268px + var(--sat));background:rgba(146,64,14,.82);border-color:#fcd34d}
+body.touch #houseBtn{top:calc(60px + var(--sat))}
 #mapBtn{position:absolute;right:calc(8px + var(--sar));top:calc(216px + var(--sat))}
 #mapBtn.pulse{animation:hwPulse 1s ease-in-out infinite alternate}
 body.touch #mapBtn{right:auto;left:calc(8px + var(--sal));top:calc(332px + var(--sat))}
@@ -310,12 +312,13 @@ body.inspArm #inspBtn{background:rgba(234,88,12,.9);border-color:#fed7aa}
 .skins .cell img{width:68px;height:84px;image-rendering:pixelated;object-fit:contain}
 .skins .cell.locked{opacity:.55}
 @media (max-width:640px){
-  #viewBtn,#skinBtn,#hwBtn{right:auto;left:calc(8px + var(--sal))}
+  #viewBtn,#skinBtn,body #hwBtn{right:auto;left:calc(8px + var(--sal))}
   #hwBtn{top:calc(124px + var(--sat))!important}
   #viewBtn{top:calc(176px + var(--sat))}
   #skinBtn{top:calc(228px + var(--sat))}
   #farmBtn{right:auto;left:calc(8px + var(--sal));top:calc(280px + var(--sat))}
   #mapBtn{right:auto;left:calc(8px + var(--sal));top:calc(332px + var(--sat))}
+  #houseBtn{top:calc(60px + var(--sat))}
 }
 /* ハロウィン */
 #hwBtn{position:absolute;right:calc(8px + var(--sar));top:calc(124px + var(--sat));background:rgba(124,45,18,.82);border-color:#fdba74}
@@ -348,6 +351,7 @@ body.inspArm #inspBtn{background:rgba(234,88,12,.9);border-color:#fed7aa}
     <div id="dailyChip"></div>
     <button class="hbtn" id="viewBtn"><span class="ic">👁️</span><span data-t="してん"></span></button>
     <button class="hbtn" id="skinBtn"><span class="ic">👕</span><span data-t="きがえ"></span></button>
+    <button class="hbtn" id="houseBtn" style="display:none"><span class="ic">🏠</span><span data-t="おうち"></span></button>
     <button class="hbtn" id="mapBtn" style="display:none"><span class="ic">🗺️</span><span data-t="マップ"></span></button>
     <button class="hbtn" id="farmBtn" style="display:none"><span class="ic">🌱</span><span class="lb">はたけ</span></button>
     <button class="hbtn" id="hwBtn" style="display:none"><span class="ic">🎃</span><span class="lb"></span></button>
@@ -443,7 +447,9 @@ const B = {
   PUMPKIN: 19, LANTERN: 20, COBWEB: 21,  // ハロウィン(event)
   FARMLAND: 22, SPROUT: 23, NET: 24,      // はたけ(farm)
   GOYA1: 25, GOYA2: 26, IMO1: 27, IMO2: 28, KIBI1: 29, KIBI2: 30, DAIZU1: 31, DAIZU2: 32,
-  SEED_GOYA: 33, SEED_IMO: 34, SEED_KIBI: 35, SEED_DAIZU: 36
+  SEED_GOYA: 33, SEED_IMO: 34, SEED_KIBI: 35, SEED_DAIZU: 36,
+  TABLE: 37, CHAIR: 38, BED: 39, SHELF: 40, LAMP: 41, DOOR: 42, DOOR_OPEN: 43, KITCHEN: 44,   // いえと かぐ(furn)
+  KAWARA: 45, SHISA: 46, TATAMI: 47
 };
 
 // タイル番号(テクスチャアトラス 8x8)
@@ -452,7 +458,9 @@ const TILE = {
   SAND: 8, IRON_ORE: 9, IRON: 10, GLASS: 11, ICE: 12, COAL_ORE: 13, GOLD: 14, BRICK: 15,
   PLANKS: 16, SNOW: 17, SNOW_SIDE: 18, COPPER_ORE: 19, COPPER: 20, WHITE: 21,
   PUMPKIN_TOP: 22, PUMPKIN_SIDE: 23, LANTERN: 24, COBWEB: 25,
-  FARMLAND: 26, SPROUT: 27, NET: 28, GROW0: 29, RIPE0: 33, SEED0: 37   // GROW0〜32 RIPE0〜36 SEED0〜40
+  FARMLAND: 26, SPROUT: 27, NET: 28, GROW0: 29, RIPE0: 33, SEED0: 37,  // GROW0〜32 RIPE0〜36 SEED0〜40
+  TABLE_TOP: 41, TABLE_SIDE: 42, CHAIR_TOP: 43, CHAIR_SIDE: 44, BED_TOP: 45, BED_SIDE: 46, SHELF: 47, LAMP: 48, LAMP_TOP: 49,
+  DOOR: 50, DOOR_OPEN: 51, KITCHEN_TOP: 52, KITCHEN_SIDE: 53, KAWARA: 54, SHISA: 55, SHISA_TOP: 56, TATAMI: 57
 };
 
 // info: [ひらがな(1・2年), ふりがな(3・4年), 漢字(5・6年)]
@@ -717,8 +725,63 @@ CROP_DEFS.forEach((c, i) => {
     tiles: { all: TILE.SEED0 + i }, info: c.info, chem: null });
 });
 
-// ブロックとして置けるもの(空気以外。ハロウィン・はたけの ブロックは べつ)
-const PLACEABLE = BLOCKS.filter(b => b && b.id !== B.AIR && !b.event && !b.farm).map(b => b.id);
+// ---- いえと かぐの ブロック(furn: 図鑑・「ぜんぶの ブロック」には いれない。🏠おうち の こうさくで つくる) ----
+def(B.TABLE, { key: 'table', name: 'つくえ', kind: '{家具|かぐ}', opaque: false, solid: true, furn: true,
+  tiles: { top: TILE.TABLE_TOP, bottom: TILE.TABLE_TOP, side: TILE.TABLE_SIDE },
+  info: ['きの つくえ。 べんきょうや ごはんの ときに つかうよ。',
+    '{木|き}のつくえ。{木|き}は{軽|かる}くてけずりやすいので、{家具|かぐ}によく{使|つか}われる。',
+    '木材は軽く加工しやすい。適度な硬さがあり、机などの家具に適している。'], chem: null });
+def(B.CHAIR, { key: 'chair', name: 'いす', kind: '{家具|かぐ}', opaque: false, solid: true, furn: true,
+  tiles: { top: TILE.CHAIR_TOP, bottom: TILE.CHAIR_TOP, side: TILE.CHAIR_SIDE },
+  info: ['きの いす。 つくえと いっしょに おこう。',
+    '{木|き}のいす。{木|き}は{熱|ねつ}を{伝|つた}えにくいので、すわっても つめたくない。',
+    '木材は熱伝導率が小さいため、触れても冷たく感じにくい。'], chem: null });
+def(B.BED, { key: 'bed', name: 'ベッド', kind: '{家具|かぐ}', opaque: false, solid: true, furn: true,
+  tiles: { top: TILE.BED_TOP, bottom: TILE.TABLE_TOP, side: TILE.BED_SIDE },
+  info: ['ふかふかの ベッド。 もようは おきなわの「ミンサー」がら だよ。 ベッドの ある おうちに すむと、そこから スタートできるよ。',
+    'ふとんの{模様|もよう}は{沖縄|おきなわ}の{伝統|でんとう}の{織物|おりもの}「ミンサー{織|お}り」。{四|よ}つと{五|いつ}つの{四角|しかく}には「いつ(五)の{世|よ}(四)までも」という{願|ねが}いがこめられている。',
+    'ミンサー織は八重山・竹富などに伝わる木綿の織物。五つと四つの絣(かすり)模様は「いつの世までも末永く」という意味をもつ。'], chem: null });
+def(B.SHELF, { key: 'shelf', name: 'ほんだな', kind: '{家具|かぐ}', opaque: true, solid: true, furn: true,
+  tiles: { top: TILE.TABLE_TOP, bottom: TILE.TABLE_TOP, side: TILE.SHELF },
+  info: ['ほんが いっぱいの たな。 ほんは きの パルプ から できているよ。',
+    '{本|ほん}の{紙|かみ}は、{木|き}をくだいた「パルプ」からつくられる。',
+    '紙は木材を細かくほぐした繊維(パルプ)を薄く漉いて作る。主成分はセルロース。'], chem: null });
+def(B.LAMP, { key: 'lamp', name: 'あかり', kind: '{家具|かぐ}', opaque: false, solid: true, furn: true, glow: true,
+  tiles: { top: TILE.LAMP_TOP, bottom: TILE.LAMP_TOP, side: TILE.LAMP },
+  info: ['でんきで ひかる あかり。 でんきは どうの せんを とおって くるよ。',
+    '{電気|でんき}で{光|ひか}るあかり。{電気|でんき}は{銅|どう}の{電線|でんせん}を{通|とお}ってとどく。',
+    '電流は電気抵抗の小さい銅線を通って流れ、LEDなどで光に変わる。'], chem: null });
+def(B.DOOR, { key: 'door', name: 'ドア', kind: '{家具|かぐ}', opaque: true, solid: true, furn: true,
+  tiles: { top: TILE.TABLE_TOP, bottom: TILE.TABLE_TOP, side: TILE.DOOR },
+  info: ['おくボタンで あけたり しめたり できるよ。 うごく ところ(ちょうつがい)は てつ。',
+    '「おく」で{開|あ}け{閉|し}めできる。{動|うご}くところ(ちょうつがい)は じょうぶな{鉄|てつ}でできている。',
+    '「置く」操作で開閉できる。蝶番(ちょうつがい)には強度の高い鉄が使われる。'], chem: null });
+def(B.DOOR_OPEN, { key: 'door_open', name: 'ドア(あいている)', kind: '{家具|かぐ}', opaque: false, solid: false, furn: true, inv: false,
+  tiles: { all: TILE.DOOR_OPEN },
+  info: ['あいている ドア。 おくボタンで しめられるよ。', '{開|あ}いているドア。「おく」で{閉|し}められる。', '開いたドア。「置く」操作で閉じる。'], chem: null });
+def(B.KITCHEN, { key: 'kitchen', name: 'だいどころ', kind: '{家具|かぐ}', opaque: true, solid: true, furn: true,
+  tiles: { top: TILE.KITCHEN_TOP, bottom: TILE.KITCHEN_SIDE, side: TILE.KITCHEN_SIDE },
+  info: ['ごはんを つくる ところ。 なべは ねつを よく つたえる きんぞくで できているよ。',
+    '{料理|りょうり}をするところ。なべは{熱|ねつ}をよく{伝|つた}える{金属|きんぞく}(どう や てつ)でできている。',
+    '鍋には熱伝導率の大きい銅や鉄、アルミニウムが使われる。持ち手は熱を伝えにくい木や樹脂にする。'], chem: null });
+def(B.KAWARA, { key: 'kawara', name: '{赤瓦|あかがわら}', kind: 'おきなわの いえ', opaque: true, solid: true, furn: true,
+  tiles: { all: TILE.KAWARA },
+  info: ['おきなわの むかしの いえの やね。 しろい しっくいで とめてあるから、たいふうの かぜでも とばされにくいよ。',
+    '{沖縄|おきなわ}の{伝統的|でんとうてき}な{屋根|やね}。{粘土|ねんど}を{焼|や}いた{赤瓦|あかがわら}を、{白|しろ}い しっくいで かためてあるので、{台風|たいふう}でも{飛|と}びにくい。',
+    '赤瓦は沖縄の赤土(粘土)を焼いた瓦。重く、漆喰(しっくい: 消石灰が主成分)で固定するため台風の強風に強い。'], chem: null });
+def(B.SHISA, { key: 'shisa', name: 'シーサー', kind: 'おきなわの いえ', opaque: true, solid: true, furn: true,
+  tiles: { top: TILE.SHISA_TOP, bottom: TILE.SHISA_TOP, side: TILE.SHISA },
+  info: ['やねや もんに かざって、わるい ものから いえを まもって くれるよ。 くちを あけている のと とじている のが いるんだ。',
+    '{屋根|やね}や{門|もん}にかざる{魔|ま}よけ。{口|くち}を{開|あ}けたシーサーは{福|ふく}をまねき、{閉|と}じたシーサーは{幸|しあわ}せをにがさない といわれる。',
+    'シーサーは獅子(しし)が由来の魔除け。赤瓦の破片や漆喰で作られた。口を開けた雄と閉じた雌の一対で置かれることが多い。'], chem: null });
+def(B.TATAMI, { key: 'tatami', name: 'たたみ', kind: '{家具|かぐ}', opaque: true, solid: true, furn: true,
+  tiles: { all: TILE.TATAMI },
+  info: ['「いぐさ」という くさで あんだ ゆか。 いい においが するよ。',
+    '「い{草|ぐさ}」という{草|くさ}を{編|あ}んでつくった{床|ゆか}。{空気|くうき}をふくむので、あたたかく{湿気|しっけ}もすいとる。',
+    '畳表はイグサを編んだもの。イグサの茎は内部がスポンジ状で空気を含み、断熱性と吸湿性がある。'], chem: null });
+
+// ブロックとして置けるもの(空気以外。ハロウィン・はたけ・かぐの ブロックは べつ)
+const PLACEABLE = BLOCKS.filter(b => b && b.id !== B.AIR && !b.event && !b.farm && !b.furn).map(b => b.id);
 
 function isSolid(id) { return !!(BLOCKS[id] && BLOCKS[id].solid); }
 function isOpaque(id) { return !!(BLOCKS[id] && BLOCKS[id].opaque); }
@@ -913,6 +976,95 @@ function makeAtlas() {
   // たね(つちに たねの つぶ)
   [[235, 230, 210], [150, 60, 140], [176, 186, 86], [222, 196, 110]].forEach((col, i) => {
     fill(TILE.SEED0 + i, [134, 96, 62], 26, 50 + i, (x, y, c) => (((x * 7 + y * 3 + i) % 9 === 0) || ((x + 3) % 5 === 0 && y % 5 === 2) ? [col[0], col[1], col[2], 255] : null));
+  });
+
+  // ---- かぐ(すきまは とうめい) ----
+  const NONE = [0, 0, 0, 0], wood = (c, d) => [c[0] - d, c[1] - d * 0.8, c[2] - d * 0.6, 255];
+  fill(TILE.TABLE_TOP, [178, 128, 76], 14, 60, (x, y, c) => (y % 4 === 3 ? wood(c, 26) : (x === 0 || x === 15 || y === 0 || y === 15) ? wood(c, 36) : null));
+  fill(TILE.TABLE_SIDE, [168, 118, 70], 12, 61, (x, y, c) => (y <= 2 ? (y === 2 ? wood(c, 30) : null) : ((x === 1 || x === 2 || x === 13 || x === 14) ? wood(c, x === 2 || x === 14 ? 18 : 0) : NONE)));
+  fill(TILE.CHAIR_TOP, [186, 138, 84], 12, 62, (x, y, c) => ((x <= 2 || x >= 13 || y <= 1 || y >= 14) ? wood(c, x <= 2 || x >= 13 ? 0 : 24) : NONE));
+  fill(TILE.CHAIR_SIDE, [176, 126, 76], 12, 63, (x, y, c) => {
+    const post = x === 1 || x === 2 || x === 13 || x === 14;
+    if (y <= 1 || (y >= 8 && y <= 9)) return y === 9 || y === 1 ? wood(c, 26) : null;
+    if (post) return wood(c, x === 2 || x === 14 ? 16 : 0);
+    if (y === 4 && x > 2 && x < 13) return wood(c, 10);
+    return NONE;
+  });
+  // ベッド: まくら + ミンサーがらの ふとん(あいいろに 4つと 5つの しかく)
+  fill(TILE.BED_TOP, [44, 82, 160], 8, 64, (x, y, c) => {
+    if (y <= 3) return (x >= 2 && x <= 13) ? [246, 244, 236, 255] : [222, 222, 214, 255];
+    const k = (y - 4) % 6, blk = Math.floor(x / 4);
+    if (y === 4 || y === 10) return [224, 214, 170, 255];
+    if (k >= 2 && k <= 3 && (x % 4 === 1 || x % 4 === 2) && (((y - 4) < 6) ? blk % 2 === 0 : blk % 2 === 1)) return [236, 232, 214, 255];
+    return null;
+  });
+  fill(TILE.BED_SIDE, [44, 82, 160], 8, 65, (x, y, c) => {
+    if (y <= 4) return null;
+    if (y <= 6) return [240, 238, 230, 255];
+    if (y <= 11) return wood([170, 120, 72, 255], y === 11 ? 24 : 0);
+    return (x <= 1 || x >= 14) ? wood([160, 112, 66, 255], 10) : NONE;
+  });
+  // ほんだな
+  const BOOKS = [[176, 52, 52], [52, 96, 170], [60, 140, 76], [196, 160, 52], [128, 70, 150], [210, 120, 50]];
+  fill(TILE.SHELF, [160, 112, 66], 10, 66, (x, y, c, r) => {
+    if (y === 0 || y === 7 || y === 8 || y === 15 || x === 0 || x === 15) return wood(c, y === 7 || y === 15 ? 28 : 6);
+    const b = BOOKS[(Math.floor(x / 2) * 3 + (y > 7 ? 2 : 0)) % BOOKS.length], top = y > 7 ? 9 + (x % 3 === 0 ? 1 : 0) : 1 + (x % 4 === 1 ? 1 : 0);
+    if (y < top) return wood(c, 40);
+    return [b[0] - (x % 2) * 18, b[1] - (x % 2) * 14, b[2] - (x % 2) * 14, 255];
+  });
+  // あかり(スタンド)
+  fill(TILE.LAMP, [255, 228, 150], 10, 67, (x, y, c) => {
+    if (y <= 7) { const w = 4 + Math.floor(y * 0.5); return (x >= 8 - w && x <= 7 + w) ? (y === 7 ? [236, 196, 110, 255] : null) : NONE; }
+    if (y >= 8 && y <= 13) return (x === 7 || x === 8) ? [120, 96, 70, 255] : NONE;
+    if (y >= 14) return (x >= 4 && x <= 11) ? [110, 88, 64, 255] : NONE;
+    return NONE;
+  });
+  fill(TILE.LAMP_TOP, [255, 236, 170], 0, 68, () => NONE);   // うえから みると シェードの ふちだけ
+  // ドア: わくと パネル、とってと まど
+  fill(TILE.DOOR, [150, 98, 56], 12, 69, (x, y, c) => {
+    if (x === 0 || x === 15 || y === 0 || y === 15) return wood(c, 34);
+    if (x === 12 && (y === 8 || y === 9)) return [220, 196, 90, 255];
+    if (y >= 2 && y <= 5 && x >= 3 && x <= 12) return (x === 7 || x === 8) ? wood(c, 30) : [170, 210, 236, 255];
+    if ((x === 3 || x === 10) && y >= 7 && y <= 13) return wood(c, 22);
+    return null;
+  });
+  fill(TILE.DOOR_OPEN, [150, 98, 56], 12, 70, (x, y, c) => (x <= 2 ? (x === 2 ? wood(c, 26) : null) : NONE));
+  // だいどころ: うえに コンロ、よこは とだなと オーブン
+  fill(TILE.KITCHEN_TOP, [190, 194, 200], 10, 71, (x, y, c) => {
+    for (const [cx, cy] of [[4.5, 4.5], [11.5, 11.5]]) {
+      const d = Math.hypot(x - cx, y - cy);
+      if (d <= 3.2 && d >= 1.6) return [58, 60, 66, 255];
+      if (d < 1.6) return [220, 90, 50, 255];
+    }
+    return null;
+  });
+  fill(TILE.KITCHEN_SIDE, [236, 236, 230], 8, 72, (x, y, c) => {
+    if (y <= 1) return [176, 180, 186, 255];
+    if (y === 2 || x === 0 || x === 15) return [150, 150, 146, 255];
+    if (y >= 5 && y <= 12 && x >= 3 && x <= 12) return (y === 5 || y === 12 || x === 3 || x === 12) ? [120, 120, 118, 255] : [60, 64, 72, 255];
+    if (y === 3 && x >= 5 && x <= 10) return [120, 120, 118, 255];
+    return null;
+  });
+  // 赤瓦: まるい かわらの ならびと しろい しっくい
+  // 赤瓦: まるい かわら(丸瓦)の すじと、その あいだを とめる しろい しっくい
+  fill(TILE.KAWARA, [214, 92, 52], 12, 73, (x, y, c) => {
+    const xx = x % 8, step = y % 8 === 7 ? -18 : 0;
+    if (xx === 0 || xx === 4) return [242, 238, 228, 255];
+    if (xx < 4) { const k = [0, 34, 12, -26][xx]; return [c[0] + k + step, c[1] + k * 0.6 + step, c[2] + k * 0.4 + step, 255]; }
+    return [c[0] - 22 + step, c[1] - 26 + step, c[2] - 14 + step, 255];
+  });
+  // シーサー: めと くち、たてがみの うずまき
+  (function () {
+    const face = ['@@@@@@@@@@@@@@@@', '@@.@@.@@@@.@@.@@', '@..............@', '@..oo......oo..@', '@.oKo......oKo.@', '@..oo......oo..@', '@......nn......@', '@.....nnnn.....@',
+      '@..............@', '@.mmmmmmmmmmmm.@', '@.mWmWmWmWmWmm.@', '@.mmmmmmmmmmmm.@', '@.mWmWmWmWmWmm.@', '@..mmmmmmmmmm..@', '@@............@@', '@@@@@@@@@@@@@@@@'];
+    const col = { '@': [168, 84, 44, 255], '.': [214, 132, 72, 255], o: [250, 246, 236, 255], K: [36, 30, 28, 255], n: [130, 60, 34, 255], m: [150, 40, 36, 255], W: [250, 246, 236, 255] };
+    fill(TILE.SHISA, [214, 132, 72], 12, 74, (x, y, c) => { const ch = face[y][x]; return ch === '.' ? null : col[ch]; });
+    fill(TILE.SHISA_TOP, [168, 84, 44], 18, 75, (x, y, c) => (((x * x + y * 3) % 7) === 0 ? [214, 132, 72, 255] : null));
+  })();
+  // たたみ: いぐさの すじと くろい へり
+  fill(TILE.TATAMI, [176, 186, 104], 10, 76, (x, y, c) => {
+    if (x <= 1 || x >= 14) return [40, 50, 44, 255];
+    return y % 2 === 0 ? [c[0] - 14, c[1] - 12, c[2] - 10, 255] : null;
   });
 
   ctx.putImageData(img, 0, 0);
@@ -1769,6 +1921,7 @@ function physicsStep(dt) {
 }
 
 function respawn() {
+  if (typeof houseSpawn === 'function' && houseSpawn()) return;
   P.x = SPAWN.x; P.y = SPAWN.y; P.z = SPAWN.z; P.vx = P.vy = P.vz = 0; P.yaw = 0; P.pitch = -0.15;
 }
 
@@ -1810,7 +1963,7 @@ function playerOverlapsCell(x, y, z) {
 function discover(id, how) {
   if (id === B.AIR || !BLOCKS[id]) return false;
   if (BLOCKS[id].event) return typeof hwDiscover === 'function' ? hwDiscover(id) : false;
-  if (BLOCKS[id].farm) return false;
+  if (BLOCKS[id].farm || BLOCKS[id].furn) return false;
   if (G.zukan[id]) return false;
   G.zukan[id] = true;
   toast('📖 ' + T('{図鑑|ずかん}にのったよ: ') + T(BLOCKS[id].name));
@@ -1825,6 +1978,7 @@ function actBreak() {
   if (!t) return false;
   if (typeof hwOnBreak === 'function' && hwOnBreak(t)) return true;
   if (typeof farmOnBreak === 'function' && farmOnBreak(t, false)) return true;
+  furnOnBreak(t);
   const id = t.id;
   setBlock(t.x, t.y, t.z, B.AIR);
   if (discover(id) && !BLOCKS[id].event) G.counters.inspected++;   // こわして 図鑑に のったのも「しらべた」
@@ -1838,6 +1992,7 @@ function actBreak() {
 function actPlace() {
   const t = computeTarget();
   if (!t) return false;
+  if (isDoor(t.id)) return doorToggle(t);
   const x = t.x + t.nx, y = t.y + t.ny, z = t.z + t.nz;
   if (!inb(x, y, z)) return false;
   const cur = getB(x, y, z);
@@ -1847,6 +2002,7 @@ function actPlace() {
   if (isSolid(id) && playerOverlapsCell(x, y, z)) return false;
   if (typeof robotOccupies === 'function' && robotOccupies(x, y, z)) return false;
   setBlock(x, y, z, id);
+  if (id === B.DOOR) doorPlaced(x, y, z);
   G.counters.placed++;
   playSound('place');
   if (typeof onAction === 'function') onAction('place', id);
@@ -2284,7 +2440,7 @@ function openInventory(opts) {
   opts = (opts && opts.onPick) ? opts : (opts && opts.allowClear ? opts : {});
   const cur0 = opts.onPick ? (G.program && G.program.block) : G.hotbar[G.slot];
   let html = '<p class="note">' + (opts.onPick ? T('ロボットが つかう ブロックを えらんでね。') : T('えらんだブロックは、いまの スロット(') + (G.slot + 1) + T(')に はいるよ。')) + '</p><div class="grid">';
-  for (const id of PLACEABLE.concat(hwInvBlocks(), farmInvBlocks())) {
+  for (const id of PLACEABLE.concat(hwInvBlocks(), farmInvBlocks(), furnInvBlocks())) {
     const cur = cur0 === id ? ' cur' : '';
     html += '<button class="cell' + cur + '" data-id="' + id + '"><img alt="" src="' + blockIconURL(id, 64) + '"><span>' + T(BLOCKS[id].name) + '</span></button>';
   }
@@ -2910,7 +3066,8 @@ function saveSig() {
   return [world.edits.size, G.stars, Object.keys(G.mDone).length + ':' + G.mFocus, Object.keys(c).reduce((a, k) => a + (+c[k] || 0), 0),
     Object.keys(G.zukan).length, Object.keys(G.made).length, G.level, prog, G.daily ? (G.daily.done ? 1 : 0) + ':' + (G.daily.stamps || []).length : '',
     G.hw ? [G.hw.found, G.hw.seen, G.hw.visited, G.hw.result, G.hw.prank.length, G.hw.hat, G.hw.cleaned].join(',') : '',
-    G.farm ? Object.keys(G.farm).length + ':' + Object.values(G.farm).filter(f => f.p >= 1).length + ':' + JSON.stringify(G.food) + ':' + Object.keys(G.ty.done).length : ''].join('|');
+    G.farm ? Object.keys(G.farm).length + ':' + Object.values(G.farm).filter(f => f.p >= 1).length + ':' + JSON.stringify(G.food) + ':' + Object.keys(G.ty.done).length : '',
+    G.house ? Object.keys(G.house.furn).length + ':' + G.house.best + ':' + (G.house.spawn || []).join(',') : ''].join('|');
 }
 
 function cloudPost(player, body, ms) {
@@ -3588,6 +3745,7 @@ function renderFarmBtn() {
   if (b.innerHTML !== html) b.innerHTML = html;
   b.classList.toggle('pulse', ty.state === 'warn' && Object.keys(G.farm).length > 0);
   if (typeof renderMapBtn === 'function') renderMapBtn();
+  if (typeof renderHouseBtn === 'function') renderHouseBtn();
 }
 function openFarm() {
   const ty = tyState();
@@ -3958,6 +4116,237 @@ const SKY_SNOW = [0.8, 0.86, 0.93];
 function areaTick(dt) {
   if (world.area === 'snow') for (let k = 0; k < 3; k++) R.sky[k] = R.sky[k] * 0.4 + SKY_SNOW[k] * 0.6;
   animalsTick(dt);
+}
+
+// ===== 06i-house.js =====
+// ---------- いえと かぐ ----------
+// こうさく: かぐに あう ざいりょうを えらぶ クイズ(ものの せいしつ)。あたると 🎒もちもの に はいる
+// おうちチェック: いま いる へやが かべと やねで かこまれているか しらべて、3だんかいで にんてい
+G.house = { furn: {}, best: 0, spawn: null };
+const FURN = [
+  { key: 'table', id: B.TABLE, q: 'つくえに する ざいりょうは どれ？', opts: [
+    ['planks', 1, '{木|き}は かるくて けずりやすいから、つくえに ぴったり！'],
+    ['ice', 0, '{氷|こおり}は とけて しまうよ。'],
+    ['sand', 0, '{砂|すな}は さらさらで かたまらないよ。']] },
+  { key: 'chair', id: B.CHAIR, q: 'すわっても つめたくない いすに するには？', opts: [
+    ['iron', 0, '{鉄|てつ}は {熱|ねつ}を よく つたえるので、さわると つめたく かんじるよ。'],
+    ['planks', 1, '{木|き}は {熱|ねつ}を つたえにくいので、すわっても つめたくないよ！'],
+    ['glass', 0, 'ガラスは われると あぶないよ。']] },
+  { key: 'bed', id: B.BED, q: 'ベッドの わくに いい ざいりょうは？', opts: [
+    ['stone', 0, '{石|いし}は おもくて うごかせないし、ひえて つめたいよ。'],
+    ['snow', 0, '{雪|ゆき}は とけて びしょびしょに なるよ。'],
+    ['planks', 1, '{木|き}は かるくて あたたかいから、ベッドに ぴったり！']] },
+  { key: 'shelf', id: B.SHELF, q: 'ほんだなに ならべる「ほんの かみ」は なにから できている？', opts: [
+    ['log', 1, 'せいかい！ {紙|かみ}は {木|き}を こまかく くだいた「パルプ」から つくるよ。'],
+    ['sand', 0, '{砂|すな}から できるのは ガラスだよ。'],
+    ['iron_ore', 0, '{鉄鉱石|てっこうせき}から できるのは {鉄|てつ}だよ。']] },
+  { key: 'lamp', id: B.LAMP, q: 'あかりに {電気|でんき}を とどける せんは どれで つくる？', opts: [
+    ['glass', 0, 'ガラスは {電気|でんき}を とおさないよ。'],
+    ['copper', 1, 'せいかい！ {銅|どう}は {電気|でんき}を とても よく とおすので、{電線|でんせん}に つかわれるよ。'],
+    ['planks', 0, '{木|き}は {電気|でんき}を とおさないよ。']] },
+  { key: 'door', id: B.DOOR, q: 'ドアの ちょうつがい(うごく ところ)は どれで つくる？', opts: [
+    ['iron', 1, 'せいかい！ {鉄|てつ}は かたくて じょうぶ。なんかい あけしめ しても こわれにくいよ。'],
+    ['leaves', 0, '{葉|は}っぱは やわらかくて すぐ やぶれるよ。'],
+    ['snow', 0, '{雪|ゆき}は とけて しまうよ。']] },
+  { key: 'kitchen', id: B.KITCHEN, q: 'りょうりの なべに いいのは どれ？', opts: [
+    ['planks', 0, '{木|き}の なべは {火|ひ}に かけると もえて しまうよ。'],
+    ['ice', 0, '{氷|こおり}は とけて しまうよ。'],
+    ['copper', 1, 'せいかい！ {銅|どう}は {熱|ねつ}を よく つたえるので、はやく あたたまるよ。']] },
+  { key: 'tatami', id: B.TATAMI, q: 'たたみは なにで あんで ある？', opts: [
+    ['leaves', 1, 'せいかい！ 「い{草|ぐさ}」という {草|くさ}を あんで つくるよ。くきの なかに {空気|くうき}が あって あたたかいんだ。'],
+    ['stone', 0, '{石|いし}では あめないよ。'],
+    ['iron', 0, '{鉄|てつ}は かたくて あめないよ。']] },
+  { key: 'kawara', id: B.KAWARA, q: 'おきなわの {赤瓦|あかがわら}は なにを やいて つくる？', opts: [
+    ['ice', 0, '{氷|こおり}は やくと とけて しまうよ。'],
+    ['brick', 1, 'せいかい！ レンガと おなじ {粘土|ねんど}を やいて つくるよ。おもくて、しっくいで とめるので {台風|たいふう}でも とびにくいんだ。'],
+    ['gold', 0, '{金|きん}の やねは ぴかぴかだけど、やわらかくて とても たかいよ。']] },
+  { key: 'shisa', id: B.SHISA, q: 'やねの うえの シーサーは なにで できている？', opts: [
+    ['snow', 0, '{雪|ゆき}の シーサーは とけて しまうよ。'],
+    ['leaves', 0, '{葉|は}っぱでは かたちが のこらないよ。'],
+    ['brick', 1, 'せいかい！ {赤瓦|あかがわら}の かけらや しっくい、やきもので つくるよ。いえを まもる まよけ なんだ。']] }
+];
+const FURN_BY_KEY = {}; FURN.forEach(f => { FURN_BY_KEY[f.key] = f; });
+const blockByKey = k => BLOCKS.find(b => b && b.key === k);
+
+function houseFromSave(d) {
+  G.house = { furn: {}, best: 0, spawn: null };
+  const h = d && d.house; if (!h || typeof h !== 'object') return;
+  if (h.furn && typeof h.furn === 'object') Object.keys(h.furn).forEach(k => { if (FURN_BY_KEY[k]) G.house.furn[k] = 1; });
+  G.house.best = clamp(Math.floor(+h.best || 0), 0, 3);
+  if (Array.isArray(h.spawn) && h.spawn.length === 4 && h.spawn.every(v => isFinite(+v))) G.house.spawn = h.spawn.map(Number);
+}
+function furnInvBlocks() { return FURN.filter(f => G.house.furn[f.key]).map(f => f.id); }
+// ベッドの ある おうちから スタート(ふさがっていたら いつもの ところ)
+function houseSpawn() {
+  const s = world.area === 'home' && G.house && G.house.spawn;
+  if (!s || !inb(Math.floor(s[0]), Math.floor(s[1]), Math.floor(s[2])) || collides(s[0], s[1], s[2]) || !solidAt(Math.floor(s[0]), Math.floor(s[1] - 0.5), Math.floor(s[2]))) return false;
+  P.x = s[0]; P.y = s[1]; P.z = s[2]; P.vx = P.vy = P.vz = 0; P.yaw = s[3]; P.pitch = -0.15;
+  return true;
+}
+
+// ---- ドア(2だん。おく ボタンで あけしめ) ----
+const isDoor = id => id === B.DOOR || id === B.DOOR_OPEN;
+function doorCells(x, y, z) {
+  const id = getB(x, y, z), out = [[x, y, z]];
+  for (const dy of [-1, 1]) if (getB(x, y + dy, z) === id) out.push([x, y + dy, z]);
+  return out;
+}
+function doorToggle(t) {
+  const cells = doorCells(t.x, t.y, t.z), open = t.id === B.DOOR;
+  if (!open && cells.some(c => playerOverlapsCell(c[0], c[1], c[2]))) { toast(T('ドアの ところから はなれてね')); return false; }
+  cells.forEach(c => setBlock(c[0], c[1], c[2], open ? B.DOOR_OPEN : B.DOOR));
+  playSound('select'); saveSoon();
+  return true;
+}
+function doorPlaced(x, y, z) {
+  if (getB(x, y + 1, z) === B.AIR && !playerOverlapsCell(x, y + 1, z) && !(typeof robotOccupies === 'function' && robotOccupies(x, y + 1, z))) setBlock(x, y + 1, z, B.DOOR);
+}
+function furnOnBreak(t) {
+  if (!isDoor(t.id)) return false;
+  doorCells(t.x, t.y, t.z).slice(1).forEach(c => setBlock(c[0], c[1], c[2], B.AIR));
+  return false;   // のこりは いつもの こわす
+}
+
+// ---- おうちチェック ----
+const ROOM_MAX = 640;
+function houseCheck() {
+  const sx = Math.floor(P.x), sy = Math.floor(P.y + 0.1), sz = Math.floor(P.z);
+  const pass = (x, y, z) => { const id = getB(x, y, z); return !isSolid(id) && id !== B.DOOR_OPEN; };
+  if (!inb(sx, sy, sz) || !pass(sx, sy, sz)) return { ok: false, why: 'へやの なかに はいって しらべてね' };
+  const seen = new Set([widx(sx, sy, sz)]), q = [[sx, sy, sz]], wall = new Map(), cols = new Map();
+  let leak = false;
+  for (let k = 0; k < q.length && !leak; k++) {
+    const [x, y, z] = q[k];
+    const ck = x + ',' + z; cols.set(ck, Math.max(cols.has(ck) ? cols.get(ck) : -1, y));
+    for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
+      const nx = x + dx, ny = y + dy, nz = z + dz;
+      if (!inb(nx, ny, nz) || ny >= H - 1) { leak = true; break; }
+      const i = widx(nx, ny, nz);
+      if (seen.has(i)) continue;
+      if (pass(nx, ny, nz)) { seen.add(i); q.push([nx, ny, nz]); if (q.length > ROOM_MAX) { leak = true; break; } }
+      else { const id = getB(nx, ny, nz); wall.set(id, (wall.get(id) || 0) + 1); }
+    }
+  }
+  if (leak) return { ok: false, why: 'そとと つながって いるみたい。かべか やねに すきまが ないかな？(ひろすぎる へやも ダメだよ)' };
+  // やねの うえ: 赤瓦と シーサー(へやの まうえと そのまわり)
+  const above = new Set();
+  cols.forEach((top, ck) => {
+    const [x, z] = ck.split(',').map(Number);
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      const edge = dx || dz;
+      for (let y = top + 1; y < Math.min(H, top + 9); y++) { const id = getB(x + dx, y, z + dz); if (id && (!edge || id === B.SHISA)) above.add(id); }
+    }
+  });
+  const has = id => wall.has(id), r = {
+    ok: true, cells: seen.size,
+    door: has(B.DOOR) || has(B.DOOR_OPEN), window: has(B.GLASS), bed: has(B.BED), table: has(B.TABLE), chair: has(B.CHAIR),
+    light: has(B.LAMP) || has(B.LANTERN), shelf: has(B.SHELF), kitchen: has(B.KITCHEN), tatami: has(B.TATAMI),
+    kawara: above.has(B.KAWARA) || has(B.KAWARA), shisa: above.has(B.SHISA)
+  };
+  r.level = !r.door ? 0 : !(r.bed && r.table && r.chair && r.light) ? 1 : !(r.kawara && r.shisa) ? 2 : 3;
+  return r;
+}
+const HOUSE_LV = ['', 'おうち', 'くらせる おうち', 'おきなわの おうち'];
+const HOUSE_ITEMS = [
+  // [key, emoji, なまえ, せつめい, ひつような レベル(0: おまけ)]
+  ['door', '🚪', 'ドア', 'ドアが あると でいり できるね。', 1],
+  ['bed', '🛏️', 'ベッド', 'ねる ところが あると あんしん。', 2],
+  ['table', '🪵', 'つくえ', 'べんきょうや ごはんの ばしょ。', 2],
+  ['chair', '🪑', 'いす', 'つくえと セットで おこう。', 2],
+  ['light', '💡', 'あかり', 'よるでも へやが あかるいね。', 2],
+  ['kawara', '🟥', '{赤瓦|あかがわら}の やね', 'おもくて しっくいで とめるので、{台風|たいふう}に つよい。', 3],
+  ['shisa', '🦁', 'シーサー', 'やねの うえで いえを まもって くれる。', 3],
+  ['window', '🪟', 'まど', 'ガラスは {光|ひかり}を とおすので、へやが あかるく なる。', 0],
+  ['shelf', '📚', 'ほんだな', '', 0], ['kitchen', '🍳', 'だいどころ', '', 0], ['tatami', '🟩', 'たたみ', '', 0]
+];
+function houseRun() {
+  const r = houseCheck();
+  let html;
+  if (!r.ok) {
+    playSound('error');
+    html = '<div class="ans" style="background:#fff7ed;border-color:#fb923c">🧱 ' + T(r.why) + '</div>';
+  } else {
+    const up = r.level > G.house.best;
+    if (up) G.house.best = r.level;
+    let spawnNew = false;
+    if (r.level >= 1 && r.bed && world.area === 'home') { spawnNew = !G.house.spawn; G.house.spawn = [+P.x.toFixed(2), +P.y.toFixed(2), +P.z.toFixed(2), +P.yaw.toFixed(2)]; }
+    playSound(up ? 'found' : 'select');
+    html = '<div class="ans" style="background:' + (r.level ? '#f0fdf4;border-color:#4ade80' : '#fff7ed;border-color:#fb923c') + '">' +
+      (r.level ? '🏠 <b>' + '⭐'.repeat(r.level) + ' ' + T(HOUSE_LV[r.level]) + T(' に にんてい！') + '</b>' : '🧱 ' + T('かこまれた へやが できたね！ ドアを つけると おうちに なるよ。')) +
+      (up && r.level ? '<br>🎉 ' + T('あたらしい ランクに なったよ！') : '') +
+      (spawnNew ? '<br>🛏️ ' + T('この おうちから スタート できるように なったよ。') : '') + '</div>';
+    // ある もの は ならべて、たりない もの(つぎの ランク)は ヒントつき
+    const got = HOUSE_ITEMS.filter(it => r[it[0]]), need = HOUSE_ITEMS.filter(it => !r[it[0]] && it[4] === r.level + 1);
+    html += '<div class="note" style="line-height:2">' + got.map(it => '<span style="white-space:nowrap">✅' + it[1] + T(it[2]) + '</span>').join('　') + '</div>';
+    if (need.length) html += '<div class="note" style="line-height:1.9;margin-top:4px"><b>' + T('つぎの ランクに ひつようなもの') + '</b><br>' + need.map(it => '⬜ ' + it[1] + T(it[2]) + ' … ' + T(it[3])).join('<br>') + '</div>';
+    const facts = got.filter(it => it[0] === 'kawara' || it[0] === 'shisa' || it[0] === 'window');
+    if (facts.length) html += '<p class="note">' + facts.map(it => '💡 ' + T(it[2]) + ': ' + T(it[3])).join('<br>') + '</p>';
+    if (r.level === 3) html += '<p class="note">🌺 ' + T('むかしの おきなわの いえには、もんの うちがわに「ヒンプン」という かべも あったよ。かぜや ひとの めを さえぎるんだ。') + '</p>';
+    G.counters.houseChecks = (G.counters.houseChecks || 0) + 1;
+    saveSoon();
+  }
+  openHouse(html);
+}
+
+// ---- こうさく(クイズ) ----
+function furnQuiz(key) {
+  const f = FURN_BY_KEY[key], b = BLOCKS[f.id];
+  const opts = f.opts.slice().sort(() => Math.random() - 0.5);
+  let html = '<div class="row" style="display:flex;gap:10px;align-items:center"><img alt="" width="56" height="56" src="' + blockIconURL(f.id, 64) + '"><div><b>' + T(b.name) + '</b><div class="note">' + T(f.q) + '</div></div></div>' +
+    '<div class="grid" style="margin-top:8px">' + opts.map(o => {
+      const m = blockByKey(o[0]);
+      return '<button class="cell" data-k="' + o[0] + '"><img alt="" src="' + blockIconURL(m.id, 64) + '"><span>' + T(m.name) + '</span></button>';
+    }).join('') + '</div><div id="fqRes"></div><p><button class="btn sub sm" id="fqBack">← ' + T('もどる') + '</button></p>';
+  const body = openModal('🛠️ ' + T('こうさく'), html, 'house');
+  body.querySelectorAll('[data-k]').forEach(c => c.addEventListener('click', () => {
+    const o = f.opts.find(o => o[0] === c.dataset.k);
+    if (o[1]) {
+      const first = !G.house.furn[key];
+      G.house.furn[key] = 1;
+      playSound('found');
+      $('fqRes').innerHTML = '<div class="ans" style="background:#f0fdf4;border-color:#4ade80">⭕ ' + T(o[2]) + '<br>🎒 ' + T(b.name) + T(' が もちものに はいったよ！') + '</div>';
+      body.querySelectorAll('[data-k]').forEach(x => { x.disabled = true; });
+      if (first) { G.counters.furnMade = (G.counters.furnMade || 0) + 1; saveSoon(); }
+      if (typeof onAction === 'function') onAction('furn', f.id);
+    } else {
+      playSound('error');
+      c.disabled = true; c.style.opacity = 0.45;
+      $('fqRes').innerHTML = '<div class="ans" style="background:#fff7ed;border-color:#fb923c">🤔 ' + T(o[2]) + '<br>' + T('ほかの ざいりょうも ためしてみよう。') + '</div>';
+    }
+  }));
+  $('fqBack').onclick = () => openHouse();
+}
+
+function houseSteps() {
+  const n = Object.keys(G.house.furn).length;
+  return [
+    { icon: '🛠️', t: 'こうさくで かぐを 3つ つくろう (' + Math.min(n, 3) + '/3)', h: 'したの かぐを えらんで、あう ざいりょうを えらぼう', ok: n >= 3 },
+    { icon: '🚪', t: 'かべと やねで かこんだ へやに ドアを つけよう', h: 'へやに はいって「いまの へやを しらべる」を おそう。ドアは「おく」で あけしめ できるよ', ok: G.house.best >= 1 },
+    { icon: '🛏️', t: 'ベッド・つくえ・いす・あかりを へやに おこう', h: 'かぐは へやの なかに おいてね', ok: G.house.best >= 2 },
+    { icon: '🌺', t: '{赤瓦|あかがわら}の やねと シーサーで おきなわの いえに しよう', h: 'やねの うえに {赤瓦|あかがわら}を ならべて、シーサーを のせよう', ok: G.house.best >= 3 }
+  ];
+}
+function openHouse(resultHtml) {
+  let html = resultHtml || '';
+  html += '<p><button class="btn ok" id="hsCheck">🔍 ' + T('いまの へやを しらべる') + '</button></p><ul class="mlist">';
+  let curShown = false;
+  houseSteps().forEach(s => {
+    const isCur = !s.ok && !curShown; if (isCur) curShown = true;
+    html += '<li class="' + (s.ok ? 'done' : isCur ? 'cur' : '') + '"><span class="st">' + (s.ok ? '✅' : isCur ? '👉' : '⬜') + '</span><span>' + s.icon + ' ' + T(s.t) + (isCur ? '<div class="note" style="font-weight:600">💡 ' + T(s.h) + '</div>' : '') + '</span></li>';
+  });
+  html += '</ul><h4>🛠️ ' + T('こうさく') + ' (' + Object.keys(G.house.furn).length + '/' + FURN.length + ')</h4><p class="note">' + T('かぐに あう ざいりょうを えらぶと、つくれるよ。つくった かぐは 🎒もちもの から おけるよ。') + '</p><div class="grid">';
+  FURN.forEach(f => {
+    const got = G.house.furn[f.key];
+    html += '<button class="cell' + (got ? ' cur' : '') + '" data-f="' + f.key + '"><img alt="" src="' + blockIconURL(f.id, 64) + '"><span>' + (got ? '✅' : '') + T(BLOCKS[f.id].name) + '</span></button>';
+  });
+  html += '</div>';
+  const body = openModal('🏠 ' + T('おうち') + (G.house.best ? ' ' + '⭐'.repeat(G.house.best) : ''), html, 'house');
+  $('hsCheck').onclick = () => { closeModal(); houseRun(); };
+  body.querySelectorAll('[data-f]').forEach(c => c.addEventListener('click', () => furnQuiz(c.dataset.f)));
+}
+function renderHouseBtn() {
+  const b = $('houseBtn'); if (!b) return;
+  b.style.display = G.started ? 'flex' : 'none';
 }
 
 // ===== 06f-daily.js =====
@@ -4847,7 +5236,7 @@ function collectSave() {
     edits: Array.from(G.areaEdits.home.entries()), snowEdits: Array.from(G.areaEdits.snow.entries()), area: world.area, areaPos: G.areaPos, animals: G.animals,
     robot: typeof robotSave === 'function' ? robotSave() : null,
     program: typeof programSave === 'function' ? programSave() : null,
-    hw: G.hw, farm: G.farm, food: G.food, ty: G.ty
+    hw: G.hw, farm: G.farm, food: G.food, ty: G.ty, house: G.house
   };
 }
 function saveNow() {
@@ -4906,6 +5295,7 @@ function applySave(d) {
   G.saveTs = +d.ts || 0;
   G.hw = hwFromSave(d.hw);
   farmFromSave(d);
+  houseFromSave(d);
   areaFromSave(d);
   G.animals = d.animals && typeof d.animals === 'object' ? d.animals : {};
 }
@@ -4914,7 +5304,7 @@ function resetAll() {
   delete memSaves[saveKey()];
   areaReset(); G.animals = {};
   G.zukan = {}; G.tempWasFrozen = false; G.tempIronMelted = false; G.made = {}; G.missionIndex = 0; G.stars = 0; G.playSec = 0; G.introDone = true;
-  G.mDone = {}; G.mFocus = 'build'; farmFromSave(null);
+  G.mDone = {}; G.mFocus = 'build'; farmFromSave(null); houseFromSave(null);
   G.hw = hwFromSave(null); hwVisit = null;
   Object.keys(G.counters).forEach(k => { G.counters[k] = 0; });
   G.hotbar = [B.GRASS, B.DIRT, B.STONE, B.PLANKS, B.BRICK, B.GLASS, B.LOG, B.SAND, B.LEAVES];
@@ -4941,7 +5331,7 @@ function loadUserWorld() {
   G.slot = 0;
   world.pendingRobot = null; world.pendingProgram = null;
   G.daily = null; G.saveTs = 0;
-  G.hw = hwFromSave(null); hwVisit = null; farmFromSave(null);
+  G.hw = hwFromSave(null); hwVisit = null; farmFromSave(null); houseFromSave(null);
   G.skin = ''; SKIN.owned = null; SKIN.equipped = '';
   respawn();
   if (typeof robotReset === 'function') robotReset();
@@ -5767,13 +6157,14 @@ function setupUI() {
   $('skinBtn').onclick = () => openSkin();
   $('farmBtn').onclick = () => openFarm();
   $('mapBtn').onclick = () => openMap();
+  $('houseBtn').onclick = () => openHouse();
   $('inspBtn').onclick = () => {
     if (!keyMode()) { actInspect(); return; }
     G.inspArm = !G.inspArm;
     document.body.classList.toggle('inspArm', G.inspArm);
     if (G.inspArm) toast('🔍 ' + T('しらべたい ブロックを クリックしてね'));
   };
-  ['bZukan', 'bRobot', 'bLab', 'bTeacher', 'bMission', 'menuBtn', 'invBtn', 'hwBtn', 'viewBtn', 'skinBtn', 'inspBtn', 'farmBtn', 'mapBtn'].forEach(id => {
+  ['bZukan', 'bRobot', 'bLab', 'bTeacher', 'bMission', 'menuBtn', 'invBtn', 'hwBtn', 'viewBtn', 'skinBtn', 'inspBtn', 'farmBtn', 'mapBtn', 'houseBtn'].forEach(id => {
     $(id).addEventListener('pointerdown', e => e.stopPropagation());
   });
 }
@@ -5784,7 +6175,7 @@ Object.assign(window.__game, {
   openProgram, openZukan, openLab, openTeacher, openMissions, openMenu, openInventory, closeModal, setLevel, startGame,
   showTitle, setBlock, getB, solidAt, checkMissions, currentMission, MISSIONS, FAQ, RECIPES, PLACEABLE, resetAll, saveNow,
   readSave, respawn, renderProgram, showBlockInfo, raycast, genWorld, markAllDirty, flushDirty, addCard, execNodes, astFeatures,
-  cloudSave, cloudPull, saveSig, openDaily, openMap, switchArea, AREAS, animalsList: () => animals, animalAim, animalPet, animalInspect, openFarm, farmGrow, farmPlantAt, tyState, WX, CROP_DEFS, COURSES, courseMission, keyMode, aimRay, MOUSE, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
+  cloudSave, cloudPull, saveSig, openDaily, openHouse, houseCheck, houseRun, furnQuiz, FURN, doorToggle, openMap, switchArea, AREAS, animalsList: () => animals, animalAim, animalPet, animalInspect, openFarm, farmGrow, farmPlantAt, tyState, WX, CROP_DEFS, COURSES, courseMission, keyMode, aimRay, MOUSE, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
   startTutorial, endTutorial, tutGoto: i => { TUT.i = i; tutInitStep(); }, tutState: () => ({ on: TUT.on, i: TUT.i, n: TUT.steps.length, doneAt: TUT.doneAt }), tutSeen, findNode, progState: () => ({ target: progTarget }), collectDefs, setBarMode, dirtyChunks
 });
 
