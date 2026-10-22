@@ -289,6 +289,8 @@ body.tutOn.touch #infocard{top:calc(250px + var(--sat))}
 #hwBtn{top:calc(320px + var(--sat))!important}
 #houseBtn{position:absolute;right:calc(8px + var(--sar));top:calc(268px + var(--sat));background:rgba(146,64,14,.82);border-color:#fcd34d}
 body.touch #houseBtn{top:calc(60px + var(--sat))}
+#uwTint{position:absolute;inset:0;pointer-events:none;background:rgba(16,96,170,.3);display:none}
+body.underwater #uwTint{display:block}
 #stampBtn{position:absolute;right:calc(8px + var(--sar));top:calc(372px + var(--sat));background:rgba(13,110,140,.82);border-color:#7dd3fc}
 body.touch #stampBtn{top:calc(112px + var(--sat))}
 .bubble{position:absolute;display:none;transform:translate(-50%,-100%);background:#fff;border:3px solid #1f2a4d;border-radius:16px;padding:4px 10px;font-size:16px;font-weight:800;white-space:nowrap;pointer-events:none;z-index:3;box-shadow:0 3px 0 rgba(0,0,0,.2)}
@@ -351,6 +353,7 @@ body.inspArm #inspBtn{background:rgba(234,88,12,.9);border-color:#fed7aa}
 <body>
 <div id="app">
   <canvas id="gl" tabindex="0"></canvas>
+  <div id="uwTint"></div>
   <div id="hud">
     <div id="crosshair"></div>
     <div id="topbar">
@@ -466,10 +469,11 @@ const B = {
   SEED_GOYA: 33, SEED_IMO: 34, SEED_KIBI: 35, SEED_DAIZU: 36,
   TABLE: 37, CHAIR: 38, BED: 39, SHELF: 40, LAMP: 41, DOOR: 42, DOOR_OPEN: 43, KITCHEN: 44,   // いえと かぐ(furn)
   KAWARA: 45, SHISA: 46, TATAMI: 47,
-  LAVA: 48, BASALT: 49, PUMICE: 50, OBSIDIAN: 51, SULFUR: 52, ASH: 53   // かざん(geo)
+  LAVA: 48, BASALT: 49, PUMICE: 50, OBSIDIAN: 51, SULFUR: 52, ASH: 53,  // かざん(geo)
+  CORAL1: 54, CORAL2: 55, SEAGRASS: 56, HOSHIZUNA: 57, GOMI: 58          // うみ(sea)
 };
 
-// タイル番号(テクスチャアトラス 8x8)
+// タイル番号(テクスチャアトラス 16x16)
 const TILE = {
   GRASS_TOP: 0, GRASS_SIDE: 1, DIRT: 2, STONE: 3, LOG_SIDE: 4, LOG_TOP: 5, LEAVES: 6, WATER: 7,
   SAND: 8, IRON_ORE: 9, IRON: 10, GLASS: 11, ICE: 12, COAL_ORE: 13, GOLD: 14, BRICK: 15,
@@ -478,7 +482,8 @@ const TILE = {
   FARMLAND: 26, SPROUT: 27, NET: 28, GROW0: 29, RIPE0: 33, SEED0: 37,  // GROW0〜32 RIPE0〜36 SEED0〜40
   TABLE_TOP: 41, TABLE_SIDE: 42, CHAIR_TOP: 43, CHAIR_SIDE: 44, BED_TOP: 45, BED_SIDE: 46, SHELF: 47, LAMP: 48, LAMP_TOP: 49,
   DOOR: 50, DOOR_OPEN: 51, KITCHEN_TOP: 52, KITCHEN_SIDE: 53, KAWARA: 54, SHISA: 55, SHISA_TOP: 56, TATAMI: 57,
-  LAVA: 58, BASALT: 59, PUMICE: 60, OBSIDIAN: 61, SULFUR: 62, ASH: 63
+  LAVA: 58, BASALT: 59, PUMICE: 60, OBSIDIAN: 61, SULFUR: 62, ASH: 63,
+  CORAL1: 64, CORAL2_TOP: 65, CORAL2_SIDE: 66, SEAGRASS: 67, HOSHIZUNA: 68, GOMI: 69
 };
 
 // info: [ひらがな(1・2年), ふりがな(3・4年), 漢字(5・6年)]
@@ -836,8 +841,36 @@ def(B.ASH, { key: 'ash', name: '{火山灰|かざんばい}', kind: 'かざん�
     '火山灰は噴火で放出された直径2mm以下の粒子。堆積して地層をつくり、火山灰層は離れた地層の時代を比べる目印(鍵層)になる。'],
   chem: { formula: 'SiO₂ など', state: 'solid' } });
 
-// ブロックとして置けるもの(空気以外。ハロウィン・はたけ・かぐ・かざんの ブロックは べつ)
-const PLACEABLE = BLOCKS.filter(b => b && b.id !== B.AIR && !b.event && !b.farm && !b.furn && !b.geo).map(b => b.id);
+// ---- うみの ブロック(sea: 図鑑・「ぜんぶの ブロック」には いれない。マップの「うみの なかま」に のる) ----
+def(B.CORAL1, { key: 'coral1', name: 'えだサンゴ', kind: 'うみの なかま', opaque: false, solid: true, sea: true,
+  tiles: { all: TILE.CORAL1 },
+  info: ['サンゴは しょくぶつ みたいだけど、じつは どうぶつ！ おきなわの うみには サンゴしょうが ひろがっているよ。',
+    'サンゴは{植物|しょくぶつ}ではなく、イソギンチャクのなかまの{動物|どうぶつ}。からだの{中|なか}の{小|ちい}さな{藻|も}(かっちゅうそう)から えいようを もらっている。',
+    'サンゴは刺胞動物で、体内に共生する褐虫藻の光合成から栄養を得る。石灰質の骨格を積み重ねてサンゴ礁をつくる。'], chem: null });
+def(B.CORAL2, { key: 'coral2', name: 'テーブルサンゴ', kind: 'うみの なかま', opaque: false, solid: true, sea: true,
+  tiles: { top: TILE.CORAL2_TOP, bottom: TILE.CORAL2_SIDE, side: TILE.CORAL2_SIDE },
+  info: ['うみの みずが あつく なりすぎると、サンゴは まっしろに なって よわって しまうよ(はっか)。',
+    '{海水温|かいすいおん}が{高|たか}くなりすぎると、サンゴから{藻|も}が{出|で}ていって{白|しろ}くなる「{白化|はっか}」がおこる。{長|なが}く{続|つづ}くとサンゴは{死|し}んでしまう。',
+    '海水温の上昇が続くと褐虫藻が抜け出し、サンゴが白くなる白化現象が起こる。地球温暖化で沖縄でも大規模な白化が観測されている。'], chem: null });
+def(B.SEAGRASS, { key: 'seagrass', name: 'うみくさ', kind: 'うみの なかま', opaque: false, solid: false, sea: true,
+  tiles: { all: TILE.SEAGRASS },
+  info: ['うみの そこに はえる くさ。 ジュゴンの だいすきな ごはんだよ。',
+    '{海|うみ}の{底|そこ}に{生|は}える{海草|うみくさ}(アマモなど)。{花|はな}をさかせる{植物|しょくぶつ}で、ジュゴンやウミガメのえさになる。',
+    '海草(うみくさ)は海中で花を咲かせる種子植物。藻類とは異なる。海草藻場は魚のすみかで、ジュゴンの餌場になる。'], chem: null });
+def(B.HOSHIZUNA, { key: 'hoshizuna', name: '{星|ほし}の{砂|すな}', kind: 'うみの なかま', opaque: true, solid: true, sea: true,
+  tiles: { all: TILE.HOSHIZUNA },
+  info: ['ほしの かたちを した すな。 じつは ちいさな いきもの(ゆうこうちゅう)の からなんだ。',
+    '{星|ほし}の{形|かたち}をした{砂|すな}は、{有孔虫|ゆうこうちゅう}という{小|ちい}さな{生|い}き{物|もの}のから。{竹富島|たけとみじま}や{西表島|いりおもてじま}の{浜|はま}が{有名|ゆうめい}。',
+    '星砂は有孔虫(単細胞生物)の殻で、主成分は炭酸カルシウム。竹富島・西表島などの浜で見られる。'],
+  chem: { formula: 'CaCO₃', state: 'solid' } });
+def(B.GOMI, { key: 'gomi', name: 'プラスチックごみ', kind: 'うみの ごみ', opaque: false, solid: true, sea: true, trash: true,
+  tiles: { all: TILE.GOMI },
+  info: ['うみに すてられた ペットボトル。 こわすと ひろえるよ。 うみの いきものを まもろう！',
+    '{海|うみ}に{流|なが}れついたペットボトル。プラスチックは{何百年|なんびゃくねん}も{消|き}えない。こわすと ひろえるよ。',
+    'プラスチックは自然分解されにくく、数百年残る。細かく砕けたマイクロプラスチックは生き物の体内に取り込まれる。'], chem: null });
+
+// ブロックとして置けるもの(空気以外。ハロウィン・はたけ・かぐ・かざん・うみの ブロックは べつ)
+const PLACEABLE = BLOCKS.filter(b => b && b.id !== B.AIR && !b.event && !b.farm && !b.furn && !b.geo && !b.sea).map(b => b.id);
 
 function isSolid(id) { return !!(BLOCKS[id] && BLOCKS[id].solid); }
 function isOpaque(id) { return !!(BLOCKS[id] && BLOCKS[id].opaque); }
@@ -852,7 +885,7 @@ function blockTile(id, face) { // face: 0=+x 1=-x 2=+y 3=-y 4=+z 5=-z
 
 // ---------- テクスチャアトラス(ドット絵をプログラムで描く) ----------
 function makeAtlas() {
-  const N = 8, S = 16;
+  const N = 16, S = 16;
   const cv = document.createElement('canvas');
   cv.width = cv.height = N * S;
   const ctx = cv.getContext('2d');
@@ -1134,6 +1167,39 @@ function makeAtlas() {
   fill(TILE.SULFUR, [232, 212, 60], 22, 84, (x, y, c, r) => (r() < 0.14 ? [255, 244, 140, 255] : r() < 0.1 ? [190, 168, 30, 255] : null));
   fill(TILE.ASH, [150, 148, 144], 12, 85, (x, y, c) => (y % 3 === 0 ? [c[0] - 14, c[1] - 14, c[2] - 12, 255] : null));
 
+  // ---- うみ(すきまは とうめい) ----
+  fill(TILE.CORAL1, [236, 120, 150], 24, 90, (x, y, c) => {
+    // えだわかれ: したから のびる えだ
+    const br = [[7, 15, 7, 3], [7, 8, 3, 2], [8, 9, 12, 3], [4, 4, 2, 0], [12, 5, 13, 1], [7, 5, 7, 0]];
+    for (const [x0, y0, x1, y1] of br) {
+      const t = (y0 === y1) ? 0 : (y - y1) / (y0 - y1);
+      if (y < Math.min(y0, y1) || y > Math.max(y0, y1)) continue;
+      const xx = x1 + (x0 - x1) * t;
+      if (Math.abs(x - xx) <= 1.1) return (x + y) % 3 ? null : [255, 170, 190, 255];
+    }
+    return [0, 0, 0, 0];
+  });
+  fill(TILE.CORAL2_TOP, [214, 176, 112], 22, 91, (x, y, c) => {
+    const d = Math.hypot(x - 7.5, y - 7.5);
+    return d > 7.8 ? [0, 0, 0, 0] : (Math.floor(d) % 3 === 0 ? [c[0] - 30, c[1] - 30, c[2] - 20, 255] : null);
+  });
+  fill(TILE.CORAL2_SIDE, [200, 160, 98], 18, 92, (x, y, c) => (y <= 3 ? null : (x >= 6 && x <= 9) ? [c[0] - 26, c[1] - 26, c[2] - 18, 255] : [0, 0, 0, 0]));
+  fill(TILE.SEAGRASS, [56, 150, 84], 20, 93, (x, y, c) => {
+    const blade = x % 3 === 1, h = 3 + ((x * 7) % 6);
+    if (!blade || y < h) return [0, 0, 0, 0];
+    return (y + x) % 4 === 0 ? [c[0] + 20, c[1] + 30, c[2] + 10, 255] : null;
+  });
+  fill(TILE.HOSHIZUNA, [236, 226, 196], 16, 94, (x, y, c) => {
+    const sx = (x * 5 + y * 3) % 7, star = (sx === 0 && y % 4 === 1) || (sx === 3 && y % 5 === 3);
+    return star ? [255, 250, 236, 255] : null;
+  });
+  fill(TILE.GOMI, [170, 220, 240], 10, 95, (x, y, c) => {
+    if (x < 5 || x > 10) return [0, 0, 0, 0];
+    if (y <= 2) return (x >= 6 && x <= 9) ? [40, 120, 220, 255] : [0, 0, 0, 0];   // ふた
+    if (y >= 7 && y <= 9) return [230, 70, 60, 255];   // ラベル
+    return (x === 6) ? [235, 250, 255, 255] : [c[0], c[1], c[2], 200];
+  });
+
   ctx.putImageData(img, 0, 0);
   cv.N = N; cv.S = S;
   return cv;
@@ -1168,6 +1234,7 @@ function genWorld(seed) {
   world.seed = seed;
   if (world.area === 'snow') return genSnow(seed);
   if (world.area === 'volcano') return genVolcano(seed);
+  if (world.area === 'sea') return genSea(seed);
   const blocks = world.blocks;
   blocks.fill(0);
   const cx = W / 2, cz = D / 2;
@@ -1299,7 +1366,7 @@ function pushVert(arr, x, y, z, u, v, l) { arr.push(x, y, z, u, v, l); }
 function buildChunk(cxi, czi) {
   const op = [], wt = [];
   const x0 = cxi * CS, z0 = czi * CS;
-  const N = 8, pad = 0.02;
+  const N = 16, pad = 0.02;
   const cell = [0, 0, 0], nb = [0, 0, 0];
   const aoAt = (px, py, pz) => (isOpaque(getB(px, py, pz)) ? 1 : 0);
   for (let y = 0; y < H; y++) for (let z = z0; z < z0 + CS; z++) for (let x = x0; x < x0 + CS; x++) {
@@ -1314,6 +1381,7 @@ function buildChunk(cxi, czi) {
       const nid = getB(nb[0], nb[1], nb[2]);
       if (isOpaque(nid)) continue;
       if (nid === id && id !== B.LEAVES) continue;
+      if (isWater && nid && BLOCKS[nid].sea && !BLOCKS[nid].opaque) continue;   // サンゴや うみくさの まわりに みずの かべを つくらない
       if (y === 0 && fd.face === 3) continue;
       const arr = isWater ? wt : op;
       const tile = blockTile(id, fd.face);
@@ -1517,7 +1585,7 @@ function flushDirty() {
 // 単位立方体(ロボットやくもに使う) 0..1
 function makeBoxBuffer() {
   const gl = R.gl;
-  const t = TILE.WHITE, N = 8;
+  const t = TILE.WHITE, N = 16;
   const u = (t % N + 0.5) / N, v = (Math.floor(t / N) + 0.5) / N;
   const arr = [];
   for (const fd of FACE_DEFS) {
@@ -1611,7 +1679,7 @@ function drawEntity(e) {
 function drawSelection(s, time) {
   const gl = R.gl, L = R.loc;
   const e = 0.004, x0 = s.x - e, y0 = s.y - e, z0 = s.z - e, x1 = s.x + 1 + e, y1 = s.y + 1 + e, z1 = s.z + 1 + e;
-  const t = TILE.WHITE, N = 8, u = (t % N + 0.5) / N, v = (Math.floor(t / N) + 0.5) / N;
+  const t = TILE.WHITE, N = 16, u = (t % N + 0.5) / N, v = (Math.floor(t / N) + 0.5) / N;
   const P = [[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1], [x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1]];
   const E = [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]];
   const arr = [];
@@ -2032,6 +2100,7 @@ function discover(id, how) {
   if (id === B.AIR || !BLOCKS[id]) return false;
   if (BLOCKS[id].event) return typeof hwDiscover === 'function' ? hwDiscover(id) : false;
   if (BLOCKS[id].geo) return geoDiscover(id);
+  if (BLOCKS[id].sea) return seaDiscover(id);
   if (BLOCKS[id].farm || BLOCKS[id].furn) return false;
   if (G.zukan[id]) return false;
   G.zukan[id] = true;
@@ -2043,11 +2112,13 @@ function discover(id, how) {
 }
 function actBreak() {
   const t = computeTarget(), an = animalAim(0);   // どうぶつは なでる
+  const fi = fishAim(0); if (fi) { fishPet(fi); return true; }
   if (an) { if (an.heart < 0.6) animalPet(an); return true; }
   if (!t) return false;
   if (typeof hwOnBreak === 'function' && hwOnBreak(t)) return true;
   if (typeof farmOnBreak === 'function' && farmOnBreak(t, false)) return true;
   if (geoOnBreak(t)) return true;
+  if (seaOnBreak(t)) return true;
   furnOnBreak(t);
   const id = t.id;
   setBlock(t.x, t.y, t.z, B.AIR);
@@ -2081,6 +2152,8 @@ function actPlace() {
   return true;
 }
 function actInspect() {
+  const fsh = typeof fishAim === 'function' ? fishAim(2) : null;
+  if (fsh) { fishInspect(fsh); return true; }
   const an = typeof animalAim === 'function' ? animalAim(2) : null;
   if (an) { animalInspect(an); return true; }
   const t = aimHit(2, true);
@@ -2511,7 +2584,7 @@ function openInventory(opts) {
   opts = (opts && opts.onPick) ? opts : (opts && opts.allowClear ? opts : {});
   const cur0 = opts.onPick ? (G.program && G.program.block) : G.hotbar[G.slot];
   let html = '<p class="note">' + (opts.onPick ? T('ロボットが つかう ブロックを えらんでね。') : T('えらんだブロックは、いまの スロット(') + (G.slot + 1) + T(')に はいるよ。')) + '</p><div class="grid">';
-  for (const id of PLACEABLE.concat(hwInvBlocks(), farmInvBlocks(), furnInvBlocks(), geoInvBlocks())) {
+  for (const id of PLACEABLE.concat(hwInvBlocks(), farmInvBlocks(), furnInvBlocks(), geoInvBlocks(), seaInvBlocks())) {
     const cur = cur0 === id ? ' cur' : '';
     html += '<button class="cell' + cur + '" data-id="' + id + '"><img alt="" src="' + blockIconURL(id, 64) + '"><span>' + T(BLOCKS[id].name) + '</span></button>';
   }
@@ -3140,7 +3213,8 @@ function saveSig() {
     G.farm ? Object.keys(G.farm).length + ':' + Object.values(G.farm).filter(f => f.p >= 1).length + ':' + JSON.stringify(G.food) + ':' + Object.keys(G.ty.done).length : '',
     G.house ? Object.keys(G.house.furn).length + ':' + G.house.best + ':' + (G.house.spawn || []).join(',') : '',
     G.visit ? G.visit.count + ':' + Object.keys(G.visit.stamps).length + ':' + G.visit.last : '',
-    G.geo ? Object.keys(G.geo.found).length + ':' + G.geo.cooled + ':' + G.areaEdits.volcano.size : ''].join('|');
+    G.geo ? Object.keys(G.geo.found).length + ':' + G.geo.cooled + ':' + G.areaEdits.volcano.size : '',
+    G.sea ? Object.keys(G.sea.found).length + ':' + G.sea.trash + ':' + G.areaEdits.sea.size : ''].join('|');
 }
 
 function cloudPost(player, body, ms) {
@@ -3698,6 +3772,7 @@ function farmPlantAt(x, y, z, cropKey) {
   return true;
 }
 function farmNoGrowMsg() {
+  if (world.area === 'sea') return '🌊 ここは うみの なか。しおみずでは やさいが そだたないよ。はたけは はじまりの{島|しま}で そだてよう。';
   return world.area === 'volcano' ? '🌋 ここは {火山灰|かざんばい}と いわばかりで、やさいが そだたないよ。はたけは はじまりの{島|しま}で そだてよう。'
     : '🥶 ここは さむすぎて やさいが そだたないよ。はたけは はじまりの{島|しま}で そだてよう。';
 }
@@ -3899,18 +3974,18 @@ const AREAS = [
   { id: 'home', icon: '🏝️', name: 'はじまりの{島|しま}', need: 0, txt: 'あたたかい おきなわの {島|しま}。はたけで やさいを そだてられるよ。' },
   { id: 'snow', icon: '❄️', name: 'ゆきのエリア', need: 5, txt: 'いちねんじゅう さむい ゆきの せかい。{海|うみ}も こおっているよ。さむすぎて やさいは そだたない。' },
   { id: 'volcano', icon: '🌋', name: 'かざん', need: 8, txt: 'ようがんが ぐつぐつ。いろいろな いわや ちそうが しらべられるよ。ようがんには さわらないでね。' },
-  { id: 'sea', icon: '🌊', name: '{海|うみ}の なか', need: 99, soon: true, txt: 'じゅんびちゅう' }
+  { id: 'sea', icon: '🌊', name: '{海|うみ}の なか', need: 11, txt: 'サンゴしょうの うみ。もぐって さかなを しらべたり、うみの ごみを ひろったり しよう。' }
 ];
 world.area = 'home';
-G.areaEdits = { home: world.edits, snow: new Map(), volcano: new Map() };
+G.areaEdits = { home: world.edits, snow: new Map(), volcano: new Map(), sea: new Map() };
 G.areaPos = {};
 function areaOpen(a) { return !a.soon && (a.need <= 0 || doneCount() >= a.need); }
-function areaReset() { world.area = 'home'; G.areaEdits = { home: new Map(), snow: new Map(), volcano: new Map() }; world.edits = G.areaEdits.home; G.areaPos = {}; }
+function areaReset() { world.area = 'home'; G.areaEdits = { home: new Map(), snow: new Map(), volcano: new Map(), sea: new Map() }; world.edits = G.areaEdits.home; G.areaPos = {}; }
 function areaFromSave(d) {
   const ed = a => new Map((a || []).filter(e => Array.isArray(e) && e[0] >= 0 && e[0] < W * D * H && BLOCKS[e[1]]));
-  G.areaEdits = { home: world.edits, snow: ed(d.snowEdits), volcano: ed(d.volcanoEdits) };
+  G.areaEdits = { home: world.edits, snow: ed(d.snowEdits), volcano: ed(d.volcanoEdits), sea: ed(d.seaEdits) };
   G.areaPos = d.areaPos && typeof d.areaPos === 'object' ? d.areaPos : {};
-  world.area = d.area === 'snow' || d.area === 'volcano' ? d.area : 'home';
+  world.area = ['snow', 'volcano', 'sea'].indexOf(d.area) >= 0 ? d.area : 'home';
   world.edits = G.areaEdits[world.area];
 }
 
@@ -4008,6 +4083,13 @@ function openMap() {
   html += '</div>';
   html += '<h4>🐾 ' + T('どうぶつ') + ' (' + Object.keys(G.animals).length + '/' + Object.keys(ANIMALS).length + ')</h4><div class="note" style="line-height:2">' +
     Object.keys(ANIMALS).map(k => G.animals[k] ? ANIMALS[k].emoji + ' ' + T(ANIMALS[k].name) : '❔ ？？？').join(' ／ ') + '</div><p class="note">' + T('どうぶつを 🔍しらべると ずかんに のるよ。こわす ボタンで なでると、おくりものを くれる どうぶつも いるよ。') + '</p>';
+  if (areaOpen(AREAS.find(a => a.id === 'sea'))) {
+    const all = Object.keys(FISH).map(k => [k, FISH[k].emoji, FISH[k].name]).concat(SEA_IDS.map(id => [BLOCKS[id].key, '<img alt="" src="' + blockIconURL(id, 32) + '" style="width:20px;height:20px;vertical-align:-4px">', BLOCKS[id].name]));
+    html += '<h4>🌊 ' + T('うみの なかま') + ' (' + Object.keys(G.sea.found).length + '/' + all.length + ')</h4><div class="note" style="line-height:2">' +
+      all.map(a => G.sea.found[a[0]] ? a[1] + ' ' + T(a[2]) : '❔ ？？？').join(' ／ ') + '</div><ul class="mlist">';
+    seaSteps().forEach(st => { html += '<li class="' + (st.ok ? 'done' : '') + '"><span class="st">' + (st.ok ? '✅' : '⬜') + '</span><span>' + st.icon + ' ' + T(st.t) + (st.ok ? '' : '<div class="note">💡 ' + T(st.h) + '</div>') + '</span></li>'; });
+    html += '</ul>';
+  }
   if (areaOpen(AREAS.find(a => a.id === 'volcano'))) {
     html += '<h4>🌋 ' + T('いわと ちそう') + ' (' + Object.keys(G.geo.found).length + '/' + GEO_IDS.length + ')</h4><div class="note" style="line-height:2">' +
       GEO_IDS.map(id => G.geo.found[BLOCKS[id].key] ? '<img alt="" src="' + blockIconURL(id, 32) + '" style="width:20px;height:20px;vertical-align:-4px"> ' + T(BLOCKS[id].name) : '❔ ？？？').join(' ／ ') + '</div><ul class="mlist">';
@@ -4082,6 +4164,7 @@ function animalsSpawn() {
       }
     }
   });
+  if (typeof fishSpawn === 'function') fishSpawn();
 }
 function animalGround(x, z, from) {
   const xi = Math.floor(x), zi = Math.floor(z);
@@ -4861,6 +4944,246 @@ function volcanoEntity() {
     parts.push({ m: M4.model(VOLC.x - s / 2 + Math.sin(k * 2.1) * 1.5, 33 + ph * 16, VOLC.z - s / 2 + Math.cos(k * 1.7) * 1.5, k, s, s, s), c: [g, g, g * 1.02] });
   }
   return { parts };
+}
+
+// ===== 06l-sea.js =====
+// ---------- 海の なかの エリア ----------
+// ミッション 11こで ひらく。まんなかの ちいさな しまから もぐって、サンゴしょうと さかなを しらべる。
+// うみの ごみを ひろう(かんきょう)。「うみの なかま」(さかな 5 + サンゴ・うみくさ・ほしずな)を あつめる
+const SEA_WL = PLAZA_Y - 1;   // すいめん
+const SEA_IDS = [B.CORAL1, B.CORAL2, B.SEAGRASS, B.HOSHIZUNA];
+// parts: [まんなかx, したy, まんなかz, はば, たかさ, おくゆき, いろ, ひれ?]  まえは -z
+const FISH = {
+  kumanomi: { name: 'クマノミ', emoji: '🐠', n: 4, w: 0.3, h: 0.3, speed: 1.2, home: B.CORAL1,
+    parts: [[0, 0.05, 0, 0.12, 0.2, 0.32, '#f97316'], [0, 0.05, -0.07, 0.13, 0.2, 0.04, '#ffffff'], [0, 0.05, 0.07, 0.13, 0.2, 0.04, '#ffffff'], [0, 0.08, 0.2, 0.04, 0.14, 0.08, '#f97316', 1],
+      [-0.065, 0.16, -0.12, 0.01, 0.04, 0.04, '#111111'], [0.065, 0.16, -0.12, 0.01, 0.04, 0.04, '#111111']],
+    info: ['クマノミは イソギンチャクの なかに すんでいるよ。 イソギンチャクの どくが へいきなんだ。',
+      'クマノミはイソギンチャクと{助|たす}け{合|あ}ってくらす(きょうせい)。イソギンチャクの{毒|どく}から{身|み}を{守|まも}る ねばねばを からだにもっている。',
+      'クマノミはイソギンチャクと共生する。体表の粘液で刺胞の毒から身を守り、外敵から守られる代わりにイソギンチャクの掃除をする。'] },
+  gurukun: { name: 'グルクン', emoji: '🐟', n: 8, w: 0.3, h: 0.3, speed: 2.0,
+    parts: [[0, 0.05, 0, 0.12, 0.18, 0.42, '#4f86c6'], [0, 0.04, 0, 0.125, 0.07, 0.4, '#f2a7b5'], [0, 0.15, 0, 0.125, 0.03, 0.4, '#f5d142'], [0, 0.06, 0.25, 0.04, 0.16, 0.1, '#f5d142', 1],
+      [-0.065, 0.14, -0.16, 0.01, 0.04, 0.04, '#111111'], [0.065, 0.14, -0.16, 0.01, 0.04, 0.04, '#111111']],
+    info: ['グルクンは おきなわけんの さかな(けんぎょ)。 むれに なって およぐよ。 からあげに すると おいしい！',
+      'グルクン(タカサゴ)は{沖縄県|おきなわけん}の{県魚|けんぎょ}。サンゴしょうの{近|ちか}くを むれで{泳|およ}ぐ。',
+      'グルクン(和名タカサゴ)は沖縄県の県魚。サンゴ礁域で群れをつくり、プランクトンを食べる。唐揚げは沖縄の代表的な料理。'] },
+  umigame: { name: 'ウミガメ', emoji: '🐢', n: 2, w: 0.9, h: 0.4, speed: 0.9,
+    parts: [[0, 0.08, 0, 0.7, 0.2, 0.8, '#6b8e4e'], [0, 0.28, 0, 0.5, 0.08, 0.6, '#557a3a'], [0, 0.1, -0.5, 0.2, 0.16, 0.22, '#a3b18a'],
+      [-0.45, 0.14, -0.2, 0.3, 0.04, 0.18, '#a3b18a', 1], [0.45, 0.14, -0.2, 0.3, 0.04, 0.18, '#a3b18a', 2], [-0.3, 0.12, 0.36, 0.16, 0.04, 0.12, '#a3b18a'], [0.3, 0.12, 0.36, 0.16, 0.04, 0.12, '#a3b18a']],
+    info: ['ウミガメは おきなわの すなはまに たまごを うみに くるよ。 ビニールぶくろを クラゲと まちがえて たべてしまう ことも あるんだ。',
+      'ウミガメは{夏|なつ}の{夜|よる}、{沖縄|おきなわ}の{砂浜|すなはま}に{卵|たまご}をうみにくる。{海|うみ}のビニールを{好物|こうぶつ}のクラゲとまちがえて{食|た}べてしまうことがある。',
+      'アオウミガメやアカウミガメは沖縄の砂浜で産卵する。海洋プラスチックの誤食が問題になっている。'] },
+  jugon: { name: 'ジュゴン', emoji: '🦭', n: 1, w: 1.2, h: 0.55, speed: 0.6, home: B.SEAGRASS,
+    parts: [[0, 0.05, 0, 0.6, 0.45, 1.4, '#9aa3ad'], [0, 0.08, -0.85, 0.42, 0.36, 0.34, '#a9b1ba'], [0, 0.06, -1.04, 0.3, 0.18, 0.08, '#8a929b'], [0, 0.18, 0.82, 0.9, 0.06, 0.3, '#8a929b', 1],
+      [-0.36, 0.1, -0.4, 0.18, 0.04, 0.24, '#8a929b', 1], [0.36, 0.1, -0.4, 0.18, 0.04, 0.24, '#8a929b', 2]],
+    info: ['ジュゴンは うみくさを たべる おとなしい どうぶつ。 おきなわの うみにも すんでいた、とても めずらしい いきものだよ。',
+      'ジュゴンは{海草|うみくさ}だけを{食|た}べる ほにゅうるい。{日本|にっぽん}では{沖縄|おきなわ}の{海|うみ}だけで{見|み}られ、{絶滅|ぜつめつ}が{心配|しんぱい}されている。',
+      'ジュゴンは海草を食べる海牛目の哺乳類。国内では沖縄周辺のみで確認され、絶滅危惧種に指定されている。'] },
+  harisenbon: { name: 'ハリセンボン', emoji: '🐡', n: 2, w: 0.45, h: 0.4, speed: 0.8,
+    parts: [[0, 0, 0, 0.36, 0.32, 0.4, '#d9c79c'], [0, 0.32, 0, 0.06, 0.06, 0.06, '#6b5a3a'], [-0.2, 0.14, 0, 0.06, 0.06, 0.06, '#6b5a3a'], [0.2, 0.14, 0, 0.06, 0.06, 0.06, '#6b5a3a'],
+      [0, 0.14, 0.22, 0.06, 0.06, 0.06, '#6b5a3a'], [-0.1, 0.18, -0.2, 0.08, 0.08, 0.02, '#1e3a8a'], [0.1, 0.18, -0.2, 0.08, 0.08, 0.02, '#1e3a8a'], [0, 0.1, 0.24, 0.04, 0.14, 0.08, '#d9c79c', 1]],
+    info: ['ハリセンボンは びっくりすると みずを のみこんで、とげとげの ボールみたいに ふくらむよ。 なでてみよう！',
+      'ハリセンボンは{敵|てき}におそわれると{水|みず}をすいこんでふくらみ、とげを{立|た}てて{身|み}を{守|まも}る。',
+      'ハリセンボンは危険を感じると胃に水を吸い込んで体をふくらませ、うろこが変化したとげを立てて身を守る。'] }
+};
+G.sea = { found: {}, trash: 0 };
+function seaFromSave(d) {
+  G.sea = { found: {}, trash: 0 };
+  const g = d && d.sea; if (!g || typeof g !== 'object') return;
+  if (g.found && typeof g.found === 'object') Object.keys(g.found).forEach(k => { if (FISH[k] || SEA_IDS.some(id => BLOCKS[id].key === k)) G.sea.found[k] = 1; });
+  G.sea.trash = Math.max(0, Math.floor(+g.trash || 0));
+}
+function seaFound(k, name) {
+  if (G.sea.found[k]) return false;
+  G.sea.found[k] = 1;
+  toast('🌊 ' + T('「うみの なかま」に のったよ: ') + T(name));
+  playSound('found');
+  if (typeof renderMapBtn === 'function') renderMapBtn();
+  saveSoon();
+  return true;
+}
+function seaDiscover(id) { return BLOCKS[id].trash ? false : seaFound(BLOCKS[id].key, BLOCKS[id].name); }
+function seaInvBlocks() { return SEA_IDS.filter(id => G.sea.found[BLOCKS[id].key]); }
+function seaSteps() {
+  const fish = Object.keys(FISH).filter(k => G.sea.found[k]).length;
+  return [
+    { icon: '🐠', t: 'さかなや うみの いきものを 3しゅるい しらべよう (' + Math.min(fish, 3) + '/3)', h: 'もぐって さかなを 🔍しらべよう(ジャンプで うく、なにも しないと しずむよ)', ok: fish >= 3 },
+    { icon: '🪸', t: 'サンゴを しらべよう', h: 'しまの まわりの あさい うみの そこに サンゴが あるよ', ok: !!(G.sea.found.coral1 || G.sea.found.coral2) },
+    { icon: '🗑️', t: 'うみの ごみを 5こ ひろおう (' + Math.min(G.sea.trash, 5) + '/5)', h: 'うみの そこの ペットボトルを こわして ひろおう', ok: G.sea.trash >= 5 },
+    { icon: '⭐', t: '{星|ほし}の{砂|すな}を みつけよう', h: 'しまの ちかくの すなを よく みてね。ほしの もようが あるよ', ok: !!G.sea.found.hoshizuna }
+  ];
+}
+
+// ---- せかい ----
+function genSea(seed) {
+  const blocks = world.blocks;
+  blocks.fill(0);
+  const cx = W / 2, cz = D / 2, s2 = seed + 7373;
+  const heights = new Int16Array(W * D), sx = SPAWN.x, sz = SPAWN.z;
+  for (let z = 0; z < D; z++) for (let x = 0; x < W; x++) {
+    const d = Math.hypot(x + 0.5 - sx, z + 0.5 - sz), n = fbm(x * 0.06, z * 0.06, s2, 4);
+    let h = 5 + n * 7;                                    // ふかい ところ
+    const reef = clamp((30 - d) / 14, 0, 1);              // しまの まわりは あさい サンゴしょう
+    h = h * (1 - reef) + (11 + n * 4) * reef;
+    if (d < 9) h = Math.max(h, PLAZA_Y - (d > 6.5 ? (d - 6.5) * 1.6 : 0));   // まんなかの しま(すなはまで うみへ)
+    else h = Math.min(h, SEA_WL - 3);
+    heights[x + z * W] = clamp(Math.round(h), 2, PLAZA_Y);
+  }
+  for (let z = 0; z < D; z++) for (let x = 0; x < W; x++) {
+    const h = heights[x + z * W], d = Math.hypot(x + 0.5 - sx, z + 0.5 - sz), hs = hash2(x, z, s2 + 3);
+    const surf = h >= SEA_WL ? (d < 5 && hs < 0.5 ? B.GRASS : B.SAND) : (d < 16 && hs < 0.05) ? B.HOSHIZUNA : (h < 9 && hs < 0.45) ? B.STONE : B.SAND;
+    for (let y = 0; y <= h; y++) blocks[widx(x, y, z)] = y === h ? surf : (y >= h - 2 ? B.SAND : B.STONE);
+    for (let y = h + 1; y <= SEA_WL; y++) blocks[widx(x, y, z)] = B.WATER;
+    if (h >= SEA_WL - 1) continue;
+    // うみの そこの いきもの
+    const hp = hash2(x, z, s2 + 11), ang = Math.atan2(z - sz, x - sx);
+    if (d > 9 && d < 28 && hp < 0.13) {                   // サンゴしょう
+      blocks[widx(x, h + 1, z)] = hp < 0.07 ? B.CORAL1 : B.CORAL2;
+      if (hp < 0.025 && h + 2 < SEA_WL) blocks[widx(x, h + 2, z)] = B.CORAL1;
+    } else if (d > 9 && d < 34 && Math.cos(ang - 2.4) > 0.55 && hp < 0.5) blocks[widx(x, h + 1, z)] = B.SEAGRASS;   // うみくさの はら(にしがわ)
+  }
+  // ヤシの き(しまに 2ほん)
+  [[sx - 3, sz - 2], [sx + 3, sz + 2]].forEach(([tx, tz]) => {
+    tx = Math.floor(tx); tz = Math.floor(tz);
+    const h = heights[tx + tz * W];
+    for (let y = 1; y <= 5; y++) blocks[widx(tx, h + y, tz)] = B.LOG;
+    for (const [dx, dz] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [0, 2], [0, -2]]) if (blocks[widx(tx + dx, h + 6, tz + dz)] === 0) blocks[widx(tx + dx, h + 6, tz + dz)] = B.LEAVES;
+  });
+  // うみの ごみ(ひろうと edits で きえたままに なる)
+  const rnd = mulberry32(s2 ^ 0x1b873593);
+  for (let k = 0, placed = 0; k < 200 && placed < 8; k++) {
+    const x = 6 + Math.floor(rnd() * (W - 12)), z = 6 + Math.floor(rnd() * (D - 12)), h = heights[x + z * W];
+    const d = Math.hypot(x - sx, z - sz);
+    if (d < 11 || d > 36 || h >= SEA_WL - 2 || blocks[widx(x, h + 1, z)] !== B.WATER) continue;
+    blocks[widx(x, h + 1, z)] = B.GOMI; placed++;
+  }
+  world.heights = heights;
+  world.edits.forEach((id, i) => { blocks[i] = id; });
+}
+function seaOnBreak(t) {
+  if (t.id !== B.GOMI) return false;
+  setBlock(t.x, t.y, t.z, B.WATER);
+  G.sea.trash++;
+  const msg = G.sea.trash === 1 ? 'プラスチックは なんびゃくねんも きえないよ。ウミガメが クラゲと まちがえて たべて しまうことも。'
+    : G.sea.trash === 5 ? 'うみが きれいに なってきた！ まちの ごみを へらすことも うみを まもる ことに なるよ。' : 'ごみを ひろったよ！';
+  toast('🗑️ ' + T(msg) + ' (' + G.sea.trash + ')');
+  playSound('found');
+  if (typeof renderMapBtn === 'function') renderMapBtn();
+  saveSoon();
+  return true;
+}
+
+// ---- さかな ----
+let fishes = [];
+const isW = (x, y, z) => getB(Math.floor(x), Math.floor(y), Math.floor(z)) === B.WATER;
+function fishSpawn() {
+  fishes = [];
+  if (world.area !== 'sea') return;
+  const rnd = mulberry32(55 + Math.floor(Date.now() / 1000) % 1000);
+  const homes = {};
+  Object.keys(FISH).forEach(k => {
+    const f = FISH[k];
+    if (f.home && !homes[f.home]) {   // すみか(サンゴ・うみくさ)の ちかく
+      homes[f.home] = [];
+      for (let z = 0; z < D; z += 2) for (let x = 0; x < W; x += 2) for (let y = 4; y < SEA_WL; y++) if (getB(x, y, z) === f.home) { homes[f.home].push([x, y, z]); break; }
+    }
+    for (let i = 0; i < f.n; i++) {
+      for (let tries = 0; tries < 60; tries++) {
+        let x, y, z;
+        const hl = f.home && homes[f.home];
+        if (hl && hl.length) { const p = hl[Math.floor(rnd() * hl.length)]; x = p[0] + 0.5 + (rnd() - 0.5) * 3; y = p[1] + 1 + rnd() * 2; z = p[2] + 0.5 + (rnd() - 0.5) * 3; }
+        else { x = SPAWN.x + (rnd() - 0.5) * 50; z = SPAWN.z + (rnd() - 0.5) * 50; y = 8 + rnd() * (SEA_WL - 9); }
+        if (!isW(x, y, z) || !isW(x, y + f.h, z)) continue;
+        fishes.push({ k, x, y, z, hx: x, hz: z, yaw: rnd() * 6.28, vx: 0, vy: 0, vz: 0, t: 0, swim: rnd() * 6, heart: 0, puff: 0 });
+        break;
+      }
+    }
+  });
+}
+function fishTick(dt) {
+  for (const a of fishes) {
+    const f = FISH[a.k];
+    a.t -= dt; a.swim += dt * (a.vx || a.vz ? 8 : 3);
+    if (a.t <= 0) {
+      a.t = 2 + Math.random() * 3;
+      const r = f.home ? 3 : 8, ang = Math.random() * 6.28;
+      let tx = a.x + Math.cos(ang) * r, tz = a.z + Math.sin(ang) * r;
+      if (f.home && Math.hypot(tx - a.hx, tz - a.hz) > 5) { tx = a.hx; tz = a.hz; }
+      if (Math.hypot(tx - SPAWN.x, tz - SPAWN.z) > 40) { tx = SPAWN.x; tz = SPAWN.z; }
+      const d = Math.hypot(tx - a.x, tz - a.z) || 1, sp = f.speed * (0.6 + Math.random() * 0.5);
+      a.vx = (tx - a.x) / d * sp; a.vz = (tz - a.z) / d * sp; a.vy = (Math.random() - 0.5) * 0.6;
+      if (a.k === 'harisenbon' && a.puff > 0) a.vx = a.vz = 0;
+    }
+    if (a.heart > 0) a.heart -= dt;
+    if (a.puff > 0) a.puff -= dt;
+    const nx = a.x + a.vx * dt, ny = a.y + a.vy * dt, nz = a.z + a.vz * dt;
+    if (isW(nx, ny, nz) && isW(nx, ny + f.h, nz) && isW(nx + Math.sign(a.vx) * f.w / 2, ny + f.h / 2, nz + Math.sign(a.vz) * f.w / 2)) { a.x = nx; a.y = ny; a.z = nz; }
+    else { a.vx = -a.vx; a.vz = -a.vz; a.vy = -a.vy; a.t = Math.min(a.t, 0.8); }
+    if (a.vx || a.vz) { const want = Math.atan2(-a.vx, -a.vz); let dy = want - a.yaw; while (dy > Math.PI) dy -= 6.283; while (dy < -Math.PI) dy += 6.283; a.yaw += dy * Math.min(1, dt * 5); }
+  }
+}
+function fishEntity() {
+  if (!fishes.length) return null;
+  const parts = [];
+  for (const a of fishes) {
+    const f = FISH[a.k];
+    if (!f.cols) f.cols = f.parts.map(p => hexC(p[6]));
+    const sw = Math.sin(a.swim) * 0.35, s = a.puff > 0 ? 1.6 : 1;
+    const base = M4.mul(M4.model(a.x, a.y + Math.sin(a.swim * 0.4) * 0.05, a.z, a.yaw, 1, 1, 1), M4.model(0, 0, 0, 0, s, s, s));
+    f.parts.forEach((p, i) => {
+      let m = tsMat(p[0] - p[3] / 2, p[1], p[2] - p[5] / 2, p[3], p[4], p[5]);
+      if (p[7]) { const ang = p[7] === 1 ? sw : -sw, pv = p[1] + p[4] / 2; m = M4.mul(transMat(0, pv, p[2]), M4.mul(rotXMat(ang), M4.mul(transMat(0, -pv, -p[2]), m))); }
+      parts.push({ m: M4.mul(base, m), c: f.cols[i] });
+    });
+    if (a.heart > 0) parts.push({ m: M4.model(a.x - 0.07, a.y + f.h + 0.25 + (1.2 - a.heart) * 0.4, a.z - 0.07, 0, 0.14, 0.14, 0.14), c: [1, 0.35, 0.5] });
+  }
+  return { parts };
+}
+function fishAim(extra) {
+  if (!fishes.length) return null;
+  const a = aimRay(), max = a.max + (extra || 0);
+  const blk = raycast(a.o[0], a.o[1], a.o[2], a.d[0], a.d[1], a.d[2], max, false);
+  let best = null, bt = blk ? blk.t + 0.3 : max;
+  for (const an of fishes) {
+    const f = FISH[an.k], hw = f.w / 2 + 0.2;
+    const mn = [an.x - hw, an.y - 0.1, an.z - hw], mx = [an.x + hw, an.y + f.h + 0.1, an.z + hw];
+    let t0 = 0, t1 = bt;
+    for (let k = 0; k < 3; k++) {
+      if (Math.abs(a.d[k]) < 1e-6) { if (a.o[k] < mn[k] || a.o[k] > mx[k]) { t0 = 1; t1 = 0; } continue; }
+      let ta = (mn[k] - a.o[k]) / a.d[k], tb = (mx[k] - a.o[k]) / a.d[k];
+      if (ta > tb) { const q = ta; ta = tb; tb = q; }
+      t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
+    }
+    if (t0 <= t1 && t0 < bt) { bt = t0; best = an; }
+  }
+  return best;
+}
+function fishInspect(an) {
+  const f = FISH[an.k];
+  clearTimeout(infoTimer); infoTimer = setTimeout(closeInfo, 25000);
+  const el = $('infocard');
+  el.style.display = 'block'; el.dataset.id = '';
+  const txt = f.info[G.level - 1];
+  el.innerHTML = '<div class="row"><div style="font-size:46px;line-height:56px;width:56px;text-align:center">' + f.emoji + '</div><div><h3>' + T(f.name) + '</h3><div class="kind">' + T('うみの いきもの') + '</div></div><button class="x" id="infoX">✕</button></div>' +
+    '<p>' + T(txt) + '</p><div style="margin-top:6px"><button class="speak" id="infoSpeak">🔊 ' + T('きく') + '</button></div>';
+  $('infoX').onclick = closeInfo;
+  $('infoSpeak').onclick = () => speak(f.name + '。' + txt);
+  G.counters.inspected++;
+  if (!seaFound(an.k, f.name)) playSound('select');
+  if (typeof onAction === 'function') onAction('inspect', 0);
+  saveSoon();
+}
+function fishPet(an) {
+  an.heart = 1.2; an.t = 1.5;
+  if (an.k === 'harisenbon') { an.puff = 4; an.vx = an.vz = 0; toast('🐡 ' + T('ぷくーっ！ ハリセンボンが ふくらんだ！')); }
+  else toast('💗 ' + T(FISH[an.k].name) + T(' を なでたよ'));
+  playSound('select');
+}
+const SKY_SEA = [0.55, 0.8, 0.95];
+function seaTick(dt) {
+  document.body.classList.toggle('underwater', !!(G.started && P.headWater));
+  if (world.area !== 'sea') return;
+  for (let k = 0; k < 3; k++) R.sky[k] = R.sky[k] * 0.5 + SKY_SEA[k] * 0.5;
+  fishTick(dt);
 }
 
 // ===== 06f-daily.js =====
@@ -5747,7 +6070,7 @@ function collectSave() {
     hotbar: G.hotbar, slot: G.slot, zukan: G.zukan, made: G.made, counters: G.counters,
     missionIndex: G.missionIndex, stars: G.stars, playSec: Math.round(G.playSec || 0), mDone: G.mDone, mBases: G.mBases, mFocus: G.mFocus, introDone: !!G.introDone,
     player: { x: P.x, y: P.y, z: P.z, yaw: P.yaw, pitch: P.pitch },
-    edits: Array.from(G.areaEdits.home.entries()), snowEdits: Array.from(G.areaEdits.snow.entries()), volcanoEdits: Array.from(G.areaEdits.volcano.entries()), geo: G.geo, area: world.area, areaPos: G.areaPos, animals: G.animals,
+    edits: Array.from(G.areaEdits.home.entries()), snowEdits: Array.from(G.areaEdits.snow.entries()), volcanoEdits: Array.from(G.areaEdits.volcano.entries()), geo: G.geo, seaEdits: Array.from(G.areaEdits.sea.entries()), sea: G.sea, area: world.area, areaPos: G.areaPos, animals: G.animals,
     robot: typeof robotSave === 'function' ? robotSave() : null,
     program: typeof programSave === 'function' ? programSave() : null,
     hw: G.hw, farm: G.farm, food: G.food, ty: G.ty, house: G.house, visit: G.visit
@@ -5812,6 +6135,7 @@ function applySave(d) {
   houseFromSave(d);
   visitFromSave(d);
   geoFromSave(d);
+  seaFromSave(d);
   areaFromSave(d);
   G.animals = d.animals && typeof d.animals === 'object' ? d.animals : {};
 }
@@ -5820,7 +6144,7 @@ function resetAll() {
   delete memSaves[saveKey()];
   areaReset(); G.animals = {};
   G.zukan = {}; G.tempWasFrozen = false; G.tempIronMelted = false; G.made = {}; G.missionIndex = 0; G.stars = 0; G.playSec = 0; G.introDone = true;
-  G.mDone = {}; G.mFocus = 'build'; farmFromSave(null); houseFromSave(null); visitFromSave(null); visitor = null; visitCardHide(); geoFromSave(null);
+  G.mDone = {}; G.mFocus = 'build'; farmFromSave(null); houseFromSave(null); visitFromSave(null); visitor = null; visitCardHide(); geoFromSave(null); seaFromSave(null);
   G.hw = hwFromSave(null); hwVisit = null;
   Object.keys(G.counters).forEach(k => { G.counters[k] = 0; });
   G.hotbar = [B.GRASS, B.DIRT, B.STONE, B.PLANKS, B.BRICK, B.GLASS, B.LOG, B.SAND, B.LEAVES];
@@ -5847,7 +6171,7 @@ function loadUserWorld() {
   G.slot = 0;
   world.pendingRobot = null; world.pendingProgram = null;
   G.daily = null; G.saveTs = 0;
-  G.hw = hwFromSave(null); hwVisit = null; farmFromSave(null); houseFromSave(null); visitFromSave(null); visitor = null; visitCardHide(); geoFromSave(null);
+  G.hw = hwFromSave(null); hwVisit = null; farmFromSave(null); houseFromSave(null); visitFromSave(null); visitor = null; visitCardHide(); geoFromSave(null); seaFromSave(null);
   G.skin = ''; SKIN.owned = null; SKIN.equipped = '';
   respawn();
   if (typeof robotReset === 'function') robotReset();
@@ -6568,6 +6892,7 @@ function update(dt) {
   if (typeof areaTick === 'function') areaTick(dt);
   if (typeof visitTick === 'function') { visitTick(dt); bubblesTick(); }
   if (typeof volcanoTick === 'function') volcanoTick(dt);
+  if (typeof seaTick === 'function') seaTick(dt);
   pollKeyboard();
   handleHold(dt);
   const paused = !!G.modal || !G.started;
@@ -6611,6 +6936,7 @@ function render() {
   if (typeof snowEntity === 'function') { const e = snowEntity(); if (e) ents.push(e); }
   if (typeof visitorEntity === 'function') { const e = visitorEntity(); if (e) ents.push(e); }
   if (typeof volcanoEntity === 'function') { const e = volcanoEntity(); if (e) ents.push(e); }
+  if (typeof fishEntity === 'function' && world.area === 'sea') { const e = fishEntity(); if (e) ents.push(e); }
   if (particles.length) ents.push(particleEntity());
   drawScene(canvasEl, cam, ents, curTarget, G.time);
 }
@@ -6697,7 +7023,7 @@ Object.assign(window.__game, {
   openProgram, openZukan, openLab, openTeacher, openMissions, openMenu, openInventory, closeModal, setLevel, startGame,
   showTitle, setBlock, getB, solidAt, checkMissions, currentMission, MISSIONS, FAQ, RECIPES, PLACEABLE, resetAll, saveNow,
   readSave, respawn, renderProgram, showBlockInfo, raycast, genWorld, markAllDirty, flushDirty, addCard, execNodes, astFeatures,
-  cloudSave, cloudPull, saveSig, openDaily, geoSteps, VOLC, openStamps, sendStamp, visitStart, visitNow: () => visitor, visitHappy, worldToScreen, STAMPS, openHouse, houseCheck, houseRun, furnQuiz, FURN, doorToggle, openMap, switchArea, AREAS, animalsList: () => animals, animalAim, animalPet, animalInspect, openFarm, farmGrow, farmPlantAt, tyState, WX, CROP_DEFS, COURSES, courseMission, keyMode, aimRay, MOUSE, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
+  cloudSave, cloudPull, saveSig, openDaily, seaSteps, fishList: () => fishes, fishAim, fishInspect, geoSteps, VOLC, openStamps, sendStamp, visitStart, visitNow: () => visitor, visitHappy, worldToScreen, STAMPS, openHouse, houseCheck, houseRun, furnQuiz, FURN, doorToggle, openMap, switchArea, AREAS, animalsList: () => animals, animalAim, animalPet, animalInspect, openFarm, farmGrow, farmPlantAt, tyState, WX, CROP_DEFS, COURSES, courseMission, keyMode, aimRay, MOUSE, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
   startTutorial, endTutorial, tutGoto: i => { TUT.i = i; tutInitStep(); }, tutState: () => ({ on: TUT.on, i: TUT.i, n: TUT.steps.length, doneAt: TUT.doneAt }), tutSeen, findNode, progState: () => ({ target: progTarget }), collectDefs, setBarMode, dirtyChunks
 });
 
