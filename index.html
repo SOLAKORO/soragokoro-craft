@@ -277,6 +277,10 @@ body.tutOn.touch #infocard{top:calc(250px + var(--sat))}
 #dailyChip{position:absolute;left:50%;transform:translateX(-50%);top:calc(92px + var(--sat));max-width:min(92vw,520px);padding:3px 11px;border-radius:12px;
  background:rgba(255,248,225,.92);border:2px solid #fff;box-shadow:var(--shadow);font-size:12px;font-weight:700;text-align:center;line-height:1.7;display:none;cursor:pointer;z-index:3}
 #dailyChip b{color:#c2410c}#dailyChip.done{background:#dcfce7}
+/* ハロウィン */
+#hwBtn{position:absolute;right:calc(8px + var(--sar));top:calc(124px + var(--sat));background:rgba(124,45,18,.82);border-color:#fdba74}
+#hwBtn.pulse{animation:hwPulse 1s ease-in-out infinite alternate}
+@keyframes hwPulse{from{box-shadow:0 0 0 0 rgba(251,146,60,.8)}to{box-shadow:0 0 0 8px rgba(251,146,60,0)}}
 .dtask{display:flex;gap:12px;align-items:center;background:#fff8e1;border:2px solid #ffe08a;border-radius:14px;padding:10px 12px}
 .dtask .dic{font-size:34px}.dbar{height:12px;background:#e5e7eb;border-radius:8px;margin:6px 0 2px;overflow:hidden;min-width:160px}
 .dbar i{display:block;height:100%;background:linear-gradient(90deg,#fbbf24,#f97316);border-radius:8px}
@@ -302,6 +306,7 @@ body.tutOn.touch #infocard{top:calc(250px + var(--sat))}
     <button class="hbtn" id="menuBtn"><span class="ic">⚙️</span><span data-t="メニュー"></span></button>
     <div id="missionChip"></div>
     <div id="dailyChip"></div>
+    <button class="hbtn" id="hwBtn" style="display:none"><span class="ic">🎃</span><span class="lb"></span></button>
     <div id="infocard"></div>
     <div id="toast"></div>
     <div id="hint"></div>
@@ -388,14 +393,16 @@ function esc(s) {
 const B = {
   AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, LOG: 4, LEAVES: 5, WATER: 6, SAND: 7,
   IRON_ORE: 8, IRON: 9, GLASS: 10, ICE: 11, COAL_ORE: 12, GOLD: 13, BRICK: 14,
-  PLANKS: 15, SNOW: 16, COPPER_ORE: 17, COPPER: 18
+  PLANKS: 15, SNOW: 16, COPPER_ORE: 17, COPPER: 18,
+  PUMPKIN: 19, LANTERN: 20, COBWEB: 21   // ハロウィン(event)
 };
 
 // タイル番号(テクスチャアトラス 8x8)
 const TILE = {
   GRASS_TOP: 0, GRASS_SIDE: 1, DIRT: 2, STONE: 3, LOG_SIDE: 4, LOG_TOP: 5, LEAVES: 6, WATER: 7,
   SAND: 8, IRON_ORE: 9, IRON: 10, GLASS: 11, ICE: 12, COAL_ORE: 13, GOLD: 14, BRICK: 15,
-  PLANKS: 16, SNOW: 17, SNOW_SIDE: 18, COPPER_ORE: 19, COPPER: 20, WHITE: 21
+  PLANKS: 16, SNOW: 17, SNOW_SIDE: 18, COPPER_ORE: 19, COPPER: 20, WHITE: 21,
+  PUMPKIN_TOP: 22, PUMPKIN_SIDE: 23, LANTERN: 24, COBWEB: 25
 };
 
 // info: [ひらがな(1・2年), ふりがな(3・4年), 漢字(5・6年)]
@@ -586,8 +593,40 @@ def(B.COPPER, {
   chem: { formula: 'Cu', z: 29, mp: 1085, bp: 2562, state: 'solid' }
 });
 
-// ブロックとして置けるもの(空気以外)
-const PLACEABLE = BLOCKS.filter(b => b && b.id !== B.AIR).map(b => b.id);
+// ---- ハロウィンの ブロック(event: 図鑑・「ぜんぶの ブロック」には いれない) ----
+def(B.PUMPKIN, {
+  key: 'pumpkin', name: 'かぼちゃ', kind: '{野菜|やさい}', opaque: true, solid: true, event: true,
+  tiles: { top: TILE.PUMPKIN_TOP, side: TILE.PUMPKIN_SIDE, bottom: TILE.PUMPKIN_SIDE },
+  info: [
+    'かぼちゃは あまくて えいようが いっぱいの やさい。 なかの きいろは からだを げんきに してくれるよ。',
+    'かぼちゃは{緑黄色野菜|りょくおうしょくやさい}。{黄色|きいろ}いところにはカロテンがたくさんあって、{目|め}や{肌|はだ}を{守|まも}ってくれるよ。',
+    'カボチャはウリ科の緑黄色野菜。果肉の黄色はβ-カロテンで、体内でビタミンAに変わり、目や皮膚・粘膜の健康を保つ。'
+  ],
+  chem: null
+});
+def(B.LANTERN, {
+  key: 'lantern', name: 'ジャック・オー・ランタン', kind: 'ハロウィン', opaque: true, solid: true, event: true, glow: true,
+  tiles: { top: TILE.PUMPKIN_TOP, side: TILE.LANTERN, bottom: TILE.PUMPKIN_SIDE },
+  info: [
+    'かぼちゃの ランタン。 ハロウィンの よるに おくと、あかるくて いたずらっこが ちかよれないよ。',
+    'かぼちゃをくりぬいて{明|あ}かりを{入|い}れたランタン。ハロウィンの{夜|よる}に{飾|かざ}るよ。',
+    'ジャック・オー・ランタンはアイルランドの伝承が由来で、もとはカブをくりぬいて作られていた。'
+  ],
+  chem: null
+});
+def(B.COBWEB, {
+  key: 'cobweb', name: 'クモの{巣|す}', kind: 'いたずら', opaque: false, solid: false, place: false, event: true,
+  tiles: { all: TILE.COBWEB },
+  info: [
+    'ランタンたちの いたずら！ こわすと かたづくよ。',
+    'ランタンたちのいたずら！ こわすと かたづくよ。',
+    'ランタンたちのいたずら。こわすと片づく。'
+  ],
+  chem: null
+});
+
+// ブロックとして置けるもの(空気以外。ハロウィンのブロックは べつ)
+const PLACEABLE = BLOCKS.filter(b => b && b.id !== B.AIR && !b.event).map(b => b.id);
 
 function isSolid(id) { return !!(BLOCKS[id] && BLOCKS[id].solid); }
 function isOpaque(id) { return !!(BLOCKS[id] && BLOCKS[id].opaque); }
@@ -712,6 +751,31 @@ function makeAtlas() {
   })();
   // 白(色つけ用)
   fill(TILE.WHITE, [255, 255, 255], 0, 33);
+  // かぼちゃ(よこ): たての すじ
+  const pumpkinSide = (x, y, c) => ((x % 5 === 0) ? [c[0] - 46, c[1] - 34, c[2] - 8, 255] : (x % 5 === 2 ? [c[0] + 12, c[1] + 10, c[2], 255] : null));
+  fill(TILE.PUMPKIN_SIDE, [228, 128, 28], 18, 34, pumpkinSide);
+  // かぼちゃ(うえ): まんなかに へた
+  fill(TILE.PUMPKIN_TOP, [218, 118, 24], 16, 35, (x, y, c) => {
+    if (x >= 6 && x <= 9 && y >= 6 && y <= 9) return [84, 120, 46, 255];
+    const d = Math.max(Math.abs(x - 7.5), Math.abs(y - 7.5));
+    return (Math.floor(d) % 3 === 0) ? [c[0] - 30, c[1] - 24, c[2] - 6, 255] : null;
+  });
+  // ランタン(かお): め・はな・くちが ひかる
+  (function () {
+    const face = [
+      '................', '................', '................', '..##........##..',
+      '..###......###..', '.#####....#####.', '................', '.......##.......',
+      '......####......', '................', '..#..........#..', '..##.#.##.#.##..',
+      '...##########...', '....#.#..#.#....', '................', '................'];
+    fill(TILE.LANTERN, [228, 128, 28], 18, 36, (x, y, c) => (face[y][x] === '#' ? [255, 226 - (y % 3) * 10, 90, 255] : pumpkinSide(x, y, c)));
+  })();
+  // クモの巣: すきまは とうめい
+  fill(TILE.COBWEB, [240, 240, 245], 0, 37, (x, y, c) => {
+    const dx = x - 7.5, dy = y - 7.5, r = Math.sqrt(dx * dx + dy * dy);
+    const spoke = x === y || x === 15 - y || x === 7 || y === 7;
+    const ring = Math.abs(r - 3) < 0.5 || Math.abs(r - 6) < 0.5;
+    return (spoke || ring) ? [235, 235, 242, 235] : [0, 0, 0, 0];
+  });
 
   ctx.putImageData(img, 0, 0);
   cv.N = N; cv.S = S;
@@ -829,6 +893,19 @@ function genWorld(seed) {
     blocks[widx(cx + 7 + dx, PLAZA_Y - 1, cz + dz - 2)] = B.STONE;
     blocks[widx(cx + 7 + dx, PLAZA_Y, cz + dz + 2)] = B.ICE;
   }
+  // ハロウィンの きかんは かぼちゃが はえる(プレイヤーの へんこうでは ないので ほぞんしない)
+  if (typeof hwPumpkinsOn === 'function' && hwPumpkinsOn()) {
+    for (let z = 2; z < D - 2; z++) for (let x = 2; x < W - 2; x++) {
+      if (inPlaza(x, z)) continue;
+      const h = heights[x + z * W];
+      if (blocks[widx(x, h, z)] !== B.GRASS || blocks[widx(x, h + 1, z)] !== 0) continue;
+      if (hash2(x, z, seed + 31) < 0.012) blocks[widx(x, h + 1, z)] = B.PUMPKIN;
+    }
+    [[-4, 2], [4, 2], [-10, -3]].forEach(([dx, dz]) => {
+      const x = cx + dx, z = cz + dz;
+      if (blocks[widx(x, fy, z)] === 0 && isSolid(blocks[widx(x, fy - 1, z)])) blocks[widx(x, fy, z)] = B.PUMPKIN;
+    });
+  }
   world.heights = heights;
   // プレイヤーがかえた分をもどす
   world.edits.forEach((id, i) => { blocks[i] = id; });
@@ -907,7 +984,7 @@ function buildChunk(cxi, czi) {
           a = (s1 && s2) ? 0 : 3 - (s1 + s2 + cr);
         }
         ao.push(a);
-        const light = FACE_SHADE[fd.face] * (0.52 + 0.48 * (a / 3));
+        const light = bd.glow ? 1.0 : FACE_SHADE[fd.face] * (0.52 + 0.48 * (a / 3));
         vs.push([x + o[0], y + py, z + o[2], uu, vv, light]);
       }
       // 三角形(AOで斜めの向きをえらぶ)
@@ -1353,6 +1430,7 @@ function playerOverlapsCell(x, y, z) {
 }
 function discover(id, how) {
   if (id === B.AIR || !BLOCKS[id]) return false;
+  if (BLOCKS[id].event) return typeof hwDiscover === 'function' ? hwDiscover(id) : false;
   if (G.zukan[id]) return false;
   G.zukan[id] = true;
   toast('📖 ' + T('{図鑑|ずかん}にのったよ: ') + T(BLOCKS[id].name));
@@ -1364,6 +1442,7 @@ function discover(id, how) {
 function actBreak() {
   const t = computeTarget();
   if (!t) return false;
+  if (typeof hwOnBreak === 'function' && hwOnBreak(t)) return true;
   const id = t.id;
   setBlock(t.x, t.y, t.z, B.AIR);
   discover(id);
@@ -1792,7 +1871,7 @@ function openInventory(opts) {
   opts = (opts && opts.onPick) ? opts : (opts && opts.allowClear ? opts : {});
   const cur0 = opts.onPick ? (G.program && G.program.block) : G.hotbar[G.slot];
   let html = '<p class="note">' + (opts.onPick ? T('ロボットが つかう ブロックを えらんでね。') : T('えらんだブロックは、いまの スロット(') + (G.slot + 1) + T(')に はいるよ。')) + '</p><div class="grid">';
-  for (const id of PLACEABLE) {
+  for (const id of PLACEABLE.concat(hwInvBlocks())) {
     const cur = cur0 === id ? ' cur' : '';
     html += '<button class="cell' + cur + '" data-id="' + id + '"><img alt="" src="' + blockIconURL(id, 64) + '"><span>' + T(BLOCKS[id].name) + '</span></button>';
   }
@@ -2400,7 +2479,8 @@ function saveSig() {
   try { prog = typeof programSave === 'function' ? JSON.stringify(programSave() || '').length : 0; } catch (e) { prog = 0; }
   const c = G.counters;
   return [world.edits.size, G.stars, G.missionIndex, Object.keys(c).reduce((a, k) => a + (+c[k] || 0), 0),
-    Object.keys(G.zukan).length, Object.keys(G.made).length, G.level, prog, G.daily ? (G.daily.done ? 1 : 0) + ':' + (G.daily.stamps || []).length : ''].join('|');
+    Object.keys(G.zukan).length, Object.keys(G.made).length, G.level, prog, G.daily ? (G.daily.done ? 1 : 0) + ':' + (G.daily.stamps || []).length : '',
+    G.hw ? [G.hw.found, G.hw.seen, G.hw.visited, G.hw.result, G.hw.prank.length, G.hw.hat, G.hw.cleaned].join(',') : ''].join('|');
 }
 
 function cloudPost(player, body, ms) {
@@ -2553,6 +2633,254 @@ function earnFlush() {
       if (earnQ.length) setTimeout(earnFlush, 400);
     } // それいがい(ネットなど)は のこして、あとで もういちど
   });
+}
+
+// ===== ハロウィン ランタンの しゅうげき(10/22〜11/7) =====
+// 10/31 17時までに ランタンを 4こ おいて そなえる。たりないと いたずら される(こわして かたづければ もとに もどる)
+const HW = { start: '2026-10-22', night: '2026-10-31T17:00:00+09:00', last: '2026-10-31', end: '2026-11-07', need: 4 };
+function hwFromSave(h) {
+  const o = { found: false, seen: false, visited: false, result: '', prank: [], hat: '', cleaned: false };
+  if (h && typeof h === 'object') {
+    ['found', 'seen', 'visited', 'cleaned'].forEach(k => { o[k] = !!h[k]; });
+    if (h.result === 'treat' || h.result === 'trick' || h.result === 'none') o.result = h.result;
+    if (h.hat === 'pumpkin' || h.hat === 'ghost') o.hat = h.hat;
+    if (Array.isArray(h.prank)) o.prank = h.prank.filter(p => Array.isArray(p) && p[0] >= 0 && p[0] < W * D * H && BLOCKS[p[1]] && BLOCKS[p[2]]);
+  }
+  return o;
+}
+G.hw = hwFromSave(null);
+let hwVisit = null;   // ランタンたちが きている あいだの ようす
+let hwAcc = 1, hwDusk = false, hwSkyK = 0;
+const SKY_DAY = R.sky.slice(), SKY_DUSK = [0.95, 0.6, 0.45];
+
+// テスト用: 開発版か テストIDなら ?hw=2026-10-31T18:00 で 日時を かえられる
+function hwNow() {
+  try {
+    const q = new URLSearchParams(location.search).get('hw');
+    const p = loadPlayer();
+    if (q && (!PROD || (p && p.auth && EVT.demoIds.indexOf(String(p.id)) >= 0))) {
+      const t = Date.parse(q.length <= 10 ? q + 'T12:00:00+09:00' : (/(Z|[+-]\d\d:\d\d)$/.test(q) ? q : q + '+09:00'));
+      if (isFinite(t)) return t;
+    }
+  } catch (e) { /* 何もしない */ }
+  return Date.now();
+}
+function hwDay(t) { return new Date(t + 9 * 3600000).toISOString().slice(0, 10); }
+function hwPhase() {
+  const t = hwNow(), d = hwDay(t);
+  if (d < HW.start || d > HW.end) return 'off';
+  return t < Date.parse(HW.night) ? 'prep' : 'night';
+}
+function hwPumpkinsOn() { const t = hwNow(), d = hwDay(t); return d >= HW.start && d <= HW.last; }
+
+const hwXYZ = i => [i % W, Math.floor(i / (W * D)), Math.floor(i / W) % D];
+function hwLanterns() { let n = 0; world.edits.forEach((id, i) => { if (id === B.LANTERN && world.blocks[i] === B.LANTERN) n++; }); return n; }
+function hwPrankLeft() { return G.hw.prank.filter(p => world.blocks[p[0]] === p[2]).length; }
+function hwInvBlocks() {
+  const a = [];
+  if (G.hw && G.hw.found) a.push(B.PUMPKIN);
+  if (G.made.lantern) a.push(B.LANTERN);
+  return a;
+}
+function hwDiscover(id) {
+  if (id !== B.PUMPKIN || G.hw.found) return false;
+  G.hw.found = true;
+  toast('🎃 ' + T('かぼちゃを みつけた！ {実験|じっけん}で ランタンが つくれるよ'));
+  playSound('found');
+  renderHwBtn();
+  saveSoon();
+  return true;
+}
+function hwSteps() {
+  const n = hwLanterns();
+  return [
+    { icon: '🎃', t: 'かぼちゃを みつけよう', h: 'はらっぱや ひろばに かぼちゃが あるよ。🔍しらべるか、こわしてみよう', ok: G.hw.found },
+    { icon: '🧪', t: '{実験|じっけん}で ジャック・オー・ランタンを つくろう', h: '🧪{実験|じっけん}の「まぜる」で、かぼちゃと {石炭|せきたん}を えらんで 🔥あつくしよう', ok: !!G.made.lantern },
+    { icon: '🏮', t: 'ランタンを ' + HW.need + 'こ おこう (' + Math.min(n, HW.need) + '/' + HW.need + ')', h: '🎒もちものに ランタンが はいっているよ。ロボットに おかせても いいよ', ok: n >= HW.need }
+  ];
+}
+
+// ---- ボタンと パネル ----
+function renderHwBtn(ph) {
+  const b = $('hwBtn'); if (!b) return;
+  ph = ph || hwPhase();
+  const left = hwPrankLeft();
+  const show = G.started && ((ph === 'prep') || (ph === 'night' && G.hw.seen) || left > 0);
+  b.style.display = show ? 'flex' : 'none';
+  if (!show) return;
+  let label;
+  if (left > 0) label = 'かたづけ ' + left;
+  else if (G.hw.visited) label = 'ハロウィン';
+  else label = hwSteps().filter(s => s.ok).length + '/3';
+  const html = T(label);
+  const lb = b.querySelector('.lb');
+  if (lb.innerHTML !== html) lb.innerHTML = html;
+  b.classList.toggle('pulse', !G.hw.visited && ph === 'prep' && hwLanterns() < HW.need && hwDay(hwNow()) === HW.last);
+}
+function openHw() {
+  const ph = hwPhase(), left = hwPrankLeft();
+  let html = '';
+  if (!G.hw.visited) {
+    const days = Math.round((Date.parse(HW.last + 'T00:00:00+09:00') - Date.parse(hwDay(hwNow()) + 'T00:00:00+09:00')) / 86400000);
+    html += '<div class="ans" style="border-color:#fb923c;background:#fff7ed">🌙 ' + T('10/31(どよう)の よる5じ、ジャック・オー・ランタンたちが やってくる！') + '<br>' +
+      T('ランタンを ' + HW.need + 'こ おいて あかるく しておけば だいじょうぶ。そなえが たりないと…いたずら されちゃうかも！') +
+      '<div style="margin-top:4px;font-weight:900">' + (days > 0 ? T('あと') + ' ' + days + T('{日|にち}') : T('きょうの よる！')) + '</div></div>';
+    html += '<ul class="mlist" style="margin-top:8px">';
+    let curShown = false;
+    hwSteps().forEach(s => {
+      const isCur = !s.ok && !curShown; if (isCur) curShown = true;
+      html += '<li class="' + (s.ok ? 'done' : isCur ? 'cur' : '') + '"><span class="st">' + (s.ok ? '✅' : isCur ? '👉' : '⬜') + '</span><span>' + s.icon + ' ' + T(s.t) +
+        (isCur ? '<div class="note" style="font-weight:600">💡 ' + T(s.h) + '</div>' : '') + '</span></li>';
+    });
+    html += '</ul>';
+    if (!curShown) html += '<p style="text-align:center;font-weight:900">🏮 ' + T('じゅんび ばんたん！ 10/31の よるを まとう') + '</p>';
+  } else {
+    if (G.hw.result === 'treat') html += '<p>🍬 ' + T('ランタンの おかげで、いたずら されなかったよ！ ロボットに かぼちゃの ぼうしを もらったよ。') + '</p>';
+    if (G.hw.result === 'trick') {
+      if (left > 0) html += '<p>👻 ' + T('いたずら されちゃった！ かぼちゃに なった ブロックと クモの{巣|す}を こわすと、もとに もどるよ。') + '</p><p style="font-weight:900;font-size:18px;text-align:center">🧹 ' + T('のこり') + ' ' + left + '</p>';
+      else html += '<p>✨ ' + T('いたずらを ぜんぶ かたづけたよ！ ロボットに かぼちゃの ぼうしを もらったよ。') + '</p>';
+    }
+    html += '<p class="note">' + T('ハロウィンの かぼちゃと ランタンは、もちものから つかえるよ。') + '</p>';
+  }
+  openModal('🎃 ' + T('ハロウィン'), html, 'hw');
+}
+
+// ---- 10/31の よる: ランタンたちが くる ----
+function hwStartVisit() {
+  G.hw.visited = true;
+  const ents = [];
+  for (let i = 0; i < 5; i++) {
+    const a = i / 5 * Math.PI * 2 + Math.random() * 0.6, r = 12 + Math.random() * 3;
+    ents.push({ x: clamp(P.x + Math.cos(a) * r, 1, W - 1), z: clamp(P.z + Math.sin(a) * r, 1, D - 1), ph: Math.random() * 6, yaw: 0 });
+  }
+  hwVisit = { t: 0, ok: hwLanterns() >= HW.need, ents, done: false };
+  toast('🎃 ' + T('ジャック・オー・ランタンたちが やってきた！'));
+  playSound('found');
+  saveSoon();
+}
+function hwVisitTick(dt) {
+  const v = hwVisit;
+  v.t += dt;
+  const leaving = v.t > 8;
+  for (const e of v.ents) {
+    const dx = P.x - e.x, dz = P.z - e.z, d = Math.hypot(dx, dz) || 1;
+    if (leaving) { e.x -= dx / d * dt * 4; e.z -= dz / d * dt * 4; }
+    else if (d > 2.6) { e.x += dx / d * dt * 2.4; e.z += dz / d * dt * 2.4; }
+    e.x = clamp(e.x, 0.5, W - 0.5); e.z = clamp(e.z, 0.5, D - 0.5);
+    e.yaw = Math.atan2(-dx, -dz) + (leaving ? Math.PI : 0);
+  }
+  if (!v.done && v.t > 6) { v.done = true; hwResult(v.ok); }
+  if (v.t > 13) hwVisit = null;
+}
+function hwResult(ok) {
+  if (ok) {
+    G.hw.result = 'treat'; G.hw.hat = 'pumpkin';
+    openModal('🍬 ' + T('トリック・オア・トリート！'),
+      '<p style="font-size:17px">' + T('「あかるい ランタンが いっぱい！ これじゃ いたずら できないや。おれいに これを あげる！」') + '</p>' +
+      '<p>🎁 ' + T('ロボットに かぼちゃの ぼうしを もらったよ！') + '</p>', 'hw');
+    playSound('win');
+  } else {
+    G.hw.result = 'trick';
+    const n = hwDoPrank();
+    if (ROBOT.on) G.hw.hat = 'ghost';
+    openModal('👻 ' + T('いたずら された！'),
+      '<p style="font-size:17px">' + T('「くらくて いたずらし ほうだい！ トリック・オア・トリート〜！」') + '</p>' +
+      '<p>' + T('ブロックが かぼちゃに なったり、クモの{巣|す}が はられたり しちゃった。') + (ROBOT.on ? T('ロボットも おばけに されちゃった！') : '') + '</p>' +
+      '<p style="font-weight:900">🧹 ' + T('こわして かたづけると もとに もどるよ (') + n + T('こ)。ぜんぶ かたづけると いいことが あるかも！') + '</p>', 'hw');
+    playSound('error');
+  }
+  renderHwBtn();
+  saveSoon();
+}
+// いたずら: ちかくの じぶんで おいた ブロックを かぼちゃに して、まわりに クモの巣を はる
+function hwDoPrank() {
+  const cand = [];
+  world.edits.forEach((id, i) => {
+    if (!id || id === B.WATER || !BLOCKS[id] || BLOCKS[id].event || world.blocks[i] !== id) return;
+    const [x, y, z] = hwXYZ(i);
+    cand.push({ i, id, d: Math.hypot(x + 0.5 - P.x, y - P.y, z + 0.5 - P.z) });
+  });
+  cand.sort((a, b) => a.d - b.d);
+  const pr = [];
+  for (const c of cand.slice(0, 10)) {
+    const [x, y, z] = hwXYZ(c.i);
+    if (setBlock(x, y, z, B.PUMPKIN)) pr.push([c.i, c.id, B.PUMPKIN]);
+  }
+  for (let k = 0, made = 0; k < 300 && made < 8; k++) {
+    const x = Math.floor(P.x) + Math.floor(Math.random() * 13) - 6, z = Math.floor(P.z) + Math.floor(Math.random() * 13) - 6;
+    if (Math.abs(x + 0.5 - P.x) < 1.5 && Math.abs(z + 0.5 - P.z) < 1.5) continue;
+    for (let y = Math.floor(P.y) + 3; y >= Math.floor(P.y) - 4; y--) {
+      if (!inb(x, y, z) || getB(x, y, z) !== B.AIR || !isSolid(getB(x, y - 1, z))) continue;
+      if (playerOverlapsCell(x, y, z) || robotOccupies(x, y, z)) break;
+      if (setBlock(x, y, z, B.COBWEB)) { pr.push([widx(x, y, z), B.AIR, B.COBWEB]); made++; }
+      break;
+    }
+  }
+  G.hw.prank = pr;
+  return pr.length;
+}
+// いたずらの ブロックを こわしたら もとに もどす
+function hwOnBreak(t) {
+  const i = widx(t.x, t.y, t.z);
+  const p = G.hw.prank.find(q => q[0] === i && world.blocks[i] === q[2]);
+  if (!p) return false;
+  setBlock(t.x, t.y, t.z, p[1]);
+  spawnParticles(t.x + 0.5, t.y + 0.5, t.z + 0.5, p[2]);
+  playSound('place');
+  const left = hwPrankLeft();
+  if (left > 0) toast('🧹 ' + T('もとに もどった！ のこり') + ' ' + left);
+  else {
+    G.hw.prank = []; G.hw.cleaned = true; G.hw.hat = 'pumpkin';
+    toast('✨ ' + T('いたずらを ぜんぶ かたづけた！ ロボットに かぼちゃの ぼうしを もらったよ'));
+    playSound('win');
+  }
+  renderHwBtn();
+  saveSoon();
+  return true;
+}
+
+// ---- まいフレーム ----
+function hwGround(x, z) {
+  const xi = Math.floor(x), zi = Math.floor(z);
+  for (let y = Math.min(H - 1, Math.floor(P.y) + 6); y >= 0; y--) if (isSolid(getB(xi, y, zi))) return y + 1;
+  return P.y;
+}
+function hwEntity() {
+  if (!hwVisit) return null;
+  const parts = [];
+  for (const e of hwVisit.ents) {
+    const hop = Math.abs(Math.sin(G.time * 5 + e.ph)) * 0.6;
+    const base = M4.model(e.x, hwGround(e.x, e.z) + hop, e.z, e.yaw, 1, 1, 1);
+    const box = (cx, cy, cz, w, h, d, c) => parts.push({ m: M4.mul(base, tsMat(cx - w / 2, cy, cz - d / 2, w, h, d)), c });
+    box(0, 0, 0, 0.8, 0.66, 0.8, [0.98, 0.52, 0.1]);
+    box(0, 0.66, 0, 0.1, 0.16, 0.1, [0.3, 0.55, 0.2]);
+    box(-0.18, 0.36, -0.4, 0.14, 0.12, 0.02, [1.0, 0.92, 0.4]);
+    box(0.18, 0.36, -0.4, 0.14, 0.12, 0.02, [1.0, 0.92, 0.4]);
+    box(0, 0.14, -0.4, 0.42, 0.08, 0.02, [1.0, 0.92, 0.4]);
+  }
+  return { parts };
+}
+function hwTick(dt) {
+  if (hwVisit) hwVisitTick(dt);
+  const want = (hwVisit || hwDusk) ? 1 : 0;
+  hwSkyK += (want - hwSkyK) * Math.min(1, dt * 1.2);
+  for (let k = 0; k < 3; k++) R.sky[k] = SKY_DAY[k] + (SKY_DUSK[k] - SKY_DAY[k]) * hwSkyK;
+  hwAcc += dt;
+  if (hwAcc < 1) return;
+  hwAcc = 0;
+  const ph = hwPhase();
+  hwDusk = ph === 'night' && hwDay(hwNow()) === HW.last;
+  renderHwBtn(ph);
+  if (!G.started || G.modal || TUT.on || hwVisit) return;
+  if (ph === 'prep' && !G.hw.seen) {
+    G.hw.seen = true;
+    toast('🎃 ' + T('ハロウィン イベント！ 10/31の よるに ランタンたちが くるよ。🎃ボタンを みてね'));
+    renderHwBtn(ph);
+    saveSoon();
+  } else if (ph === 'night' && !G.hw.visited) {
+    if (G.hw.seen) hwStartVisit();
+    else { G.hw.visited = true; G.hw.result = 'none'; saveSoon(); }   // じゅんびの きかんに あそんで いない子には こない
+  }
 }
 
 // ===== 06f-daily.js =====
@@ -2944,6 +3272,18 @@ function robotEntity() {
   // アンテナ
   box(0, 0.78, 0, 0.04, 0.12, 0.04, [0.4, 0.4, 0.45]);
   box(0, 0.88, 0, 0.1, 0.1, 0.1, [1.0, 0.35 + 0.3 * Math.sin(G.time * 4), 0.3]);
+  // ハロウィン: かぼちゃの ぼうし / おばけの ぬの(いたずら)
+  const hat = G.hw && G.hw.hat;
+  if (hat === 'pumpkin') {
+    box(0, 0.74, 0, 0.4, 0.28, 0.38, [0.95, 0.5, 0.1]);
+    box(0, 1.02, 0, 0.06, 0.08, 0.06, [0.3, 0.55, 0.2]);
+    box(-0.09, 0.86, -0.195, 0.07, 0.06, 0.02, [1.0, 0.9, 0.35]);
+    box(0.09, 0.86, -0.195, 0.07, 0.06, 0.02, [1.0, 0.9, 0.35]);
+  } else if (hat === 'ghost') {
+    box(0, 0.04, 0, 0.62, 0.98, 0.58, [0.97, 0.97, 1.0]);
+    box(-0.1, 0.62, -0.3, 0.08, 0.12, 0.02, [0.08, 0.08, 0.12]);
+    box(0.1, 0.62, -0.3, 0.08, 0.12, 0.02, [0.08, 0.08, 0.12]);
+  }
   return { parts };
 }
 
@@ -3420,7 +3760,8 @@ function collectSave() {
     player: { x: P.x, y: P.y, z: P.z, yaw: P.yaw, pitch: P.pitch },
     edits: Array.from(world.edits.entries()),
     robot: typeof robotSave === 'function' ? robotSave() : null,
-    program: typeof programSave === 'function' ? programSave() : null
+    program: typeof programSave === 'function' ? programSave() : null,
+    hw: G.hw
   };
 }
 function saveNow() {
@@ -3462,12 +3803,14 @@ function applySave(d) {
   world.pendingProgram = d.program || null;
   G.daily = d.daily && d.daily.date ? d.daily : null;
   G.saveTs = +d.ts || 0;
+  G.hw = hwFromSave(d.hw);
 }
 function resetAll() {
   try { localStorage.removeItem(saveKey()); } catch (e) { /* 何もしない */ }
   delete memSaves[saveKey()];
   world.edits = new Map();
   G.zukan = {}; G.tempWasFrozen = false; G.tempIronMelted = false; G.made = {}; G.missionIndex = 0; G.stars = 0; G.playSec = 0; G.introDone = true;
+  G.hw = hwFromSave(null); hwVisit = null;
   Object.keys(G.counters).forEach(k => { G.counters[k] = 0; });
   G.hotbar = [B.GRASS, B.DIRT, B.STONE, B.PLANKS, B.BRICK, B.GLASS, B.LOG, B.SAND, B.LEAVES];
   G.slot = 0;
@@ -3492,6 +3835,7 @@ function loadUserWorld() {
   G.slot = 0;
   world.pendingRobot = null; world.pendingProgram = null;
   G.daily = null; G.saveTs = 0;
+  G.hw = hwFromSave(null); hwVisit = null;
   respawn();
   if (typeof robotReset === 'function') robotReset();
   if (typeof programReset === 'function') programReset();
@@ -3747,6 +4091,14 @@ const RECIPES = [
     ]
   },
   {
+    key: 'lantern', mats: ['block:pumpkin', 'block:coal_ore'], heat: 'hot', out: () => bk('lantern'),
+    txt: [
+      'かぼちゃの なかで せきたんを もやしたら、ひかる ジャック・オー・ランタンが できたよ！ ものが もえると、ひかりと ねつが でるんだ。',
+      'かぼちゃをくりぬいて、{中|なか}で{石炭|せきたん}を{燃|も}やすと{光|ひか}るランタンになる。ものが{燃|も}えると{光|ひかり}と{熱|ねつ}が{出|で}るよ。',
+      '石炭の主成分の炭素が酸素と結びついて燃える(C + O₂ → CO₂)と、光と熱が出る。ジャック・オー・ランタンは、もとはカブで作られていた。'
+    ]
+  },
+  {
     key: 'melt2', mats: ['block:snow'], heat: 'hot', out: () => bk('water'),
     txt: [
       'ゆきを あたためたら、とけて みずに なったよ！',
@@ -3767,6 +4119,7 @@ function availableMats() {
   const out = [];
   Object.keys(SPECIAL_MATS).forEach(k => out.push('special:' + k));
   PLACEABLE.forEach(id => { if (G.zukan[id] && id !== B.LEAVES && id !== B.GRASS && id !== B.LOG && id !== B.PLANKS && id !== B.DIRT && id !== B.STONE) out.push('block:' + BLOCKS[id].key); });
+  if (G.hw && G.hw.found) out.push('block:pumpkin');
   return out;
 }
 function matCell(m, extra) {
@@ -4161,6 +4514,7 @@ function update(dt) {
   if (typeof tutorialTick === 'function') tutorialTick(dt);
   if (typeof cloudTick === 'function') cloudTick(dt);
   if (typeof dailyTick === 'function') dailyTick(dt);
+  if (typeof hwTick === 'function') hwTick(dt);
   pollKeyboard();
   handleHold(dt);
   const paused = !!G.modal || !G.started;
@@ -4181,6 +4535,7 @@ function render() {
   const ents = [];
   if (typeof robotEntity === 'function') { const e = robotEntity(); if (e) ents.push(e); }
   ents.push(cloudEntity(G.time));
+  if (typeof hwEntity === 'function') { const e = hwEntity(); if (e) ents.push(e); }
   if (particles.length) ents.push(particleEntity());
   drawScene(canvasEl, cam, ents, curTarget, G.time);
 }
@@ -4241,7 +4596,8 @@ function setupUI() {
   $('bMission').onclick = () => openMissions();
   $('menuBtn').onclick = () => openMenu();
   $('invBtn').onclick = () => openInventory();
-  ['bZukan', 'bRobot', 'bLab', 'bTeacher', 'bMission', 'menuBtn', 'invBtn'].forEach(id => {
+  $('hwBtn').onclick = () => openHw();
+  ['bZukan', 'bRobot', 'bLab', 'bTeacher', 'bMission', 'menuBtn', 'invBtn', 'hwBtn'].forEach(id => {
     $(id).addEventListener('pointerdown', e => e.stopPropagation());
   });
 }
@@ -4252,7 +4608,7 @@ Object.assign(window.__game, {
   openProgram, openZukan, openLab, openTeacher, openMissions, openMenu, openInventory, closeModal, setLevel, startGame,
   showTitle, setBlock, getB, solidAt, checkMissions, currentMission, MISSIONS, FAQ, RECIPES, PLACEABLE, resetAll, saveNow,
   readSave, respawn, renderProgram, showBlockInfo, raycast, genWorld, markAllDirty, flushDirty, addCard, execNodes, astFeatures,
-  cloudSave, cloudPull, saveSig, openDaily, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
+  cloudSave, cloudPull, saveSig, openDaily, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
   startTutorial, endTutorial, tutGoto: i => { TUT.i = i; tutInitStep(); }, tutState: () => ({ on: TUT.on, i: TUT.i, n: TUT.steps.length, doneAt: TUT.doneAt }), tutSeen, findNode, progState: () => ({ target: progTarget }), collectDefs, setBarMode, dirtyChunks
 });
 
