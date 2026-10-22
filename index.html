@@ -279,10 +279,21 @@ body.tutOn.touch #infocard{top:calc(250px + var(--sat))}
 #dailyChip b{color:#c2410c}#dailyChip.done{background:#dcfce7}
 /* してん */
 #viewBtn{position:absolute;right:calc(8px + var(--sar));top:calc(60px + var(--sat))}
-body.touch #viewBtn{right:auto;left:calc(8px + var(--sal));top:calc(176px + var(--sat))}
-body.touch #hwBtn{right:auto;left:calc(8px + var(--sal))}
+#skinBtn{position:absolute;right:calc(8px + var(--sar));top:calc(112px + var(--sat))}
+#hwBtn{top:calc(164px + var(--sat))!important}
+body.touch #viewBtn,body.touch #skinBtn,body.touch #hwBtn{right:auto;left:calc(8px + var(--sal))}
+body.touch #hwBtn{top:calc(124px + var(--sat))!important}
+body.touch #viewBtn{top:calc(176px + var(--sat))}
+body.touch #skinBtn{top:calc(228px + var(--sat))}
 body.viewFront #crosshair{display:none}
-@media (max-width:640px){ #viewBtn{right:auto;left:calc(8px + var(--sal));top:calc(176px + var(--sat))} #hwBtn{right:auto;left:calc(8px + var(--sal))} }
+.skins .cell img{width:68px;height:84px;image-rendering:pixelated;object-fit:contain}
+.skins .cell.locked{opacity:.55}
+@media (max-width:640px){
+  #viewBtn,#skinBtn,#hwBtn{right:auto;left:calc(8px + var(--sal))}
+  #hwBtn{top:calc(124px + var(--sat))!important}
+  #viewBtn{top:calc(176px + var(--sat))}
+  #skinBtn{top:calc(228px + var(--sat))}
+}
 /* ハロウィン */
 #hwBtn{position:absolute;right:calc(8px + var(--sar));top:calc(124px + var(--sat));background:rgba(124,45,18,.82);border-color:#fdba74}
 #hwBtn.pulse{animation:hwPulse 1s ease-in-out infinite alternate}
@@ -313,6 +324,7 @@ body.viewFront #crosshair{display:none}
     <div id="missionChip"></div>
     <div id="dailyChip"></div>
     <button class="hbtn" id="viewBtn"><span class="ic">👁️</span><span data-t="してん"></span></button>
+    <button class="hbtn" id="skinBtn"><span class="ic">👕</span><span data-t="きがえ"></span></button>
     <button class="hbtn" id="hwBtn" style="display:none"><span class="ic">🎃</span><span class="lb"></span></button>
     <div id="infocard"></div>
     <div id="toast"></div>
@@ -1293,11 +1305,15 @@ function cloudEntity(t) {
 const VIEW_NAMES = ['じぶんの {目|め}', 'うしろから', 'まえから'];
 function cycleView() {
   G.view = (G.view + 1) % 3;
-  toast('👁️ ' + T('してん: ') + T(VIEW_NAMES[G.view]));
+  toast('👁️ ' + T('してん: ') + T(VIEW_NAMES[G.view]) + (G.view === 1 && !G.skinTipped ? '<br>👕 ' + T('「きがえ」で キャラを かえられるよ') : ''));
+  if (G.view === 1) G.skinTipped = true;
   playSound('select');
+  applyViewClass();
+  saveSoon();
+}
+function applyViewClass() {
   document.body.classList.toggle('view3', G.view !== 0);
   document.body.classList.toggle('viewFront', G.view === 2);
-  saveSoon();
 }
 function cameraNow() {
   const fov = 72 * Math.PI / 180;
@@ -1314,7 +1330,174 @@ function cameraNow() {
 // x じくで まわす(手足を ふる)
 function rotXMat(a) { const c = Math.cos(a), s = Math.sin(a); return new Float32Array([1, 0, 0, 0, 0, c, s, 0, 0, -s, c, 0, 0, 0, 0, 1]); }
 function transMat(x, y, z) { return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1]); }
-const PLAYER_LOOK = { skin: [0.96, 0.8, 0.66], hair: [0.3, 0.2, 0.13], shirt: [0.3, 0.58, 0.96], pants: [0.2, 0.25, 0.5], shoe: [0.35, 0.35, 0.4], eye: [0.12, 0.14, 0.25] };
+
+// ---------- スキン(そらごころテストの キャラ) ----------
+// 1つの はこ: [グループ, まんなかx, したy, まんなかz, はば, たかさ, おくゆき, いろ]  まえは -z、キャラの みぎては +x
+// グループ: legL/legR は こし、armL/armR は かたで ふる。ほかは うごかない
+const SKINS = {
+  default: { label: 'いつもの じぶん', skin: '#f5cca8', hair: '#4d3321', shirt: '#4d94f5', pants: '#334080', shoe: '#59596a' },
+  'しにがみ': { skin: '#f0c8a8', hairStyle: 'none', shirt: '#3b3a4a', pants: '#34333f', shoe: '#1e1e24', hand: '#1e1e24', x: [
+    ['head', 0, 1.32, 0.22, 0.52, 0.56, 0.1, '#2e2d3a'], ['head', 0, 1.76, 0, 0.52, 0.1, 0.52, '#2e2d3a'],
+    ['head', -0.25, 1.32, 0, 0.05, 0.5, 0.5, '#2e2d3a'], ['head', 0.25, 1.32, 0, 0.05, 0.5, 0.5, '#2e2d3a'],
+    ['head', 0, 1.34, -0.225, 0.44, 0.15, 0.02, '#1a1a1e'], ['head', 0, 1.36, -0.24, 0.1, 0.09, 0.02, '#f2f2f2'],
+    ['body', 0, 0.22, 0.16, 0.58, 1.16, 0.06, '#2e2d3a'], ['body', 0, 0.32, 0, 0.52, 0.42, 0.3, '#3b3a4a'],
+    ['armR', 0.36, 0.1, -0.14, 0.05, 1.45, 0.05, '#8d8d8d'], ['armR', 0.36, 1.52, -0.14, 0.17, 0.16, 0.17, '#f0f0f0']] },
+  'かんごしさん': { hair: '#222226', hairStyle: 'bob', shirt: '#f6f6f8', pants: '#f6f6f8', shoe: '#f0f0f0', x: [
+    ['head', 0, 1.8, 0.02, 0.34, 0.1, 0.3, '#ffffff'], ['head', 0, 1.82, -0.135, 0.08, 0.06, 0.02, '#e53935'],
+    ['body', 0, 1.02, -0.13, 0.08, 0.08, 0.01, '#e53935'], ['body', 0, 0.42, 0, 0.52, 0.32, 0.28, '#f6f6f8']] },
+  'ピエロ': { hair: '#2b2b2b', shirt: '#e8443a', sleeve: '#f5c242', pants: '#4caf50', pantsR: '#f5c242', shoe: '#e53935', x: [
+    ['body', 0.12, 0.7, -0.005, 0.24, 0.66, 0.26, '#3b82f6'], ['body', -0.12, 0.98, -0.135, 0.06, 0.06, 0.01, '#f5c242'],
+    ['body', 0.12, 0.82, -0.135, 0.06, 0.06, 0.01, '#e53935'], ['body', 0, 0.42, 0, 0.56, 0.3, 0.32, '#8e5bd6'],
+    ['head', 0, 1.8, 0, 0.42, 0.14, 0.42, '#4aa3df'], ['head', 0, 1.94, 0, 0.28, 0.12, 0.28, '#4aa3df'],
+    ['head', 0, 2.06, 0, 0.06, 0.08, 0.16, '#e53935'], ['head', 0, 1.42, -0.24, 0.07, 0.07, 0.03, '#e53935']] },
+  'カンフーガール': { hair: '#1f1f22', hairStyle: 'bob', shirt: '#f39c34', sleeve: '#9b6ad6', pants: '#9b6ad6', shoe: '#6d45a8', x: [
+    ['head', 0, 1.62, 0, 0.48, 0.06, 0.48, '#f5d142'], ['body', 0, 0.98, -0.13, 0.05, 0.05, 0.01, '#f5d142'], ['body', 0, 0.86, -0.13, 0.05, 0.05, 0.01, '#f5d142']] },
+  'アフロマジシャン': { hairStyle: 'none', shirt: '#26262b', pants: '#f4f4f4', shoe: '#222226', x: [
+    ['head', 0, 1.66, 0.03, 0.68, 0.36, 0.64, '#e23b2e'], ['head', -0.3, 1.28, 0.03, 0.1, 0.42, 0.56, '#e23b2e'],
+    ['head', 0.3, 1.28, 0.03, 0.1, 0.42, 0.56, '#e23b2e'], ['head', 0, 1.28, 0.27, 0.68, 0.42, 0.12, '#e23b2e'],
+    ['head', 0, 1.49, -0.235, 0.38, 0.1, 0.02, '#1a1a1a'], ['body', 0, 0.66, 0, 0.52, 0.12, 0.28, '#f28cc0']] },
+  'サッカー少年': { hair: '#222226', shirt: '#1d3c8f', pants: '#1d3c8f', shorts: true, sock: '#1d3c8f', shoe: '#f5c542', x: [
+    ['body', -0.1, 0.7, -0.005, 0.08, 0.66, 0.26, '#c0283c'], ['body', 0.1, 0.7, -0.005, 0.08, 0.66, 0.26, '#c0283c']] },
+  'おひめさま': { hair: '#c9877f', hairStyle: 'long', shirt: '#f6a8c8', pants: '#f6a8c8', shoe: '#f06fa5', hand: '#ffffff', x: [
+    ['body', 0, 0.06, 0, 0.64, 0.72, 0.52, '#f6a8c8'], ['body', 0, 0.06, 0, 0.66, 0.07, 0.54, '#ffffff'],
+    ['head', 0, 1.8, 0, 0.3, 0.12, 0.3, '#f5c542'], ['head', 0, 1.92, -0.1, 0.06, 0.06, 0.06, '#e53935']] },
+  'ヒゲのヒーロー': { hair: '#3a2414', shirt: '#e0352b', pants: '#2f5fc4', shoe: '#6b3e1e', hand: '#ffffff', x: [
+    ['body', 0, 0.9, -0.005, 0.38, 0.32, 0.26, '#2f5fc4'], ['body', -0.11, 0.98, -0.135, 0.05, 0.05, 0.01, '#f5d142'], ['body', 0.11, 0.98, -0.135, 0.05, 0.05, 0.01, '#f5d142'],
+    ['head', 0, 1.7, 0, 0.5, 0.16, 0.5, '#e0352b'], ['head', 0, 1.72, -0.3, 0.44, 0.05, 0.18, '#e0352b'],
+    ['head', 0, 1.39, -0.235, 0.26, 0.06, 0.03, '#2a1a10']] },
+  '金メダリスト': { hair: '#222226', shirt: '#fafafa', pants: '#2f5fc4', shorts: true, sock: '#ffffff', shoe: '#2f5fc4', x: [
+    ['body', -0.06, 1.0, -0.13, 0.04, 0.34, 0.01, '#c0283c'], ['body', 0.06, 1.0, -0.13, 0.04, 0.34, 0.01, '#1d3c8f'],
+    ['body', 0, 0.9, -0.14, 0.14, 0.14, 0.02, '#f5c542'], ['body', 0, 1.3, 0, 0.5, 0.05, 0.27, '#c0283c']] },
+  'からてか': { hair: '#1f1f22', hairStyle: 'ponytail', shirt: '#fafafa', pants: '#fafafa', shoe: '#f5cca8', x: [
+    ['body', 0, 0.7, 0, 0.5, 0.07, 0.27, '#1e1e1e'], ['body', -0.12, 0.5, -0.135, 0.05, 0.2, 0.01, '#1e1e1e'], ['body', 0.12, 0.5, -0.135, 0.05, 0.2, 0.01, '#1e1e1e'],
+    ['body', 0, 1.2, -0.13, 0.12, 0.16, 0.01, '#f5cca8']] },
+  'SASUKEチャレンジャー': { hair: '#222226', shirt: '#e04848', pants: '#3a3f55', shoe: '#5c5c66', x: [
+    ['body', 0, 0.9, -0.13, 0.22, 0.22, 0.01, '#ffffff'], ['body', 0, 0.94, -0.135, 0.12, 0.14, 0.01, '#e04848'],
+    ['head', 0, 1.62, 0, 0.48, 0.06, 0.48, '#ffffff']] },
+  'バッター': { hair: '#222226', shirt: '#2f9e5a', pants: '#777a80', shoe: '#222226', x: [
+    ['head', 0, 1.7, 0, 0.5, 0.16, 0.5, '#2c2c34'], ['head', 0, 1.87, 0.06, 0.36, 0.16, 0.36, '#2c2c34'], ['head', 0, 2.03, 0.12, 0.2, 0.14, 0.2, '#2c2c34'],
+    ['body', 0, 1.02, 0, 0.49, 0.32, 0.26, '#fafafa'], ['armR', 0.36, 0.78, -0.14, 0.07, 0.95, 0.07, '#c8955a']] },
+  'ヒーロー': { hair: '#f2d34a', hairStyle: 'spiky', shirt: '#1e1e24', pants: '#6b4fc7', shoe: '#f5c542', x: [
+    ['head', 0, 1.36, -0.225, 0.32, 0.12, 0.02, '#fafafa'],
+    ['body', -0.1, 0.8, -0.13, 0.05, 0.4, 0.01, '#7ed957'], ['body', 0.1, 0.8, -0.13, 0.05, 0.4, 0.01, '#7ed957'], ['body', 0, 0.78, -0.13, 0.24, 0.05, 0.01, '#7ed957']] },
+  'きゅうけつき': { hair: '#e8e8f0', shirt: '#fafafa', pants: '#222226', shoe: '#222226', sleeve: '#2a2238', x: [
+    ['body', 0, 0.18, 0.16, 0.6, 1.18, 0.06, '#2a2238'], ['body', 0, 0.22, 0.128, 0.56, 1.08, 0.01, '#7a4bb5'],
+    ['body', 0, 1.26, 0.1, 0.62, 0.26, 0.06, '#2a2238'], ['body', -0.29, 1.2, -0.02, 0.05, 0.3, 0.2, '#2a2238'], ['body', 0.29, 1.2, -0.02, 0.05, 0.3, 0.2, '#2a2238']] },
+  'カンフー少年': { hair: '#3a2414', shirt: '#2a2a2e', pants: '#2a2a2e', shoe: '#1e1e1e', x: [
+    ['body', 0, 0.72, 0, 0.5, 0.08, 0.27, '#d0302a'], ['body', 0, 1.02, -0.13, 0.05, 0.05, 0.01, '#e8c547'], ['body', 0, 0.9, -0.13, 0.05, 0.05, 0.01, '#e8c547'],
+    ['head', 0, 1.61, 0, 0.48, 0.07, 0.48, '#d0302a'], ['head', 0.07, 1.46, 0.26, 0.06, 0.2, 0.05, '#d0302a']] },
+  'カンフー少年・改': { hair: '#3a2414', shirt: '#2a2a2e', pants: '#2a2a2e', shoe: '#1e1e1e', x: [
+    ['body', 0, 0.72, 0, 0.5, 0.08, 0.27, '#d0302a'], ['body', -0.1, 0.48, -0.135, 0.06, 0.24, 0.01, '#d0302a'],
+    ['body', 0, 1.02, -0.13, 0.05, 0.05, 0.01, '#e8c547'], ['body', 0, 0.9, -0.13, 0.05, 0.05, 0.01, '#e8c547'],
+    ['armL', -0.36, 0.95, 0, 0.23, 0.05, 0.23, '#d0302a'], ['armR', 0.36, 0.95, 0, 0.23, 0.05, 0.23, '#d0302a'],
+    ['head', 0, 1.61, 0, 0.48, 0.07, 0.48, '#d0302a'], ['head', 0.07, 1.3, 0.26, 0.06, 0.36, 0.05, '#d0302a'], ['head', -0.06, 1.36, 0.26, 0.06, 0.3, 0.05, '#d0302a']] }
+};
+const SKIN_ORDER = Object.keys(SKINS);
+const hexC = h => [parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255];
+const skinCache = {};
+function skinBoxes(key) {
+  if (skinCache[key]) return skinCache[key];
+  const k = SKINS[key] || SKINS.default, d = SKINS.default;
+  const skin = k.skin || d.skin, hair = k.hair || d.hair, shirt = k.shirt || d.shirt, pants = k.pants || d.pants, shoe = k.shoe || d.shoe;
+  const sleeve = k.sleeve || shirt, hand = k.hand || skin, pantsR = k.pantsR || pants;
+  const a = [];
+  [['legL', -0.12, pants], ['legR', 0.12, pantsR]].forEach(([g, x, pc]) => {
+    if (k.shorts) { a.push([g, x, 0.42, 0, 0.23, 0.28, 0.23, pc], [g, x, 0.08, 0, 0.22, 0.34, 0.22, k.sock || skin]); }
+    else a.push([g, x, 0.08, 0, 0.23, 0.62, 0.23, pc]);
+    a.push([g, x, 0, 0, 0.24, 0.1, 0.24, shoe]);
+  });
+  a.push(['body', 0, 0.7, 0, 0.48, 0.66, 0.25, shirt]);
+  [['armL', -0.36], ['armR', 0.36]].forEach(([g, x]) => {
+    a.push([g, x, 0.98, 0, 0.22, 0.38, 0.22, sleeve], [g, x, 0.72, 0, 0.21, 0.27, 0.21, hand]);
+  });
+  a.push(['head', 0, 1.36, 0, 0.44, 0.44, 0.44, skin]);
+  const hs = k.hairStyle || 'short';
+  if (hs !== 'none') {
+    a.push(['head', 0, 1.69, -0.005, 0.46, 0.07, 0.46, hair], ['head', 0, 1.76, 0.01, 0.46, 0.06, 0.46, hair], ['head', 0, 1.42, 0.2, 0.46, 0.32, 0.06, hair]);
+    if (hs === 'bob' || hs === 'long') a.push(['head', -0.235, 1.3, 0.04, 0.03, 0.42, 0.38, hair], ['head', 0.235, 1.3, 0.04, 0.03, 0.42, 0.38, hair]);
+    if (hs === 'long') a.push(['head', 0, 0.9, 0.22, 0.48, 0.55, 0.06, hair]);
+    if (hs === 'ponytail') a.push(['head', 0, 1.2, 0.27, 0.12, 0.34, 0.1, hair]);
+    if (hs === 'spiky') a.push(['head', -0.13, 1.8, 0, 0.12, 0.1, 0.3, hair], ['head', 0.13, 1.8, 0.05, 0.12, 0.12, 0.3, hair], ['head', 0, 1.82, -0.08, 0.12, 0.1, 0.2, hair]);
+  }
+  a.push(['head', -0.1, 1.52, -0.225, 0.08, 0.06, 0.02, '#1f2440'], ['head', 0.1, 1.52, -0.225, 0.08, 0.06, 0.02, '#1f2440'], ['head', 0, 1.42, -0.225, 0.12, 0.03, 0.02, '#bf7366']);
+  (k.x || []).forEach(b => a.push(b));
+  const out = a.map(b => ({ g: b[0], b: b.slice(1, 7), c: hexC(b[7]) }));
+  skinCache[key] = out;
+  return out;
+}
+
+// もっている キャラ(そらごころテストの「所持品」)。読めないときは まえに 読めた ぶんを つかう
+const SKIN = { owned: null, equipped: '', at: 0 };
+function skinStoreKey() { return 'blocklab-skins-v1' + userKeySuffix(); }
+function skinLoadCache() {
+  try { const o = JSON.parse(localStorage.getItem(skinStoreKey()) || 'null'); if (o && Array.isArray(o.owned)) { SKIN.owned = o.owned; SKIN.equipped = o.equipped || ''; } } catch (e) { /* 何もしない */ }
+}
+function skinFetch() {
+  const p = loadPlayer();
+  if (!p || !p.auth || !p.id) return Promise.resolve(false);
+  return fetch(EVT.api, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ action: 'getMyPageData', id: String(p.id) }) })
+    .then(r => r.json()).then(d => {
+      if (!d || d.status !== 'success' || !Array.isArray(d.possessions)) return false;
+      const ch = d.possessions.filter(x => x.category === 'キャラ' && SKINS[x.itemName]);
+      SKIN.owned = Array.from(new Set(ch.map(x => x.itemName)));
+      const eq = ch.find(x => x.equipped);
+      SKIN.equipped = eq ? eq.itemName : '';
+      SKIN.at = Date.now();
+      try { localStorage.setItem(skinStoreKey(), JSON.stringify({ owned: SKIN.owned, equipped: SKIN.equipped })); } catch (e) { /* 何もしない */ }
+      // まだ えらんでいない ときは、テストで そうびしている キャラに する
+      if (!G.skin && SKIN.equipped) { G.skin = SKIN.equipped; saveSoon(); }
+      return true;
+    }).catch(() => false);
+}
+function skinOwned(key) { return key === 'default' || (SKIN.owned ? SKIN.owned.indexOf(key) >= 0 : false); }
+function currentSkin() {
+  const k = G.skin;
+  if (!k || !SKINS[k]) return 'default';
+  if (SKIN.owned && !skinOwned(k)) return 'default';
+  return k;
+}
+
+// まえから みた え(えらぶ がめん用)
+function skinPreviewURL(key, locked) {
+  const S = 44, cw = 84, ch = 104;
+  const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+  const x = cv.getContext('2d');
+  const bs = skinBoxes(key).slice().sort((p, q) => (q.b[2] - q.b[5] / 2) - (p.b[2] - p.b[5] / 2));
+  for (const p of bs) {
+    const [cx, cy, cz, w, h] = p.b;
+    const c = locked ? [0.2, 0.22, 0.3] : p.c;
+    x.fillStyle = 'rgb(' + c.map(v => Math.round(v * 255)).join(',') + ')';
+    x.fillRect(Math.round(cw / 2 - (cx + w / 2) * S), Math.round(ch - 4 - (cy + h) * S), Math.max(1, Math.round(w * S)), Math.max(1, Math.round(h * S)));
+  }
+  return cv.toDataURL();
+}
+function openSkin() {
+  const p = loadPlayer();
+  const render = () => {
+    const cur = currentSkin();
+    let html = '<p class="note">' + T('そらごころテストの キャラガチャで GETした キャラに きがえられるよ。👁️してんを「うしろから」に すると みえるよ。') + '</p><div class="grid skins">';
+    SKIN_ORDER.forEach(k => {
+      const own = skinOwned(k);
+      html += '<button class="cell' + (k === cur ? ' cur' : '') + (own ? '' : ' locked') + '" data-k="' + esc(k) + '"' + (own ? '' : ' disabled') + '><img alt="" src="' + skinPreviewURL(k, !own) + '"><span>' + (own ? T(k === 'default' ? SKINS.default.label : k) : '？？？') + '</span></button>';
+    });
+    html += '</div>';
+    if (!p.auth) html += '<p class="note">' + T('ログインすると、テストで GETした キャラが つかえるよ。') + '</p>';
+    else if (!SKIN.owned) html += '<p class="note">⏳ ' + T('キャラを よみこみちゅう…') + '</p>';
+    else html += '<p class="note">' + T('もっている キャラ') + ': ' + SKIN.owned.length + ' / ' + (SKIN_ORDER.length - 1) + '</p>';
+    const body = openModal('👕 ' + T('きがえ'), html, 'skin');
+    body.querySelectorAll('.cell[data-k]').forEach(c => c.addEventListener('click', () => {
+      if (!skinOwned(c.dataset.k)) return;
+      G.skin = c.dataset.k === 'default' ? '' : c.dataset.k;
+      playSound('select');
+      if (!G.view) { G.view = 1; applyViewClass(); }
+      saveSoon(); closeModal();
+      toast('👕 ' + T(c.dataset.k === 'default' ? SKINS.default.label : c.dataset.k) + T(' に きがえたよ！'));
+    }));
+  };
+  render();
+  skinFetch().then(ok => { if (ok && G.modal === 'skin') render(); });
+}
+
 let walkT = 0, walkAmp = 0, walkLast = 0;
 function playerEntity() {
   if (!G.view) return null;
@@ -1324,32 +1507,15 @@ function playerEntity() {
   walkAmp += ((P.onGround || P.inWater ? Math.min(1, sp / 4) : 0.3) - walkAmp) * Math.min(1, dt * 10);
   const sw = Math.sin(walkT) * 0.75 * walkAmp;
   const base = M4.model(P.x, P.y, P.z, P.yaw, 1, 1, 1);
-  const L = PLAYER_LOOK, parts = [];
-  // ox,oy,oz: ふる ところ(かた・こし)  a: ふる かくど
-  function box(cx, cy, cz, w, h, d, c, pv, a) {
+  const SW = { legL: [0.7, sw], legR: [0.7, -sw], armL: [1.3, -sw], armR: [1.3, sw] };
+  const parts = [];
+  for (const p of skinBoxes(currentSkin())) {
+    const [cx, cy, cz, w, h, d] = p.b;
     let m = tsMat(cx - w / 2, cy, cz - d / 2, w, h, d);
-    if (pv) m = M4.mul(transMat(pv[0], pv[1], pv[2]), M4.mul(rotXMat(a), M4.mul(transMat(-pv[0], -pv[1], -pv[2]), m)));
-    parts.push({ m: M4.mul(base, m), c });
+    const s = SW[p.g];
+    if (s) m = M4.mul(transMat(0, s[0], 0), M4.mul(rotXMat(s[1]), M4.mul(transMat(0, -s[0], 0), m)));
+    parts.push({ m: M4.mul(base, m), c: p.c });
   }
-  // あし
-  box(-0.12, 0.08, 0, 0.23, 0.62, 0.23, L.pants, [0, 0.7, 0], sw);
-  box(-0.12, 0, 0, 0.24, 0.1, 0.24, L.shoe, [0, 0.7, 0], sw);
-  box(0.12, 0.08, 0, 0.23, 0.62, 0.23, L.pants, [0, 0.7, 0], -sw);
-  box(0.12, 0, 0, 0.24, 0.1, 0.24, L.shoe, [0, 0.7, 0], -sw);
-  // からだ
-  box(0, 0.7, 0, 0.48, 0.66, 0.25, L.shirt);
-  // うで(そでと て)
-  box(-0.36, 0.98, 0, 0.22, 0.38, 0.22, L.shirt, [0, 1.3, 0], -sw);
-  box(-0.36, 0.72, 0, 0.21, 0.27, 0.21, L.skin, [0, 1.3, 0], -sw);
-  box(0.36, 0.98, 0, 0.22, 0.38, 0.22, L.shirt, [0, 1.3, 0], sw);
-  box(0.36, 0.72, 0, 0.21, 0.27, 0.21, L.skin, [0, 1.3, 0], sw);
-  // あたま(まえは -z)
-  box(0, 1.36, 0, 0.44, 0.44, 0.44, L.skin);
-  box(0, 1.7, 0.02, 0.46, 0.12, 0.46, L.hair);
-  box(0, 1.42, 0.2, 0.46, 0.32, 0.06, L.hair);
-  box(-0.1, 1.52, -0.225, 0.08, 0.06, 0.02, L.eye);
-  box(0.1, 1.52, -0.225, 0.08, 0.06, 0.02, L.eye);
-  box(0, 1.42, -0.225, 0.12, 0.03, 0.02, [0.75, 0.45, 0.4]);
   return { parts };
 }
 
@@ -1368,6 +1534,7 @@ const G = {
   sound: true,
   started: false,
   view: 0,                  // してん 0=じぶんの目 1=うしろから 2=まえから
+  skin: '',                 // きがえ(そらごころテストの キャラ名。'' は いつもの じぶん)
   modal: null,              // 開いているモーダル
   panel: null,              // プログラム用パネル
   time: 0
@@ -2094,6 +2261,7 @@ function startGame() {
   try { $('gl').focus(); } catch (e) { /* 何もしない */ }
   saveSoon();
   if (syncReady()) syncSend('start');
+  if (loadPlayer().auth) { skinLoadCache(); skinFetch(); }
 }
 
 // 開発用フック(テストで使う)
@@ -3828,7 +3996,7 @@ function saveSoon() {
 }
 function collectSave() {
   return {
-    v: 1, ts: G.saveTs || 0, daily: G.daily || null, seed: world.seed, level: G.level, ctrl: G.ctrl, sound: G.sound, view: G.view,
+    v: 1, ts: G.saveTs || 0, daily: G.daily || null, seed: world.seed, level: G.level, ctrl: G.ctrl, sound: G.sound, view: G.view, skin: G.skin, skinTipped: !!G.skinTipped,
     hotbar: G.hotbar, slot: G.slot, zukan: G.zukan, made: G.made, counters: G.counters,
     missionIndex: G.missionIndex, stars: G.stars, playSec: Math.round(G.playSec || 0), mBase: G.mBase, introDone: !!G.introDone,
     player: { x: P.x, y: P.y, z: P.z, yaw: P.yaw, pitch: P.pitch },
@@ -3859,8 +4027,9 @@ function applySave(d) {
   if (d.ctrl) G.ctrl = d.ctrl;
   if (typeof d.sound === 'boolean') G.sound = d.sound;
   G.view = (d.view === 1 || d.view === 2) ? d.view : 0;
-  document.body.classList.toggle('view3', G.view !== 0);
-  document.body.classList.toggle('viewFront', G.view === 2);
+  G.skin = (typeof d.skin === 'string' && SKINS[d.skin]) ? d.skin : '';
+  G.skinTipped = !!d.skinTipped;
+  applyViewClass();
   if (Array.isArray(d.hotbar) && d.hotbar.length === 9 && d.hotbar.every(id => BLOCKS[id] && id !== B.AIR)) G.hotbar = d.hotbar;
   if (d.slot >= 0 && d.slot < 9) G.slot = d.slot;
   if (d.zukan) G.zukan = d.zukan;
@@ -3913,6 +4082,7 @@ function loadUserWorld() {
   world.pendingRobot = null; world.pendingProgram = null;
   G.daily = null; G.saveTs = 0;
   G.hw = hwFromSave(null); hwVisit = null;
+  G.skin = ''; SKIN.owned = null; SKIN.equipped = '';
   respawn();
   if (typeof robotReset === 'function') robotReset();
   if (typeof programReset === 'function') programReset();
@@ -4676,7 +4846,8 @@ function setupUI() {
   $('invBtn').onclick = () => openInventory();
   $('hwBtn').onclick = () => openHw();
   $('viewBtn').onclick = () => cycleView();
-  ['bZukan', 'bRobot', 'bLab', 'bTeacher', 'bMission', 'menuBtn', 'invBtn', 'hwBtn', 'viewBtn'].forEach(id => {
+  $('skinBtn').onclick = () => openSkin();
+  ['bZukan', 'bRobot', 'bLab', 'bTeacher', 'bMission', 'menuBtn', 'invBtn', 'hwBtn', 'viewBtn', 'skinBtn'].forEach(id => {
     $(id).addEventListener('pointerdown', e => e.stopPropagation());
   });
 }
@@ -4687,7 +4858,7 @@ Object.assign(window.__game, {
   openProgram, openZukan, openLab, openTeacher, openMissions, openMenu, openInventory, closeModal, setLevel, startGame,
   showTitle, setBlock, getB, solidAt, checkMissions, currentMission, MISSIONS, FAQ, RECIPES, PLACEABLE, resetAll, saveNow,
   readSave, respawn, renderProgram, showBlockInfo, raycast, genWorld, markAllDirty, flushDirty, addCard, execNodes, astFeatures,
-  cloudSave, cloudPull, saveSig, openDaily, cycleView, cameraNow, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
+  cloudSave, cloudPull, saveSig, openDaily, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
   startTutorial, endTutorial, tutGoto: i => { TUT.i = i; tutInitStep(); }, tutState: () => ({ on: TUT.on, i: TUT.i, n: TUT.steps.length, doneAt: TUT.doneAt }), tutSeen, findNode, progState: () => ({ target: progTarget }), collectDefs, setBarMode, dirtyChunks
 });
 
