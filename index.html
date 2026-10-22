@@ -285,7 +285,8 @@ body.touch #viewBtn,body.touch #skinBtn,body.touch #hwBtn{right:auto;left:calc(8
 body.touch #hwBtn{top:calc(124px + var(--sat))!important}
 body.touch #viewBtn{top:calc(176px + var(--sat))}
 body.touch #skinBtn{top:calc(228px + var(--sat))}
-body.viewFront #crosshair{display:none}
+body.viewFront #crosshair,body.keysLook #crosshair{display:none}
+body.keysLook #gl{cursor:crosshair}
 .skins .cell img{width:68px;height:84px;image-rendering:pixelated;object-fit:contain}
 .skins .cell.locked{opacity:.55}
 @media (max-width:640px){
@@ -1524,6 +1525,7 @@ function playerEntity() {
 const G = {
   level: 2,                 // 1=ひらがな 2=ふりがな 3=漢字
   ctrl: 'auto',             // auto / pc / touch
+  pcLook: 'keys',           // パソコンの むきの かえかた keys=WASD(マウスは クリック用) / mouse=マウス
   hotbar: [B.GRASS, B.DIRT, B.STONE, B.PLANKS, B.BRICK, B.GLASS, B.LOG, B.SAND, B.LEAVES],
   slot: 0,
   zukan: {},                // 見つけたブロック
@@ -1658,10 +1660,29 @@ function lookDir() {
 }
 
 const REACH = 6;
-function computeTarget() {
-  const e = eyePos(), d = lookDir();
-  return raycast(e[0], e[1], e[2], d[0], d[1], d[2], REACH, false);
+const MOUSE = { x: 0, y: 0, in: false };   // キーモードの マウスカーソル
+function keyMode() { return !touchActive() && G.pcLook !== 'mouse'; }
+// ねらう せん: キーモードで カーソルが 画面に あれば カメラから カーソルの ほうへ、なければ まんなか
+function aimRay() {
+  if (keyMode() && MOUSE.in && canvasEl) {
+    const cam = cameraNow(), r = canvasEl.getBoundingClientRect();
+    const u = ((MOUSE.x - r.left) / r.width) * 2 - 1, v = 1 - ((MOUSE.y - r.top) / r.height) * 2;
+    const th = Math.tan(cam.fov / 2), asp = r.width / r.height;
+    const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw), cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+    const dx = -sy * cp + cy * u * th * asp + sy * sp * v * th, dy = sp + cp * v * th, dz = -cy * cp - sy * u * th * asp + cy * sp * v * th;
+    const l = Math.hypot(dx, dy, dz);
+    return { o: [cam.x, cam.y, cam.z], d: [dx / l, dy / l, dz / l], max: REACH + Math.hypot(cam.x - P.x, cam.y - P.y - P.eye, cam.z - P.z) };
+  }
+  return { o: eyePos(), d: lookDir(), max: REACH };
 }
+// うしろから みている ときも、とどくのは じぶんから REACH まで
+function aimHit(extra, water) {
+  const a = aimRay();
+  const t = raycast(a.o[0], a.o[1], a.o[2], a.d[0], a.d[1], a.d[2], a.max + extra, water);
+  if (t && Math.hypot(t.x + 0.5 - P.x, t.y + 0.5 - P.y - P.eye, t.z + 0.5 - P.z) > REACH + extra + 0.9) return null;
+  return t;
+}
+function computeTarget() { return aimHit(0, false); }
 
 // ---------- ブロックを置く・こわす・しらべる ----------
 function playerOverlapsCell(x, y, z) {
@@ -1710,8 +1731,7 @@ function actPlace() {
   return true;
 }
 function actInspect() {
-  const e = eyePos(), d = lookDir();
-  const t = raycast(e[0], e[1], e[2], d[0], d[1], d[2], REACH + 2, true);
+  const t = aimHit(2, true);
   if (!t) { toast(T('ブロックに{近|ちか}づいて、ねらってね')); return false; }
   showBlockInfo(t.id);
   G.counters.inspected++;
@@ -1859,6 +1879,14 @@ function setupInput(canvas) {
   canvas.addEventListener('pointerdown', e => {
     if (inputBlocked()) return;
     ensureAudio();
+    if (e.pointerType === 'mouse' && keyMode()) {
+      MOUSE.x = e.clientX; MOUSE.y = e.clientY; MOUSE.in = true;
+      if (e.button === 0) { INPUT.breakHeld = true; actBreak(); breakCooldown = 0.28; }
+      else if (e.button === 2) { INPUT.placeHeld = true; actPlace(); placeCooldown = 0.25; }
+      else if (e.button === 1) { actInspect(); e.preventDefault(); }
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* 何もしない */ }
+      return;
+    }
     if (e.pointerType === 'mouse') {
       if (!pointerLocked && !dragLook) {
         try { const r = canvas.requestPointerLock && canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (err) { /* ドラッグ視点にきりかえ */ }
@@ -1888,7 +1916,9 @@ function setupInput(canvas) {
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* 何もしない */ }
   });
   canvas.addEventListener('pointermove', e => {
+    if (e.pointerType === 'mouse') { MOUSE.x = e.clientX; MOUSE.y = e.clientY; MOUSE.in = true; }
     if (inputBlocked()) return;
+    if (e.pointerType === 'mouse' && keyMode()) return;
     if (e.pointerType === 'mouse') {
       if (pointerLocked) { lookBy(e.movementX, e.movementY, 0.0022); }
       else if (dragLook && dragLook.id === e.pointerId) {
@@ -1918,6 +1948,11 @@ function setupInput(canvas) {
     }
   });
   function endPointer(e) {
+    if (e.pointerType === 'mouse' && keyMode()) {
+      if (e.button === 0) INPUT.breakHeld = false;
+      if (e.button === 2) INPUT.placeHeld = false;
+      return;
+    }
     if (e.pointerType === 'mouse') {
       if (pointerLocked) {
         if (e.button === 0) INPUT.breakHeld = false;
@@ -1938,6 +1973,7 @@ function setupInput(canvas) {
     pointers.delete(e.pointerId);
   }
   canvas.addEventListener('pointerup', endPointer);
+  canvas.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') MOUSE.in = false; });
   canvas.addEventListener('pointercancel', endPointer);
 
   // タッチ用ボタン
@@ -1966,15 +2002,23 @@ function lookBy(dx, dy, sens) {
 const TOUCH = { mx: 0, mz: 0, jump: false, down: false, sprint: false };
 function pollKeyboard() {
   const blocked = inputBlocked();
-  const kx = blocked ? 0 : (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0);
-  const kz = blocked ? 0 : (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0);
+  const km = keyMode();   // キーモードでは WASD は むき(keyLook)、やじるしだけで あるく
+  const kx = blocked ? 0 : clamp((keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0) + (km ? 0 : (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0)), -1, 1);
+  const kz = blocked ? 0 : clamp((keys.ArrowUp ? 1 : 0) - (keys.ArrowDown ? 1 : 0) + (km ? 0 : (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0)), -1, 1);
   INPUT.mx = clamp(kx + TOUCH.mx, -1, 1);
   INPUT.mz = clamp(kz + TOUCH.mz, -1, 1);
   INPUT.sprint = !blocked && (!!(keys.ControlLeft || keys.ControlRight) || TOUCH.sprint);
   INPUT.jump = !blocked && (!!keys.Space || TOUCH.jump);
   INPUT.down = !blocked && (!!(keys.ShiftLeft || keys.ShiftRight) || TOUCH.down);
 }
+function keyLook(dt) {
+  if (!keyMode() || inputBlocked()) return;
+  const yi = (keys.KeyA ? 1 : 0) - (keys.KeyD ? 1 : 0), pi = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
+  if (yi) P.yaw += yi * 2.3 * dt;
+  if (pi) P.pitch = clamp(P.pitch + pi * 1.5 * dt, -1.5, 1.5);
+}
 function handleHold(dt) {
+  keyLook(dt);
   if (inputBlocked()) return;
   if (INPUT.breakHeld) { breakCooldown -= dt; if (breakCooldown <= 0) { actBreak(); breakCooldown = 0.22; } }
   if (INPUT.placeHeld) { placeCooldown -= dt; if (placeCooldown <= 0) { actPlace(); placeCooldown = 0.22; } }
@@ -2167,11 +2211,14 @@ function openMenu() {
     '<button class="btn sub' + (G.ctrl === 'auto' ? ' on' : '') + '" data-c="auto">' + T('じどう') + '</button>' +
     '<button class="btn sub' + (G.ctrl === 'pc' ? ' on' : '') + '" data-c="pc">⌨️ PC</button>' +
     '<button class="btn sub' + (G.ctrl === 'touch' ? ' on' : '') + '" data-c="touch">👆 ' + T('タッチ') + '</button></div>' +
+    (touchActive() ? '' : '<h4>' + T('パソコンで むきを かえる') + '</h4><div class="seg" id="mLook">' +
+      '<button class="btn sub' + (G.pcLook !== 'mouse' ? ' on' : '') + '" data-l="keys">⌨️ ' + T('キー(WASD)') + '</button>' +
+      '<button class="btn sub' + (G.pcLook === 'mouse' ? ' on' : '') + '" data-l="mouse">🖱️ ' + T('マウス') + '</button></div>') +
     '<h4>' + T('おと') + '</h4><div class="seg"><button class="btn sub' + (G.sound ? ' on' : '') + '" id="mSnd">' + (G.sound ? '🔊 ON' : '🔇 OFF') + '</button></div>' +
     '<h4>' + T('あそびかた') + '</h4><div class="note" style="line-height:2">' +
     (touchActive() ?
       T('{左|ひだり}の{画面|がめん}をなぞる: あるく ／ {右|みぎ}の{画面|がめん}をなぞる: まわりを{見|み}る<br>⛏こわす ・ 🧱おく ・ 🔍しらべる ・ 🕊とぶ ・ 👁️してん') :
-      T('WASD: あるく ／ マウス: まわりを{見|み}る ／ {左|ひだり}クリック: こわす ／ {右|みぎ}クリック: おく<br>Space: ジャンプ(2{回|かい}で とぶ) ／ Q: しらべる ／ 1〜9: ブロックを{選|えら}ぶ ／ E: もちもの ／ Z: {図鑑|ずかん} ／ P: ロボット ／ F5・V: してん')) + '</div>' +
+      (keyMode() ? T('やじるし: あるく ／ W A S D: むきを かえる ／ マウスを あわせて {左|ひだり}クリック: こわす ／ {右|みぎ}クリック: おく<br>') : T('WASD: あるく ／ マウス: まわりを{見|み}る ／ {左|ひだり}クリック: こわす ／ {右|みぎ}クリック: おく<br>')) + T('Space: ジャンプ(2{回|かい}で とぶ) ／ Q: しらべる ／ 1〜9: ブロックを{選|えら}ぶ ／ E: もちもの ／ Z: {図鑑|ずかん} ／ P: ロボット ／ F5・V: してん')) + '</div>' +
     '<div style="margin-top:8px"><button class="btn sub" id="mTut">🎓 ' + T('そうさの れんしゅう') + '</button>' +
     (loadPlayer().auth ? ' <button class="btn sub" id="mOut">🔄 ' + T('べつの ひとが あそぶ') + '</button>' : '') + '</div>' +
     '<h4>' + T('おうちの ひとへ') + '</h4><div class="seg"><button class="btn sub" id="mParent">👪 ' + T('がくしゅうの きろく') + '</button></div>' +
@@ -2183,6 +2230,7 @@ function openMenu() {
   const body = openModal('⚙️ ' + T('メニュー'), html, 'menu');
   body.querySelectorAll('#mLv .lvcard').forEach(b => b.addEventListener('click', () => { setLevel(+b.dataset.lv); openMenu(); }));
   body.querySelectorAll('#mCtl .btn').forEach(b => b.addEventListener('click', () => { G.ctrl = b.dataset.c; applyControlMode(); openMenu(); }));
+  body.querySelectorAll('#mLook .btn').forEach(b => b.addEventListener('click', () => { G.pcLook = b.dataset.l; applyControlMode(); saveSoon(); openMenu(); }));
   $('mSnd').onclick = () => { G.sound = !G.sound; openMenu(); };
   $('mHome').onclick = () => { respawn(); closeModal(); };
   $('mTut').onclick = () => { closeModal(); startTutorial(); };
@@ -2214,10 +2262,12 @@ function renderAllText() {
   if (!G.started && $('title').style.display !== 'none') renderTitle();
 }
 function renderHint() {
-  $('hint').innerHTML = touchActive() ? '' : T('クリックで{始|はじ}める ／ WASD あるく ／ Q しらべる');
+  $('hint').innerHTML = touchActive() ? '' : keyMode() ? T('やじるし あるく ／ WASD むきを かえる ／ クリック こわす・おく ／ Q しらべる') : T('クリックで{始|はじ}める ／ WASD あるく ／ Q しらべる');
 }
 function applyControlMode() {
   document.body.classList.toggle('touch', touchActive());
+  document.body.classList.toggle('keysLook', keyMode());
+  if (keyMode() && document.pointerLockElement) { try { document.exitPointerLock(); } catch (e) { /* 何もしない */ } }
   renderHint();
 }
 function updateFlyButton() {
@@ -2546,25 +2596,32 @@ function tutMarkSeen() {
 const TUT = { on: false, i: 0, steps: [], t: 0, doneAt: 0, acc: {}, base: {}, el: null, clicked: false, touch: false };
 
 function tutStepsPC() {
+  const km = keyMode(), aim = km ? 'マウスを あわせて' : 'まんなかの ＋ を あわせて';
   return [
+    km ? { icon: '👀', title: '<kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> で むきを かえよう',
+      body: '<kbd>A</kbd> ひだりを むく ／ <kbd>D</kbd> みぎを むく ／ <kbd>W</kbd> うえを {見|み}る ／ <kbd>S</kbd> したを {見|み}る<br><small>マウスは ボタンや ブロックを クリックする ときに つかうよ</small>',
+      done: () => TUT.acc.look > 1.2 } :
     { icon: '🖱️', title: 'ゲームの{画面|がめん}を クリックしよう',
       body: 'クリックすると、マウスで まわりを {見|み}られるよ。<br>マウスを はなす ときは <kbd>Esc</kbd>',
       done: () => TUT.clicked },
+    km ? { icon: '🚶', title: 'やじるしキーで あるこう',
+      body: '<kbd>↑</kbd> まえ ／ <kbd>←</kbd> ひだり ／ <kbd>↓</kbd> うしろ ／ <kbd>→</kbd> みぎ<br><small>(<kbd>Ctrl</kbd>を おすと はしる)</small>',
+      done: () => TUT.acc.walk > 5 } :
     { icon: '👀', title: 'マウスを うごかして まわりを {見|み}よう',
       body: 'マウスが うごかない ときは、ドラッグ(おしながら うごかす)で {見|み}られるよ。',
       done: () => TUT.acc.look > 1.2 },
-    { icon: '🚶', title: 'キーボードで あるこう',
+    km ? null : { icon: '🚶', title: 'キーボードで あるこう',
       body: '<kbd>W</kbd> まえ ／ <kbd>A</kbd> ひだり ／ <kbd>S</kbd> うしろ ／ <kbd>D</kbd> みぎ<br><small>(やじるしキーでも あるけるよ。<kbd>Ctrl</kbd>を おすと はしる)</small>',
       done: () => TUT.acc.walk > 5 },
     { icon: '⤴️', title: '<kbd>Space</kbd> で ジャンプしよう',
       body: 'あるきながら ジャンプも できるよ。',
       done: () => !P.onGround && P.vy > 1 && !P.fly },
     { icon: '⛏️', title: '{左|ひだり}クリックで ブロックを こわそう',
-      body: 'こわしたい ブロックに まんなかの ＋ を あわせて、{左|ひだり}クリック。<br>おしっぱなしでも こわせるよ。',
+      body: 'こわしたい ブロックに ' + aim + '、{左|ひだり}クリック。<br>おしっぱなしでも こわせるよ。',
       init: () => { TUT.base.broken = G.counters.broken; },
       done: () => G.counters.broken > TUT.base.broken },
     { icon: '🧱', title: '{右|みぎ}クリックで ブロックを おこう',
-      body: 'おきたい {場所|ばしょ}に ＋ を あわせて、{右|みぎ}クリック。',
+      body: 'おきたい {場所|ばしょ}に ' + aim + '、{右|みぎ}クリック。',
       init: () => { TUT.base.placed = G.counters.placed; },
       done: () => G.counters.placed > TUT.base.placed },
     { icon: '🔢', title: '<kbd>1</kbd>〜<kbd>9</kbd> で ブロックを えらぼう',
@@ -2573,7 +2630,7 @@ function tutStepsPC() {
       init: () => { TUT.base.slot = G.slot; },
       done: () => G.slot !== TUT.base.slot },
     { icon: '🔍', title: '<kbd>Q</kbd> で ブロックを しらべよう',
-      body: 'しらべたい ブロックに ＋ を あわせて <kbd>Q</kbd>。<br>{真|ま}ん{中|なか}クリックでも できるよ。{図鑑|ずかん}が ふえるよ。',
+      body: 'しらべたい ブロックに ' + aim + ' <kbd>Q</kbd>。<br>{真|ま}ん{中|なか}クリックでも できるよ。{図鑑|ずかん}が ふえるよ。',
       init: () => { TUT.base.inspected = G.counters.inspected; },
       done: () => G.counters.inspected > TUT.base.inspected },
     { icon: '🕊️', title: '<kbd>Space</kbd> を 2かい はやく おして とぼう',
@@ -2586,7 +2643,7 @@ function tutStepsPC() {
     { icon: '🎓', title: 'ほかの ボタンも つかってみよう',
       body: '<kbd>Z</kbd> ずかん ／ <kbd>P</kbd> ロボット ／ <kbd>L</kbd> じっけん ／ <kbd>M</kbd> ミッション ／ <kbd>Esc</kbd> メニュー<br><small>メニューで、いつでも この れんしゅうを やりなおせるよ。</small>',
       manual: 'はじめよう！' }
-  ];
+  ].filter(Boolean);
 }
 function tutStepsTouch() {
   return [
@@ -3996,7 +4053,7 @@ function saveSoon() {
 }
 function collectSave() {
   return {
-    v: 1, ts: G.saveTs || 0, daily: G.daily || null, seed: world.seed, level: G.level, ctrl: G.ctrl, sound: G.sound, view: G.view, skin: G.skin, skinTipped: !!G.skinTipped,
+    v: 1, ts: G.saveTs || 0, daily: G.daily || null, seed: world.seed, level: G.level, ctrl: G.ctrl, sound: G.sound, pcLook: G.pcLook, view: G.view, skin: G.skin, skinTipped: !!G.skinTipped,
     hotbar: G.hotbar, slot: G.slot, zukan: G.zukan, made: G.made, counters: G.counters,
     missionIndex: G.missionIndex, stars: G.stars, playSec: Math.round(G.playSec || 0), mBase: G.mBase, introDone: !!G.introDone,
     player: { x: P.x, y: P.y, z: P.z, yaw: P.yaw, pitch: P.pitch },
@@ -4026,6 +4083,7 @@ function applySave(d) {
   if (d.level >= 1 && d.level <= 3) G.level = d.level;
   if (d.ctrl) G.ctrl = d.ctrl;
   if (typeof d.sound === 'boolean') G.sound = d.sound;
+  G.pcLook = d.pcLook === 'mouse' ? 'mouse' : 'keys';
   G.view = (d.view === 1 || d.view === 2) ? d.view : 0;
   G.skin = (typeof d.skin === 'string' && SKINS[d.skin]) ? d.skin : '';
   G.skinTipped = !!d.skinTipped;
@@ -4858,7 +4916,7 @@ Object.assign(window.__game, {
   openProgram, openZukan, openLab, openTeacher, openMissions, openMenu, openInventory, closeModal, setLevel, startGame,
   showTitle, setBlock, getB, solidAt, checkMissions, currentMission, MISSIONS, FAQ, RECIPES, PLACEABLE, resetAll, saveNow,
   readSave, respawn, renderProgram, showBlockInfo, raycast, genWorld, markAllDirty, flushDirty, addCard, execNodes, astFeatures,
-  cloudSave, cloudPull, saveSig, openDaily, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
+  cloudSave, cloudPull, saveSig, openDaily, keyMode, aimRay, MOUSE, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
   startTutorial, endTutorial, tutGoto: i => { TUT.i = i; tutInitStep(); }, tutState: () => ({ on: TUT.on, i: TUT.i, n: TUT.steps.length, doneAt: TUT.doneAt }), tutSeen, findNode, progState: () => ({ target: progTarget }), collectDefs, setBarMode, dirtyChunks
 });
 
