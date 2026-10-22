@@ -43,6 +43,12 @@ button{font:inherit;color:inherit;cursor:pointer}
   font-size:13px;font-weight:700;text-align:center;line-height:1.6;display:none}
 #missionChip b{color:var(--brand2)}
 #missionChip.done{background:#dcfce7}
+#missionChip .mc-o{display:inline-block;margin-left:8px;padding:0 6px;border-radius:8px;background:#e8eefc;font-size:11px;color:var(--ink2)}
+.course{border:2px solid var(--line);border-radius:14px;padding:6px 10px;margin:8px 0}
+.course.on{border-color:var(--brand);background:#f5f9ff}
+.course-h{display:flex;align-items:center;gap:6px;font-weight:900;font-size:16px}
+.course-h small{color:var(--ink2);font-weight:700}
+.course-h .btn{margin-left:auto}
 #toast{position:absolute;left:50%;top:30%;transform:translate(-50%,-10px);padding:10px 18px;border-radius:16px;background:rgba(20,30,60,.86);
   color:#fff;font-weight:700;font-size:16px;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none!important;max-width:88vw;text-align:center;line-height:1.7}
 #toast.show{opacity:1;transform:translate(-50%,0)}
@@ -287,6 +293,11 @@ body.touch #viewBtn{top:calc(176px + var(--sat))}
 body.touch #skinBtn{top:calc(228px + var(--sat))}
 body.viewFront #crosshair,body.keysLook #crosshair{display:none}
 body.keysLook #gl{cursor:crosshair}
+#inspBtn{position:absolute;left:calc(126px + var(--sal));bottom:calc(10px + var(--sab))}
+body.touch #inspBtn{display:none}
+body.inspArm #gl{cursor:help}
+body.inspArm #inspBtn{background:rgba(234,88,12,.9);border-color:#fed7aa}
+#aimTip{position:absolute;display:none;pointer-events:none!important;padding:2px 8px;border-radius:10px;background:rgba(20,30,60,.82);color:#fff;font-size:12px;font-weight:700;white-space:nowrap;z-index:4}
 .skins .cell img{width:68px;height:84px;image-rendering:pixelated;object-fit:contain}
 .skins .cell.locked{opacity:.55}
 @media (max-width:640px){
@@ -331,6 +342,8 @@ body.keysLook #gl{cursor:crosshair}
     <div id="toast"></div>
     <div id="hint"></div>
     <button class="hbtn" id="invBtn"><span class="ic">🎒</span><span data-t="もちもの"></span></button>
+    <button class="hbtn" id="inspBtn"><span class="ic">🔍</span><span data-t="しらべる"></span></button>
+    <div id="aimTip"></div>
     <div id="hotbarWrap"><div id="slotName"></div><div id="hotbar"></div></div>
   </div>
   <div id="touch">
@@ -1705,7 +1718,7 @@ function actBreak() {
   if (typeof hwOnBreak === 'function' && hwOnBreak(t)) return true;
   const id = t.id;
   setBlock(t.x, t.y, t.z, B.AIR);
-  discover(id);
+  if (discover(id) && !BLOCKS[id].event) G.counters.inspected++;   // こわして 図鑑に のったのも「しらべた」
   G.counters.broken++;
   playSound('break');
   spawnParticles(t.x + 0.5, t.y + 0.5, t.z + 0.5, id);
@@ -1881,7 +1894,8 @@ function setupInput(canvas) {
     ensureAudio();
     if (e.pointerType === 'mouse' && keyMode()) {
       MOUSE.x = e.clientX; MOUSE.y = e.clientY; MOUSE.in = true;
-      if (e.button === 0) { INPUT.breakHeld = true; actBreak(); breakCooldown = 0.28; }
+      if (G.inspArm && e.button === 0) { G.inspArm = false; document.body.classList.remove('inspArm'); actInspect(); }
+      else if (e.button === 0) { INPUT.breakHeld = true; actBreak(); breakCooldown = 0.28; }
       else if (e.button === 2) { INPUT.placeHeld = true; actPlace(); placeCooldown = 0.25; }
       else if (e.button === 1) { actInspect(); e.preventDefault(); }
       try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* 何もしない */ }
@@ -2321,7 +2335,7 @@ window.__game = { G, P, world, INPUT, B, BLOCKS };
 function openParent() {
   const c = G.counters, z = Object.keys(G.zukan).length;
   const row = (l, v) => '<tr><td style="padding:3px 10px 3px 0">' + l + '</td><td style="font-weight:900;text-align:right">' + v + '</td></tr>';
-  const done = MISSIONS.filter((m, i) => i < G.missionIndex && (!m.minLevel || G.level >= m.minLevel)).length;
+  const done = doneCount();
   const total = activeMissions().length;
   const learned = PLACEABLE.filter(id => G.zukan[id]).map(id => T(BLOCKS[id].name)).join('、') || '—';
   const madeList = RECIPES.filter(r => G.made[r.key]).map(r => T(BLOCKS[r.out()].name)).join('、') || '—';
@@ -2410,14 +2424,14 @@ function plainText(s) { return String(s || '').replace(/\{([^|}]*)\|[^}]*\}/g, '
 function buildPayload(reason) {
   const p = loadPlayer();
   const c = G.counters;
-  const missions = MISSIONS.map((m, i) => (m.minLevel && G.level < m.minLevel) ? '-' : (i < G.missionIndex ? '✓' : ''));
+  const missions = MISSIONS.map(m => !mActive(m) ? '-' : (G.mDone[m.key] ? '✓' : ''));
   const cur = typeof currentMission === 'function' ? currentMission() : null;
   return {
     app: 'soragokoro-craft', v: 1, reason: reason || 'auto',
     id: p.id, name: p.name, grade: p.grade, token: p.token,
     dailyStreak: typeof dailyStreakNow === 'function' ? dailyStreakNow() : 0, dailyDays: G.daily ? (G.daily.total || 0) : 0,
     level: G.level, stars: G.stars,
-    cleared: MISSIONS.filter((m, i) => i < G.missionIndex && (!m.minLevel || G.level >= m.minLevel)).length,
+    cleared: doneCount(),
     total: activeMissions().length,
     current: cur ? plainText(cur.title()) : 'ぜんぶクリア',
     missions: missions,
@@ -2777,7 +2791,7 @@ function saveSig() {
   let prog = 0;
   try { prog = typeof programSave === 'function' ? JSON.stringify(programSave() || '').length : 0; } catch (e) { prog = 0; }
   const c = G.counters;
-  return [world.edits.size, G.stars, G.missionIndex, Object.keys(c).reduce((a, k) => a + (+c[k] || 0), 0),
+  return [world.edits.size, G.stars, Object.keys(G.mDone).length + ':' + G.mFocus, Object.keys(c).reduce((a, k) => a + (+c[k] || 0), 0),
     Object.keys(G.zukan).length, Object.keys(G.made).length, G.level, prog, G.daily ? (G.daily.done ? 1 : 0) + ':' + (G.daily.stamps || []).length : '',
     G.hw ? [G.hw.found, G.hw.seen, G.hw.visited, G.hw.result, G.hw.prank.length, G.hw.hat, G.hw.cleaned].join(',') : ''].join('|');
 }
@@ -4055,7 +4069,7 @@ function collectSave() {
   return {
     v: 1, ts: G.saveTs || 0, daily: G.daily || null, seed: world.seed, level: G.level, ctrl: G.ctrl, sound: G.sound, pcLook: G.pcLook, view: G.view, skin: G.skin, skinTipped: !!G.skinTipped,
     hotbar: G.hotbar, slot: G.slot, zukan: G.zukan, made: G.made, counters: G.counters,
-    missionIndex: G.missionIndex, stars: G.stars, playSec: Math.round(G.playSec || 0), mBase: G.mBase, introDone: !!G.introDone,
+    missionIndex: G.missionIndex, stars: G.stars, playSec: Math.round(G.playSec || 0), mDone: G.mDone, mBases: G.mBases, mFocus: G.mFocus, introDone: !!G.introDone,
     player: { x: P.x, y: P.y, z: P.z, yaw: P.yaw, pitch: P.pitch },
     edits: Array.from(world.edits.entries()),
     robot: typeof robotSave === 'function' ? robotSave() : null,
@@ -4096,7 +4110,17 @@ function applySave(d) {
   if (d.missionIndex >= 0) G.missionIndex = d.missionIndex;
   if (d.stars >= 0) G.stars = d.stars;
   if (d.playSec >= 0) G.playSec = d.playSec;
-  G.mBase = d.mBase || null;
+  // まえの はんの セーブ(一本道の missionIndex)からの ひきつぎ
+  if (d.mDone && typeof d.mDone === 'object') G.mDone = Object.assign({}, d.mDone);
+  else { G.mDone = {}; MISSIONS.forEach((m, i) => { if (i < (d.missionIndex || 0) && (!m.minLevel || G.level >= m.minLevel)) G.mDone[m.key] = true; }); }
+  if (d.mBases && typeof d.mBases === 'object') G.mBases = d.mBases;
+  else {
+    G.mBases = {};
+    COURSES.forEach(c => { G.mBases[c.id] = Object.assign({}, G.counters); });
+    const cur = MISSIONS[d.missionIndex || 0];
+    if (d.mBase && cur) G.mBases[courseOf(cur).id] = d.mBase;   // とちゅうの ミッションは つづきから
+  }
+  G.mFocus = COURSES.some(c => c.id === d.mFocus) ? d.mFocus : (MISSIONS[d.missionIndex || 0] ? courseOf(MISSIONS[d.missionIndex || 0]).id : 'build');
   G.introDone = !!d.introDone;
   world.edits = new Map((d.edits || []).filter(e => Array.isArray(e) && e[0] >= 0 && e[0] < W * D * H && BLOCKS[e[1]]));
   if (d.seed) world.seed = d.seed;
@@ -4114,6 +4138,7 @@ function resetAll() {
   delete memSaves[saveKey()];
   world.edits = new Map();
   G.zukan = {}; G.tempWasFrozen = false; G.tempIronMelted = false; G.made = {}; G.missionIndex = 0; G.stars = 0; G.playSec = 0; G.introDone = true;
+  G.mDone = {}; G.mFocus = 'build';
   G.hw = hwFromSave(null); hwVisit = null;
   Object.keys(G.counters).forEach(k => { G.counters[k] = 0; });
   G.hotbar = [B.GRASS, B.DIRT, B.STONE, B.PLANKS, B.BRICK, B.GLASS, B.LOG, B.SAND, B.LEAVES];
@@ -4133,7 +4158,7 @@ function resetAll() {
 function loadUserWorld() {
   world.edits = new Map();
   G.zukan = {}; G.tempWasFrozen = false; G.tempIronMelted = false; G.made = {};
-  G.missionIndex = 0; G.stars = 0; G.playSec = 0; G.introDone = false; G.mBase = null;
+  G.missionIndex = 0; G.stars = 0; G.playSec = 0; G.introDone = false; G.mDone = {}; G.mBases = null; G.mFocus = 'build';
   Object.keys(G.counters).forEach(k => { G.counters[k] = 0; });
   G.hotbar = [B.GRASS, B.DIRT, B.STONE, B.PLANKS, B.BRICK, B.GLASS, B.LOG, B.SAND, B.LEAVES];
   G.slot = 0;
@@ -4148,7 +4173,7 @@ function loadUserWorld() {
   if (d) applySave(d);
   genWorld(world.seed);
   markAllDirty(); flushDirty();
-  if (!G.mBase) snapshotBase();
+  if (!G.mBases) snapshotBase();
   robotInit();
   if (world.pendingProgram) restoreProgram(world.pendingProgram);
   try { G.saveSigNow = saveSig(); } catch (e) { /* 何もしない */ }
@@ -4158,7 +4183,6 @@ function loadUserWorld() {
 
 // ===== 11-missions.js =====
 // ---------- ミッション ----------
-G.mBase = null; // ミッション開始時のカウンター
 
 // title: 学年(level)によって かわる もんだい文  prog: 進み具合 [いま, 目標] / run: プログラムを実行した時の判定
 const MISSIONS = [
@@ -4174,7 +4198,7 @@ const MISSIONS = [
   },
   {
     key: 'inspect', icon: '🔍', title: () => 'ブロックを 3つ しらべよう',
-    hint: () => touchActive() ? '🔍「しらべる」ボタンを ブロックに むけて おしてね' : 'ブロックを ねらって Qキー ({真|ま}ん{中|なか}クリック) で しらべるよ',
+    hint: () => touchActive() ? '🔍「しらべる」ボタンを ブロックに むけて おしてね' : keyMode() ? 'ブロックに マウスを あわせて Qキー。🔍しらべる ボタンを おしてから クリックでも しらべられるよ' : 'ブロックを ねらって Qキー ({真|ま}ん{中|なか}クリック) で しらべるよ',
     prog: d => [d.inspected, 3]
   },
   {
@@ -4230,45 +4254,68 @@ const MISSIONS = [
     prog: () => [Object.keys(G.zukan).length, PLACEABLE.length]
   }
 ];
-function activeMissions() { return MISSIONS.filter(m => !m.minLevel || G.level >= m.minLevel); }
-function missionDelta() {
-  const c = G.counters, b = G.mBase || {}, d = {};
+// 3つの コース。どの コースから すすめても よい(MISSIONS の じゅんばんは 集計表の 列と ポイントの キーなので かえない)
+const COURSES = [
+  { id: 'build', icon: '🏠', name: 'たてもの', keys: ['place', 'break', 'inspect', 'zukan10', 'all'] },
+  { id: 'robot', icon: '🤖', name: 'ロボット', keys: ['summon', 'walk', 'bridge', 'cond'] },
+  { id: 'lab', icon: '🧪', name: 'じっけん', keys: ['iron', 'ice', 'ask', 'logic'] }
+];
+const M_BY_KEY = {}; MISSIONS.forEach(m => { M_BY_KEY[m.key] = m; });
+G.mDone = {};          // クリアした ミッション(key)
+G.mBases = null;       // コースごとの「はじめた ときの カウンター」
+G.mFocus = 'build';    // 上に だす コース
+function mActive(m) { return !m.minLevel || G.level >= m.minLevel; }
+function activeMissions() { return MISSIONS.filter(mActive); }
+function doneCount() { return activeMissions().filter(m => G.mDone[m.key]).length; }
+function courseOf(m) { return COURSES.find(c => c.keys.indexOf(m.key) >= 0) || COURSES[0]; }
+function courseMission(c) {
+  for (const k of c.keys) { const m = M_BY_KEY[k]; if (mActive(m) && !G.mDone[k]) return m; }
+  return null;
+}
+function courseLeft(c) { return c.keys.filter(k => mActive(M_BY_KEY[k])); }
+function missionDelta(m) {
+  const c = G.counters, b = (G.mBases && m && G.mBases[courseOf(m).id]) || {}, d = {};
   for (const k in c) d[k] = c[k] - (b[k] || 0);
   return d;
 }
-function snapshotBase() { G.mBase = Object.assign({}, G.counters); }
-function currentMission() {
-  // missionIndex は MISSIONS 全体の番号。学年でスキップするものはとばす
-  while (G.missionIndex < MISSIONS.length) {
-    const m = MISSIONS[G.missionIndex];
-    if (m.minLevel && G.level < m.minLevel) { G.missionIndex++; continue; }
-    return m;
-  }
-  return null;
+function snapshotBase(cid) {
+  G.mBases = G.mBases || {};
+  COURSES.forEach(c => { if (!cid || c.id === cid) G.mBases[c.id] = Object.assign({}, G.counters); });
 }
+// 上に だす ミッション: えらんだ コースの いまの ミッション(おわっていたら ほかの コース)
+function currentMission() {
+  const f = COURSES.find(c => c.id === G.mFocus) || COURSES[0];
+  return courseMission(f) || COURSES.map(courseMission).find(Boolean) || null;
+}
+function firstUndoneIndex() { const i = MISSIONS.findIndex(m => mActive(m) && !G.mDone[m.key]); return i < 0 ? MISSIONS.length : i; }
 function missionProgress(m) {
-  if (m.prog) { const p = m.prog(missionDelta()); return p; }
+  if (m.prog) return m.prog(missionDelta(m));
   return [0, 1];
 }
 function checkMissions(runInfo) {
   if (!G.started) return;
-  let guard = 0;
-  while (guard++ < 5) {
-    const m = currentMission();
-    if (!m) break;
-    let ok = false;
-    if (m.prog) { const p = missionProgress(m); ok = p[0] >= p[1]; }
-    else if (m.run && runInfo) ok = !!m.run(runInfo.stats, runInfo.err);
-    if (!ok) break;
-    completeMission(m);
-    runInfo = null; // 1回の実行で2つ進めない
+  let guard = 0, used = false;
+  while (guard++ < 8) {
+    let any = false;
+    for (const c of COURSES) {
+      const m = courseMission(c);
+      if (!m) continue;
+      let ok = false;
+      if (m.prog) { const p = missionProgress(m); ok = p[0] >= p[1]; }
+      else if (m.run && runInfo && !used) { ok = !!m.run(runInfo.stats, runInfo.err); if (ok) used = true; } // 1回の実行で2つ進めない
+      if (ok) { completeMission(m); any = true; }
+    }
+    if (!any) break;
   }
   renderMissionChip();
 }
 function completeMission(m) {
   G.stars++;
-  G.missionIndex++;
-  snapshotBase();
+  G.mDone[m.key] = true;
+  const c = courseOf(m);
+  snapshotBase(c.id);
+  G.mFocus = courseMission(c) ? c.id : G.mFocus;
+  G.missionIndex = firstUndoneIndex();
   showClear(m);
   playSound('win');
   saveSoon();
@@ -4299,24 +4346,29 @@ function renderMissionChip() {
   el.onclick = () => openMissions();
   if (!m) { el.className = 'done'; el.innerHTML = '🏆 ' + T('ぜんぶの ミッションを クリアしたよ！ すごい！'); return; }
   el.className = '';
-  const list = activeMissions();
-  const idx = list.indexOf(m) + 1;
+  const c = courseOf(m), keys = courseLeft(c);
   const p = m.prog ? missionProgress(m) : null;
-  el.innerHTML = '⭐ <b>' + idx + '/' + list.length + '</b> ' + m.icon + ' ' + T(m.title()) + (p ? ' (' + Math.min(p[0], p[1]) + '/' + p[1] + ')' : '');
+  // ほかの コースは アイコンと すすみぐあいだけ
+  const others = COURSES.filter(o => o !== c).map(o => { const ks = courseLeft(o); return '<span class="mc-o">' + o.icon + ks.filter(k => G.mDone[k]).length + '/' + ks.length + '</span>'; }).join('');
+  el.innerHTML = c.icon + ' <b>' + (keys.filter(k => G.mDone[k]).length + 1) + '/' + keys.length + '</b> ' + m.icon + ' ' + T(m.title()) + (p ? ' (' + Math.min(p[0], p[1]) + '/' + p[1] + ')' : '') + others;
 }
 
 function openMissions() {
-  const cur = currentMission();
-  const list = activeMissions();
-  let html = '<div style="font-size:18px;font-weight:800">⭐ × ' + G.stars + '</div><ul class="mlist" style="margin-top:8px">';
-  list.forEach(m => {
-    const i = MISSIONS.indexOf(m);
-    const done = i < G.missionIndex, isCur = m === cur;
-    html += '<li class="' + (done ? 'done' : isCur ? 'cur' : '') + '"><span class="st">' + (done ? '✅' : isCur ? '👉' : '⬜') + '</span><span>' + m.icon + ' ' + T(m.title()) +
-      (isCur ? '<div class="note" style="font-weight:600">💡 ' + T(m.hint()) + '</div>' : '') + '</span></li>';
+  let html = '<div style="font-size:18px;font-weight:800">⭐ × ' + G.stars + '</div><p class="note">' + T('3つの コースは どれから すすめても いいよ。うえに だす コースを えらべるよ。') + '</p>';
+  COURSES.forEach(c => {
+    const cur = courseMission(c), keys = courseLeft(c), focus = currentMission() && courseOf(currentMission()) === c;
+    html += '<div class="course' + (focus ? ' on' : '') + '"><div class="course-h">' + c.icon + ' ' + T(c.name) + ' <small>' + keys.filter(k => G.mDone[k]).length + '/' + keys.length + '</small>' +
+      (cur && !focus ? '<button class="btn sub sm" data-focus="' + c.id + '">' + T('うえに だす') + '</button>' : '') + '</div><ul class="mlist">';
+    keys.forEach(k => {
+      const m = M_BY_KEY[k], done = !!G.mDone[k], isCur = m === cur;
+      const p = isCur && m.prog ? missionProgress(m) : null;
+      html += '<li class="' + (done ? 'done' : isCur ? 'cur' : '') + '"><span class="st">' + (done ? '✅' : isCur ? '👉' : '⬜') + '</span><span>' + m.icon + ' ' + T(m.title()) + (p ? ' (' + Math.min(p[0], p[1]) + '/' + p[1] + ')' : '') +
+        (isCur ? '<div class="note" style="font-weight:600">💡 ' + T(m.hint()) + '</div>' : '') + '</span></li>';
+    });
+    html += '</ul></div>';
   });
-  html += '</ul>';
-  openModal('⭐ ' + T('ミッション'), html, 'missions');
+  const body = openModal('⭐ ' + T('ミッション'), html, 'missions');
+  body.querySelectorAll('[data-focus]').forEach(b => b.addEventListener('click', () => { G.mFocus = b.dataset.focus; renderMissionChip(); saveSoon(); openMissions(); }));
 }
 
 // ---------- イベント ----------
@@ -4832,7 +4884,23 @@ function update(dt) {
   if (typeof robotUpdate === 'function') robotUpdate(dt);
   updateParticles(dt);
   curTarget = (G.started && !G.modal) ? computeTarget() : null;
+  renderAimTip();
   if (dirtyChunks.size) flushDirty();
+}
+
+// パソコン: まだ 図鑑に ない ブロック(か「しらべる」ミッションの とき)に カーソルを あてると おしえる
+let aimTipHtml = '';
+function renderAimTip() {
+  const el = $('aimTip'); if (!el) return;
+  const m = courseMission(COURSES[0]);
+  const show = keyMode() && MOUSE.in && curTarget && BLOCKS[curTarget.id] && !BLOCKS[curTarget.id].event &&
+    (G.inspArm || !G.zukan[curTarget.id] || (m && m.key === 'inspect'));
+  if (!show) { if (el.style.display !== 'none') el.style.display = 'none'; return; }
+  const r = canvasEl.getBoundingClientRect();
+  el.style.display = 'block';
+  el.style.left = (MOUSE.x - r.left + 16) + 'px'; el.style.top = (MOUSE.y - r.top + 14) + 'px';
+  const html = G.inspArm ? T('🔍 クリックで しらべる') : T('🔍 Q か まんなかクリックで しらべる');
+  if (html !== aimTipHtml) { el.innerHTML = html; aimTipHtml = html; }
 }
 
 function render() {
@@ -4875,7 +4943,7 @@ function boot() {
   }
   genWorld(world.seed);
   markAllDirty(); flushDirty();
-  if (!G.mBase) snapshotBase();
+  if (!G.mBases) snapshotBase();
   robotInit();
   if (world.pendingProgram) restoreProgram(world.pendingProgram);
   try { G.saveSigNow = saveSig(); } catch (e) { /* 何もしない */ }
@@ -4905,7 +4973,13 @@ function setupUI() {
   $('hwBtn').onclick = () => openHw();
   $('viewBtn').onclick = () => cycleView();
   $('skinBtn').onclick = () => openSkin();
-  ['bZukan', 'bRobot', 'bLab', 'bTeacher', 'bMission', 'menuBtn', 'invBtn', 'hwBtn', 'viewBtn', 'skinBtn'].forEach(id => {
+  $('inspBtn').onclick = () => {
+    if (!keyMode()) { actInspect(); return; }
+    G.inspArm = !G.inspArm;
+    document.body.classList.toggle('inspArm', G.inspArm);
+    if (G.inspArm) toast('🔍 ' + T('しらべたい ブロックを クリックしてね'));
+  };
+  ['bZukan', 'bRobot', 'bLab', 'bTeacher', 'bMission', 'menuBtn', 'invBtn', 'hwBtn', 'viewBtn', 'skinBtn', 'inspBtn'].forEach(id => {
     $(id).addEventListener('pointerdown', e => e.stopPropagation());
   });
 }
@@ -4916,7 +4990,7 @@ Object.assign(window.__game, {
   openProgram, openZukan, openLab, openTeacher, openMissions, openMenu, openInventory, closeModal, setLevel, startGame,
   showTitle, setBlock, getB, solidAt, checkMissions, currentMission, MISSIONS, FAQ, RECIPES, PLACEABLE, resetAll, saveNow,
   readSave, respawn, renderProgram, showBlockInfo, raycast, genWorld, markAllDirty, flushDirty, addCard, execNodes, astFeatures,
-  cloudSave, cloudPull, saveSig, openDaily, keyMode, aimRay, MOUSE, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
+  cloudSave, cloudPull, saveSig, openDaily, COURSES, courseMission, keyMode, aimRay, MOUSE, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
   startTutorial, endTutorial, tutGoto: i => { TUT.i = i; tutInitStep(); }, tutState: () => ({ on: TUT.on, i: TUT.i, n: TUT.steps.length, doneAt: TUT.doneAt }), tutSeen, findNode, progState: () => ({ target: progTarget }), collectDefs, setBarMode, dirtyChunks
 });
 
