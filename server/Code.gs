@@ -25,7 +25,7 @@ var SAVE_MAX = 600000;   // 1人あたり保存できる文字数の上限
 var SAVE_CHUNK = 40000;  // 1セルに入れる文字数(セルの上限は5万字)
 
 function doGet() {
-  return out_('soragokoro-craft ok v6 (login+token, 番号, ともだち, チャット)');
+  return out_('soragokoro-craft ok v7 (login+token, 番号, ともだち, チャット, セーブのうわがき防止)');
 }
 
 function doPost(e) {
@@ -43,6 +43,9 @@ function doPost(e) {
     // ★ 10/9 より前の通行証はログインID（「かなた」など）で出していたので、番号に直す
     d.id = toNo_(d.id);
     if (!d.id) return isApi ? json_({ ok: false, error: 'auth' }) : out_('denied');
+    // チャットは キャッシュだけ つかうので、ロックを またない(セーブや よみこみを おくらせない)
+    if (d.action === 'chatpoll') return json_(chatPoll_(d));
+    if (d.action === 'chat') return json_(chatSend_(d));
     lock.waitLock(20000);
     if (d.action === 'save') return json_(save_(d));
     if (d.action === 'load') return json_(load_(d));
@@ -52,8 +55,6 @@ function doPost(e) {
     if (d.action === 'visit') return json_(visit_(d));
     if (d.action === 'gift') return json_(gift_(d));
     if (d.action === 'inbox') return json_(inbox_(d));
-    if (d.action === 'chatpoll') return json_(chatPoll_(d));
-    if (d.action === 'chat') return json_(chatSend_(d));
     record_(d);
     return out_('ok');
   } catch (err) {
@@ -288,12 +289,18 @@ function getSheet_(name, header, hidden) {
 
 // ---- クラウドセーブ ----
 // セーブ: 1人分を 40000字ずつに分けて「セーブ」シート(非表示)に入れる。A=ID B=時刻 C=番号 D=データ
+// base: その たんまつが さいごに よんだ/おくった ときの サーバーの時刻(-1 = わからない)。
+// べつの たんまつが そのあとに 保存していたら うわがきしない(はじめからの せかいで つづきを けさない)。base が ない 古い画面は これまでどおり
 function save_(d) {
   var id = norm_(d.id), data = String(d.data || '');
   if (!id || !data) return { ok: false, error: 'empty' };
   if (data.length > SAVE_MAX) return { ok: false, error: 'big' };
   var ts = num_(d.ts);
   var sh = getSheet_(SH_SAVE, ['ID', '更新(ミリ秒)', '番号', 'データ'], true);
+  if (d.base !== undefined && d.base !== null) {
+    var cur = saveTs_(sh, id);
+    if (cur > 0 && cur !== Number(d.base)) return { ok: false, error: 'conflict', ts: cur };
+  }
   removeSaveRows_(sh, id);
   var rows = [];
   for (var i = 0, seq = 0; i < data.length; i += SAVE_CHUNK, seq++) rows.push([id, ts, seq, data.substr(i, SAVE_CHUNK)]);
@@ -302,6 +309,13 @@ function save_(d) {
   sh.getRange(start, 1, rows.length, 4).setNumberFormat('@');
   sh.getRange(start, 1, rows.length, 4).setValues(rows);
   return { ok: true, ts: ts, parts: rows.length };
+}
+function saveTs_(sh, id) {
+  var last = sh.getLastRow();
+  if (last < 2) return 0;
+  var rows = sh.getRange(2, 1, last - 1, 2).getDisplayValues();
+  for (var i = 0; i < rows.length; i++) if (norm_(rows[i][0]) === id) return Number(rows[i][1]) || 0;
+  return 0;
 }
 function removeSaveRows_(sh, id) {
   var last = sh.getLastRow();

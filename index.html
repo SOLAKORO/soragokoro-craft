@@ -2744,6 +2744,7 @@ function showTitle() { G.started = false; $('title').style.display = 'flex'; ren
 function startGame() {
   // ログインが ひつような ときは、ログインしていないと はいれない
   if (typeof loginMode === 'function' && loginMode() && !loadPlayer().auth) { renderTitle(); return; }
+  if (typeof cloudBooting !== 'undefined' && cloudBooting) return;
   readTitleProfile();
   ensureAudio();
   G.started = true;
@@ -2967,6 +2968,7 @@ function doLogin(id, pw) {
       clearTimeout(timer); loginBusy = false;
       if (!r || !r.ok || !r.token) { loginMsg = (r && r.error) || 'server'; if (loginMsg === 'ok') loginMsg = 'badresp'; loginDetail = String((r && r.detail) || '').slice(0, 120); loginNetErr = false; renderTitle(); return false; }
       savePlayer({ id: String(r.id), name: String(r.name), grade: String(r.grade || ''), auth: true, token: String(r.token), exp: +r.exp || 0 });
+      if (typeof cloudBase !== 'undefined') cloudBase = -1;
       loginBusy = true; loginMsg = ''; renderTitle();
       // サーバーに あずけた せかいが あたらしければ、それを つかう
       return (typeof cloudPull === 'function' ? cloudPull() : Promise.resolve(false)).catch(() => false).then(() => {
@@ -2985,6 +2987,7 @@ function doLogout() {
   if (G.started) saveNow();
   if (typeof cloudSave === 'function') cloudSave(true); // ログアウトする前に あずける
   savePlayer({ id: '', name: '', grade: '', auth: false, token: '', exp: 0 });
+  if (typeof cloudBase !== 'undefined') cloudBase = -1;
   loadUserWorld();
   G.guest = false; loginMsg = '';
   renderAllText();
@@ -3004,7 +3007,8 @@ function titleWelcomeHTML() {
     '<div style="font-weight:800">' + T('{漢字|かんじ}の レベルを えらんでね') + '</div>' +
     '<div class="lvs" id="tLv">' + levelCards(G.level) + '</div>' +
     '<div id="evtBanner"></div>' +
-    '<button class="btn ok go" id="tGo">▶ ' + T('はじめる') + '</button>' +
+    (typeof cloudBooting !== 'undefined' && cloudBooting ? '<button class="btn ok go" id="tGo" disabled>☁️ ' + T('つづきを よみこみちゅう…') + '</button>'
+      : '<button class="btn ok go" id="tGo">▶ ' + T('はじめる') + '</button>') +
     '<button class="tlink" id="lOut">' + T('べつの ひとが あそぶ') + '</button>';
 }
 function titleTeacherHTML() {
@@ -3218,6 +3222,9 @@ document.addEventListener('pointerdown', e => { if (TUT.on && e.target && e.targ
 // ミッションクリア・きょうのチャレンジで もらえるポイントも ここから おくる。
 const CLOUD_EVERY = 45;     // 秒ごとに かわっていたら あずける
 let cloudBusy = false, cloudSig = '', cloudAcc = 0, cloudTooBig = false;
+// サーバーの ほぞんの じかん(さいごに よんだ/おくった とき)。-1 は まだ わからない。
+// おくる ときに いっしょに つたえ、べつの たんまつが あとから ほぞんしていたら サーバーが ことわる(つづきを けさない)
+let cloudBase = -1, cloudBooting = false;
 
 function cloudOn() { const p = loadPlayer(); return loginMode() && p.auth && !!p.token && !!getSyncUrl(); }
 
@@ -3276,6 +3283,7 @@ async function cloudSave(force) {
   const sig = saveSig();
   if (!force && sig === cloudSig) return false;
   const p = loadPlayer(); // いまの ユーザー(あとで ログアウトされても この人の分として おくる)
+  const base = cloudBase;
   let s;
   try { s = JSON.stringify(collectSave()); } catch (e) { return false; }
   const ts = G.saveTs || Date.now();
@@ -3283,21 +3291,30 @@ async function cloudSave(force) {
   try {
     const packed = await packStr(s);
     if (packed.length > 580000) { cloudTooBig = true; return false; }
-    const r = await cloudPost(p, { action: 'save', ts: ts, data: packed }, 20000);
-    if (r && r.ok) { cloudSig = sig; return true; }
+    const r = await cloudPost(p, { action: 'save', ts: ts, base: base, data: packed }, 20000);
+    if (r && r.ok) { cloudSig = sig; if (loadPlayer().id === p.id) cloudBase = ts; return true; }
+    if (r && r.error === 'conflict' && loadPlayer().id === p.id) {
+      // サーバーに ある ほぞんが、この たんまつで よみこんだ ものより ふるければ、うわがきして だいじょうぶ
+      const cur = +r.ts || 0;
+      if (cur <= (G.loadedTs || 0)) cloudBase = cur;
+      else if (await cloudPull(true)) cloudAdopt();   // べつの たんまつの つづきを つかう
+    }
     return false;
   } finally { cloudBusy = false; }
 }
 
-// よみこむ。サーバーの ほうが あたらしければ、この たんまつの ほぞんを おきかえる。
-async function cloudPull() {
+// よみこむ。サーバーの ほうが あたらしければ(force=true なら かならず)、この たんまつの ほぞんを おきかえる。
+async function cloudPull(force) {
   if (!cloudOn()) return false;
   const p = loadPlayer();
-  const r = await cloudPost(p, { action: 'load' }, 9000);
-  if (!r || !r.ok || !r.data) return false;
+  let r = await cloudPost(p, { action: 'load' }, 20000);
+  if (!r || !r.ok) r = await cloudPost(p, { action: 'load' }, 20000);   // つながらなければ もう1かい
+  if (!r || !r.ok || loadPlayer().id !== p.id) return false;
+  cloudBase = +r.ts || 0;
+  if (!r.data) return false;
   let local = null;
   try { local = readSave(); } catch (e) { local = null; }
-  if ((+r.ts || 0) <= ((local && local.ts) || 0)) return false;
+  if (!force && (+r.ts || 0) <= ((local && local.ts) || 0)) return false;
   try {
     const s = await unpackStr(r.data);
     const d = JSON.parse(s);
@@ -3309,12 +3326,24 @@ async function cloudPull() {
   } catch (e) { return false; }
 }
 
-// ひらいた ままで ログインずみの とき(つづきから)
+// べつの たんまつの つづきを よみこんだ あと
+function cloudAdopt() {
+  loadUserWorld();
+  renderAllText();
+  if (G.started) toast('☁️ ' + T('べつの たんまつで あそんだ つづきを よみこんだよ'));
+  else renderTitle();
+}
+
+// ひらいた ままで ログインずみの とき(つづきから)。よみおわるまで「はじめる」は まってもらう
 function cloudBoot() {
   earnLoad(); earnFlush();
   if (!cloudOn()) return;
-  cloudPull().then(applied => {
-    if (applied && !G.started) { loadUserWorld(); renderTitle(); }
+  cloudBooting = true;
+  if (!G.started) renderTitle();
+  cloudPull().catch(() => false).then(applied => {
+    cloudBooting = false;
+    if (applied) cloudAdopt();
+    else if (!G.started) renderTitle();
   });
 }
 
@@ -6459,6 +6488,7 @@ function loadUserWorld() {
   robotInit();
   if (world.pendingProgram) restoreProgram(world.pendingProgram);
   try { G.saveSigNow = saveSig(); } catch (e) { /* 何もしない */ }
+  G.loadedTs = G.saveTs;   // この たんまつで よみこんだ ほぞんの じかん(サーバーと くらべる)
   renderHotbar(); renderMissionChip(); closeInfo();
   return !!d;
 }
@@ -7300,7 +7330,7 @@ Object.assign(window.__game, {
   openProgram, openZukan, openLab, openTeacher, openMissions, openMenu, openInventory, closeModal, setLevel, startGame,
   showTitle, setBlock, getB, solidAt, checkMissions, currentMission, MISSIONS, FAQ, RECIPES, PLACEABLE, resetAll, saveNow,
   readSave, respawn, renderProgram, showBlockInfo, raycast, genWorld, markAllDirty, flushDirty, addCard, execNodes, astFeatures,
-  cloudSave, cloudPull, saveSig, openDaily, chatPoll, chatSend, CHAT, openFriends, visitFriend, leaveFriend, inboxCheck, fvNow: () => FV, seaSteps, fishList: () => fishes, fishAim, fishInspect, geoSteps, VOLC, openStamps, sendStamp, visitStart, visitNow: () => visitor, visitHappy, worldToScreen, STAMPS, openHouse, houseCheck, houseRun, furnQuiz, FURN, doorToggle, openMap, switchArea, AREAS, animalsList: () => animals, animalAim, animalPet, animalInspect, openFarm, farmGrow, farmPlantAt, tyState, WX, CROP_DEFS, COURSES, courseMission, keyMode, aimRay, MOUSE, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
+  cloudSave, cloudPull, cloudBaseNow: () => cloudBase, saveSig, openDaily, chatPoll, chatSend, CHAT, openFriends, visitFriend, leaveFriend, inboxCheck, fvNow: () => FV, seaSteps, fishList: () => fishes, fishAim, fishInspect, geoSteps, VOLC, openStamps, sendStamp, visitStart, visitNow: () => visitor, visitHappy, worldToScreen, STAMPS, openHouse, houseCheck, houseRun, furnQuiz, FURN, doorToggle, openMap, switchArea, AREAS, animalsList: () => animals, animalAim, animalPet, animalInspect, openFarm, farmGrow, farmPlantAt, tyState, WX, CROP_DEFS, COURSES, courseMission, keyMode, aimRay, MOUSE, cycleView, cameraNow, openSkin, skinFetch, currentSkin, SKIN, SKINS, openHw, hwPhase, hwLanterns, hwPrankLeft, hwStartVisit, earnFlush, jstToday, dailyDef, dailyGot, dailyStreakNow, dailyEnsure, collectSave,
   startTutorial, endTutorial, tutGoto: i => { TUT.i = i; tutInitStep(); }, tutState: () => ({ on: TUT.on, i: TUT.i, n: TUT.steps.length, doneAt: TUT.doneAt }), tutSeen, findNode, progState: () => ({ target: progTarget }), collectDefs, setBarMode, dirtyChunks
 });
 
